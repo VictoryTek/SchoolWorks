@@ -144,7 +144,7 @@ export function TransportationRequestDetailPage() {
     : '—';
 
   return (
-    <Box sx={{ p: 3, maxWidth: 960, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 960, mx: 'auto' }}>
       {/* Nav */}
       <Button
         startIcon={<ArrowBackIcon />}
@@ -156,8 +156,8 @@ export function TransportationRequestDetailPage() {
       </Button>
 
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <Typography variant="h4" component="h1">Transportation Request</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+        <Typography variant={isMobile ? 'h5' : 'h4'} component="h1">Transportation Request</Typography>
         <Chip
           label={TRANSPORTATION_REQUEST_STATUS_LABELS[status] ?? status}
           color={TRANSPORTATION_REQUEST_STATUS_COLORS[status] ?? 'default'}

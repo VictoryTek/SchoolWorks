@@ -187,16 +187,16 @@ export function FieldTripDetailPage() {
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 900, mx: 'auto' }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
         <Box>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
             <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/field-trips')}>
               Back
             </Button>
           </Box>
-          <Typography variant="h4" component="h1">{trip.destination}</Typography>
+          <Typography variant={isMobile ? 'h5' : 'h4'} component="h1">{trip.destination}</Typography>
           <Typography variant="subtitle1" color="text.secondary">{tripDateStr}</Typography>
         </Box>
         <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>

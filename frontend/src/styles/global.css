@@ -799,4 +799,9 @@ body {
   .stat-value {
     font-size: 1.5rem;
   }
+
+  /* Reduce Paper/Card padding on detail pages for mobile */
+  .MuiPaper-root {
+    padding: 16px !important;
+  }
 }

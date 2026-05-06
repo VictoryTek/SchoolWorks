@@ -251,7 +251,7 @@ export default function WorkOrderDetailPage() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Breadcrumb */}
       <Breadcrumbs sx={{ mb: 2 }}>
         <Link component={RouterLink} to="/work-orders" underline="hover" color="inherit">
@@ -279,7 +279,7 @@ export default function WorkOrderDetailPage() {
         </Box>
 
         {/* Action buttons */}
-        <Box sx={{ display: 'flex', gap: 1 }}>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
           {workOrder.status === 'CLOSED' && (
             <Button
               variant="outlined"

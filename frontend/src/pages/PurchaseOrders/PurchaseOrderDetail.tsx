@@ -342,7 +342,7 @@ export default function PurchaseOrderDetail() {
 
   // ── Render ──
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* ── Breadcrumbs ── */}
       <Breadcrumbs sx={{ mb: 2 }}>
         <Link component={RouterLink} to="/purchase-orders" underline="hover" color="inherit">
@@ -366,8 +366,8 @@ export default function PurchaseOrderDetail() {
         <Box>
 
           {/* PO Header */}
-          <Paper sx={{ p: 3, mb: 2 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+          <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 2 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 1, mb: 2 }}>
               <Box>
                 <Typography variant="h5" fontWeight={700} gutterBottom>
                   {po.description}
@@ -387,7 +387,7 @@ export default function PurchaseOrderDetail() {
 
             <Divider sx={{ my: 2 }} />
 
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 2 }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(auto-fill, minmax(160px, 1fr))' }, gap: 2 }}>
               <Box>
                 <Typography variant="caption" color="text.secondary">Requested By</Typography>
                 <Typography variant="body2">{po.User.firstName} {po.User.lastName}</Typography>
@@ -510,8 +510,8 @@ export default function PurchaseOrderDetail() {
             </TableContainer>
 
             {/* Financial Summary */}
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
-              <Box sx={{ minWidth: 280 }}>
+            <Box sx={{ mt: 2, display: 'flex', justifyContent: { xs: 'stretch', sm: 'flex-end' } }}>
+              <Box sx={{ minWidth: { xs: 'auto', sm: 280 }, width: { xs: '100%', sm: 'auto' } }}>
                 {(() => {
                   const subtotal = po.po_items.reduce((s, i) => s + Number(i.totalPrice), 0);
                   const shipping = Number(po.shippingCost ?? 0);
@@ -599,7 +599,7 @@ export default function PurchaseOrderDetail() {
 
         {/* ── Right column: actions ── */}
         <Box>
-          <Paper sx={{ p: 2, position: 'sticky', top: 80 }}>
+          <Paper sx={{ p: 2, position: { xs: 'static', md: 'sticky' }, top: 80 }}>
             <Typography variant="h6" gutterBottom>Actions</Typography>
 
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
