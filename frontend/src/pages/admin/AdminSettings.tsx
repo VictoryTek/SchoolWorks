@@ -202,7 +202,6 @@ const WORK_ORDER_STATUS_LABELS: Record<string, string> = {
 // ---------------------------------------------------------------------------
 
 export default function AdminSettings() {
-  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -652,6 +651,7 @@ interface FiscalYearTabProps {
 }
 
 function FiscalYearTab({ settings, isFiscalYearExpired }: FiscalYearTabProps) {
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(0);
