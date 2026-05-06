@@ -300,6 +300,7 @@ export class UserRoomAssignmentService {
 
   /**
    * Unassign a single user from a room.
+   * Also clears primaryRoomId if it points to the same room being unassigned.
    */
   async unassignUserFromRoom(roomId: string, userId: string) {
     try {
@@ -315,6 +316,12 @@ export class UserRoomAssignmentService {
       }
       throw error;
     }
+
+    // Clear primaryRoomId if it points to the room being unassigned
+    await this.prisma.user.updateMany({
+      where: { id: userId, primaryRoomId: roomId },
+      data: { primaryRoomId: null },
+    });
 
     logger.info('User unassigned from room', { roomId, userId });
   }

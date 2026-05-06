@@ -284,7 +284,7 @@ export const unassignUserFromRoom = async (
 };
 /**
  * PUT /api/room-assignments/user/:userId/primary-room
- * Set or clear the primary room for a user. Admin only.
+ * Set or clear the primary room for a user. Admin or primary supervisor.
  */
 export const setPrimaryRoom = async (req: AuthRequest, res: Response) => {
   try {
@@ -300,6 +300,45 @@ export const setPrimaryRoom = async (req: AuthRequest, res: Response) => {
     }
 
     const { roomId } = bodyResult.data;
+
+    // Determine locationId for authorization scope check
+    let locationId: string | null = null;
+
+    if (roomId) {
+      // Setting a primary room — use target room's location
+      const targetRoom = await prisma.room.findUnique({
+        where: { id: roomId },
+        select: { locationId: true },
+      });
+      if (targetRoom) {
+        locationId = targetRoom.locationId;
+      }
+    } else {
+      // Clearing primary room — use the user's current primaryRoom's location
+      const targetUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { primaryRoom: { select: { locationId: true } } },
+      });
+      if (targetUser?.primaryRoom) {
+        locationId = targetUser.primaryRoom.locationId;
+      }
+    }
+
+    if (locationId) {
+      await assertAdminOrPrimarySupervisor(req, locationId);
+    } else {
+      // No location context available — fall back to admin-only
+      if (!req.user) {
+        throw new AuthorizationError('Authentication required');
+      }
+      const adminGroupId = process.env.ENTRA_ADMIN_GROUP_ID;
+      const isAdmin =
+        req.user.roles.includes('ADMIN') ||
+        (adminGroupId != null && req.user.groups.includes(adminGroupId));
+      if (!isAdmin) {
+        throw new AuthorizationError('Admin access required');
+      }
+    }
 
     const result = await service.setPrimaryRoom(userId, roomId);
 

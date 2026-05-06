@@ -94,11 +94,10 @@ router.delete(
 
 /**
  * PUT /api/room-assignments/user/:userId/primary-room
- * Set or clear the primary room for a user. Admin only.
+ * Set or clear the primary room for a user. Admin or primary supervisor.
  */
 router.put(
   '/room-assignments/user/:userId/primary-room',
-  requireAdmin,
   validateCsrfToken,
   validateRequest(UserIdParamSchema, 'params'),
   controller.setPrimaryRoom
