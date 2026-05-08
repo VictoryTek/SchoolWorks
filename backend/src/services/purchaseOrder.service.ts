@@ -197,7 +197,7 @@ export class PurchaseOrderService {
     }
 
     const itemsTotal = data.items.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
+      (sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice,
       0,
     );
     const totalAmount = itemsTotal + (data.shippingCost ?? 0);
@@ -221,7 +221,7 @@ export class PurchaseOrderService {
           fiscalYear:       settings.currentFiscalYear,
           workflowType:     data.workflowType ?? 'standard',
           po_items: {
-            create: data.items.map((item, index) => ({
+            create: data.items.map((item: { description: string; lineNumber?: number; model?: string | null; quantity: number; unitPrice: number }, index: number) => ({
               description: item.description,
               lineNumber:  item.lineNumber ?? index + 1,
               model:       item.model ?? null,
@@ -547,7 +547,7 @@ export class PurchaseOrderService {
     }
 
     const itemsTotal = data.items
-      ? data.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+      ? data.items.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0)
       : Number(po.amount) - Number(po.shippingCost ?? 0);
     const totalAmount = itemsTotal + (data.shippingCost ?? Number(po.shippingCost ?? 0));
 
@@ -556,7 +556,7 @@ export class PurchaseOrderService {
       if (data.items) {
         await tx.po_items.deleteMany({ where: { poId: id } });
         await tx.po_items.createMany({
-          data: data.items.map((item, index) => ({
+          data: data.items.map((item: { description: string; lineNumber?: number; model?: string | null; quantity: number; unitPrice: number }, index: number) => ({
             poId:        id,
             description: item.description,
             lineNumber:  item.lineNumber ?? index + 1,
