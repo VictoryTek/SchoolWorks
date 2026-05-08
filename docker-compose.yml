@@ -73,8 +73,10 @@ services:
   # Frontend (Nginx serving React SPA + reverse proxy to backend)
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      # Context must be the monorepo root so the Vite alias
+      # (@mgspe/shared-types → ../shared/src/index.ts) resolves in the container.
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         VITE_API_URL: /api
         VITE_ENTRA_CLIENT_ID: ${ENTRA_CLIENT_ID}

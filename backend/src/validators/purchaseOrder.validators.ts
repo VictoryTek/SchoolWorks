@@ -3,9 +3,17 @@
  *
  * Follows the exact pattern of fundingSource.validators.ts.
  * All schemas exported individually; TypeScript types inferred via z.infer<>.
+ *
+ * CreatePurchaseOrderSchema and UpdatePurchaseOrderSchema are the shared
+ * authoritative schemas imported from @mgspe/shared-types so that the frontend
+ * can consume the same validation rules.
  */
 
 import { z } from 'zod';
+import {
+  CreatePurchaseOrderSchema,
+  UpdatePurchaseOrderSchema,
+} from '@mgspe/shared-types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -23,32 +31,14 @@ export const PO_VALID_STATUSES = [
 
 export type POStatus = (typeof PO_VALID_STATUSES)[number];
 
+// Re-export shared Create/Update schemas so existing route imports still work
+export { CreatePurchaseOrderSchema, UpdatePurchaseOrderSchema };
+
 // ---------------------------------------------------------------------------
 // ID param schema
 // ---------------------------------------------------------------------------
 
-export const PurchaseOrderIdParamSchema = z.object({
-  id: z.string().uuid('Invalid purchase order ID format'),
-});
-
-// ---------------------------------------------------------------------------
-// Line item sub-schema (used inside CreatePurchaseOrderSchema)
-// ---------------------------------------------------------------------------
-
-const PoItemSchema = z.object({
-  description: z
-    .string()
-    .min(1, 'Item description is required')
-    .max(500, 'Description must be 500 characters or less'),
-  quantity: z
-    .number({ error: 'Quantity must be a number' })
-    .int('Quantity must be a whole number')
-    .positive('Quantity must be greater than zero'),
-  unitPrice: z
-    .number({ error: 'Unit price must be a number' })
-    .positive('Unit price must be greater than zero'),
-  lineNumber: z.number().int().positive().optional(),
-  model: z.string().max(200, 'Model must be 200 characters or less').optional().nullable(),
+export const PurchaseOrderIdParamSchema = z.object({  id: z.string().uuid('Invalid purchase order ID format'),
 });
 
 // ---------------------------------------------------------------------------
@@ -104,46 +94,6 @@ export const PurchaseOrderQuerySchema = z.object({
   ).optional(),
   workflowType: z.enum(['standard', 'food_service']).optional(),
 });
-
-// ---------------------------------------------------------------------------
-// POST /purchase-orders — create
-// ---------------------------------------------------------------------------
-
-export const CreatePurchaseOrderSchema = z.object({
-  title: z
-    .string()
-    .max(200, 'Title must be 200 characters or less')
-    .optional()
-    .default('Purchase Order'),
-  type: z.string().min(1).max(100).optional().default('general'),
-  vendorId: z.string().uuid('Invalid vendor ID format'),
-  shipTo: z.string().max(500, 'Ship-to address must be 500 characters or less').optional().nullable(),
-  shipToType: z.enum(['entity', 'my_office', 'custom']).optional().nullable(),
-  shippingCost: z
-    .number({ error: 'Shipping cost must be a number' })
-    .min(0, 'Shipping cost cannot be negative')
-    .optional()
-    .nullable(),
-  notes: z.string().max(2000, 'Notes must be 2000 characters or less').optional().nullable(),
-  program: z.string().max(200, 'Program must be 200 characters or less').optional().nullable(),
-  officeLocationId: z.string().uuid('Invalid location ID').optional().nullable(),
-  entityType: z
-    .enum(['SCHOOL', 'DEPARTMENT', 'PROGRAM'])
-    .optional()
-    .nullable(),
-  items: z
-    .array(PoItemSchema)
-    .min(1, 'At least one line item is required')
-    .max(100, 'Cannot exceed 100 line items'),
-  workflowType: z.enum(['standard', 'food_service']).optional().default('standard'),
-});
-
-// ---------------------------------------------------------------------------
-// PUT /purchase-orders/:id — update (all fields optional)
-// workflowType is omitted — it is immutable after creation.
-// ---------------------------------------------------------------------------
-
-export const UpdatePurchaseOrderSchema = CreatePurchaseOrderSchema.partial().omit({ workflowType: true });
 
 // ---------------------------------------------------------------------------
 // POST /purchase-orders/:id/approve — approve at current stage

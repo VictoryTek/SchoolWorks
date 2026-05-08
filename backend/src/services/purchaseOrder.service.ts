@@ -11,6 +11,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import { logger } from '../lib/logger';
+import { sanitizeText } from '../utils/redact';
 import {
   CreatePurchaseOrderDto,
   UpdatePurchaseOrderDto,
@@ -208,10 +209,10 @@ export class PurchaseOrderService {
           type:             data.type ?? 'general',
           requestorId,
           vendorId:         data.vendorId ?? null,
-          shipTo:           data.shipTo ?? null,
+          shipTo:           data.shipTo != null ? sanitizeText(data.shipTo) : null,
           shipToType:       data.shipToType ?? null,
           shippingCost:     data.shippingCost != null ? new Prisma.Decimal(data.shippingCost) : null,
-          notes:            data.notes ?? null,
+          notes:            data.notes != null ? sanitizeText(data.notes) : null,
           program:          data.program ?? null,
           officeLocationId: data.officeLocationId ?? null,
           entityType:       resolvedEntityType,
@@ -573,10 +574,10 @@ export class PurchaseOrderService {
           ...(data.title            !== undefined && { description:      data.title }),
           ...(data.type             !== undefined && { type:             data.type }),
           ...(data.vendorId         !== undefined && { vendorId:         data.vendorId }),
-          ...(data.shipTo           !== undefined && { shipTo:           data.shipTo }),
+          ...(data.shipTo           !== undefined && { shipTo:           data.shipTo != null ? sanitizeText(data.shipTo) : null }),
           ...(data.shipToType       !== undefined && { shipToType:       data.shipToType }),
           ...(data.shippingCost     !== undefined && { shippingCost:     data.shippingCost != null ? new Prisma.Decimal(data.shippingCost) : null }),
-          ...(data.notes            !== undefined && { notes:            data.notes }),
+          ...(data.notes            !== undefined && { notes:            data.notes != null ? sanitizeText(data.notes) : null }),
           ...(data.program          !== undefined && { program:          data.program }),
           ...(data.officeLocationId !== undefined && { officeLocationId: data.officeLocationId }),
           ...(resolvedEntityType    !== undefined && { entityType:       resolvedEntityType }),

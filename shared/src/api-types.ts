@@ -4,13 +4,10 @@
  */
 
 import { 
-  User, 
   UserWithPermissions, 
-  OfficeLocation, 
   OfficeLocationWithSupervisors,
   Room,
   RoomWithLocation,
-  LocationSupervisor,
   UserRole,
   LocationType,
   SupervisorType,

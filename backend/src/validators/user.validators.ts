@@ -40,7 +40,7 @@ export const SupervisorIdParamSchema = z.object({
 export const GetUsersQuerySchema = z.object({
   page: z.string().optional().transform((val) => val ? parseInt(val, 10) : 1),
   limit: z.string().optional().transform((val) => val ? parseInt(val, 10) : 50),
-  search: z.string().optional().default(''),
+  search: z.string().max(200, 'Search term must be 200 characters or fewer').optional().default(''),
   accountType: z.enum(['all', 'staff', 'student']).optional(),
 });
 
@@ -65,7 +65,7 @@ export const AddUserSupervisorSchema = z.object({
  * Validation schema for user search autocomplete query parameters
  */
 export const SearchUsersQuerySchema = z.object({
-  q: z.string().optional().default(''),
+  q: z.string().max(200, 'Search term must be 200 characters or fewer').optional().default(''),
   limit: z.coerce.number().int().positive().max(50).default(20).optional(),
 });
 

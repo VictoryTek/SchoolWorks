@@ -4,6 +4,17 @@
  */
 
 /**
+ * Strip HTML tags and null bytes from free-text inputs to prevent stored XSS.
+ * Use on any user-supplied text field before persisting to the database.
+ */
+export function sanitizeText(input: string): string {
+  return input
+    .replace(/<[^>]*>/g, '')   // strip HTML tags
+    .replace(/\0/g, '')        // strip null bytes
+    .trim();
+}
+
+/**
  * Redact sensitive data from logs
  * Recursively searches for and redacts sensitive field names
  */

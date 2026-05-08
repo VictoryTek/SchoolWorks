@@ -100,6 +100,19 @@ export const GetInventoryQuerySchema = z.object({
 });
 
 /**
+ * Constrained custom fields schema — max 20 key-value pairs,
+ * keys max 50 chars (alphanumeric/underscore/hyphen),
+ * values max 500 chars (string), or number, boolean, null
+ */
+const CustomFieldsSchema = z.record(
+  z.string().min(1).max(50).regex(/^[a-zA-Z0-9_-]+$/, 'Key must be alphanumeric, underscore, or dash'),
+  z.union([z.string().max(500), z.number(), z.boolean(), z.null()])
+).refine(
+  (val) => Object.keys(val).length <= 20,
+  { message: 'Cannot exceed 20 custom fields' }
+).optional();
+
+/**
  * Validation schema for creating a new inventory item
  */
 export const CreateInventorySchema = z.object({
@@ -134,6 +147,7 @@ export const CreateInventorySchema = z.object({
   status: EquipmentStatus.optional(),
   condition: EquipmentCondition.optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
+  customFields: CustomFieldsSchema,
 });
 
 /**
@@ -180,6 +194,7 @@ export const UpdateInventorySchema = z.object({
     z.date()
   ]).optional().nullable(),
   notes: z.string().max(2000).optional().nullable(),
+  customFields: CustomFieldsSchema,
 });
 
 /**

@@ -28,6 +28,7 @@ import {
   Divider,
   FormControl,
   FormControlLabel,
+  FormHelperText,
   FormLabel,
   IconButton,
   InputLabel,
@@ -52,10 +53,16 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { z } from 'zod';
+import { getFieldError } from '../../utils/formHelpers';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { CreatePurchaseOrderSchema } from '@mgspe/shared-types';
+import type { CreatePurchaseOrderInput } from '@mgspe/shared-types';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/store/authStore';
 import { useCreatePurchaseOrder, useSubmitPurchaseOrder } from '@/hooks/mutations/usePurchaseOrderMutations';
-import type { PurchaseOrderItemInput, CreatePurchaseOrderInput, ShipToType, WorkflowType } from '@/types/purchaseOrder.types';
+import type { ShipToType } from '@/types/purchaseOrder.types';
 import { api } from '@/services/api';
 import { useIsMobile } from '@/hooks/useResponsive';
 
@@ -94,17 +101,9 @@ interface LocationOptionWithSupervisor {
   supervisors?: EntitySupervisorInfo[];
 }
 
-interface ItemRow extends PurchaseOrderItemInput {
-  _key: number; // client-side unique key for React list
-}
-
 const STEPS = ['Details', 'Line Items', 'Review'];
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function emptyItem(key: number): ItemRow {
-  return { _key: key, description: '', quantity: 1, unitPrice: 0, model: '' };
-}
 
 const formatCurrency = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
@@ -118,26 +117,53 @@ export default function RequisitionWizard() {
   const createMutation = useCreatePurchaseOrder();
   const submitMutation = useSubmitPurchaseOrder();
 
-  // Step state
+  // Step / UI state
   const [activeStep, setActiveStep] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [disregardDialogOpen, setDisregardDialogOpen] = useState(false);
 
-  // Step 1 fields
-
+  // Display-only state (vendor object and derived supervisor info — not form fields)
   const [selectedVendor, setSelectedVendor] = useState<VendorOption | null>(null);
-  const [shipTo, setShipTo] = useState('');
-  const [notes, setNotes] = useState('');
-  const [shippingCost, setShippingCost] = useState<string>('');
-  const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
-  const [shipToType, setShipToType] = useState<ShipToType>('custom');
   const [selectedEntitySupervisor, setSelectedEntitySupervisor] = useState<EntitySupervisorInfo | null>(null);
-  const [entityType, setEntityType] = useState<EntityLocationType | null>(null);
-  const [workflowType, setWorkflowType] = useState<WorkflowType>('standard');
 
-  // Step 2 fields
-  const [items, setItems] = useState<ItemRow[]>([emptyItem(0)]);
-  const [nextKey, setNextKey] = useState(1);
+  // ── React Hook Form ──
+  const {
+    control,
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    trigger,
+    formState: { errors },
+  } = useForm<z.input<typeof CreatePurchaseOrderSchema>, unknown, CreatePurchaseOrderInput>({
+    resolver: zodResolver(CreatePurchaseOrderSchema),
+    defaultValues: {
+      title: 'Purchase Order',
+      type: 'general',
+      vendorId: '',
+      shipTo: null,
+      shipToType: 'custom',
+      shippingCost: null,
+      notes: null,
+      program: null,
+      officeLocationId: null,
+      entityType: null,
+      workflowType: 'standard',
+      items: [{ description: '', quantity: 1, unitPrice: 0, model: '' }],
+    },
+  });
+
+  const { fields, append, remove } = useFieldArray({ control, name: 'items' });
+
+  // Watch values needed for computed display and step validation
+  const watchedShipTo = watch('shipTo');
+  const watchedShipToType = watch('shipToType');
+  const watchedOfficeLocationId = watch('officeLocationId');
+  const watchedEntityType = watch('entityType');
+  const watchedNotes = watch('notes');
+  const watchedWorkflowType = watch('workflowType');
+  const watchedItems = watch('items');
+  const watchedShippingCost = watch('shippingCost');
 
   // Vendor autocomplete — loads all active vendors, virtualized for performance
   const { data: vendorData, isLoading: vendorsLoading, isError: vendorsError } = useQuery({
@@ -181,99 +207,62 @@ export default function RequisitionWizard() {
 
   // Handle entity location selection: default to 'entity' ship-to type and fill address
   const handleEntityLocationChange = useCallback((locId: string | null) => {
-    setSelectedLocationId(locId);
+    setValue('officeLocationId', locId ?? null);
     if (!locId) {
-      setShipToType('custom');
-      setShipTo('');
+      setValue('shipToType', 'custom');
+      setValue('shipTo', null);
+      setValue('entityType', null);
+      setValue('workflowType', 'standard');
       setSelectedEntitySupervisor(null);
-      setEntityType(null);
-      setWorkflowType('standard');
       return;
     }
     const loc = locationOptions.find((l) => l.id === locId);
     if (!loc) return;
-    setEntityType(loc.type);
+    setValue('entityType', loc.type as EntityLocationType);
     const addressParts = [loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
     const shipToValue = addressParts ? `${loc.name}\n${addressParts}` : loc.name;
-    setShipTo(shipToValue);
-    setShipToType('entity');
+    setValue('shipTo', shipToValue);
+    setValue('shipToType', 'entity');
     const hasFsSupervisor = loc.supervisors?.some((s) => s.supervisorType === 'FOOD_SERVICES_SUPERVISOR') ?? false;
-    setWorkflowType(hasFsSupervisor ? 'food_service' : 'standard');
+    setValue('workflowType', hasFsSupervisor ? 'food_service' : 'standard');
     const expectedType = hasFsSupervisor ? 'FOOD_SERVICES_SUPERVISOR' : loc.type === 'SCHOOL' ? 'PRINCIPAL' : undefined;
     const primarySup = hasFsSupervisor
       ? loc.supervisors?.find((s) => s.supervisorType === 'FOOD_SERVICES_SUPERVISOR') ?? null
       : loc.supervisors?.find((s) => s.isPrimary && (!expectedType || s.supervisorType === expectedType)) ?? null;
     setSelectedEntitySupervisor(primarySup ?? null);
-  }, [locationOptions]);
+  }, [locationOptions, setValue]);
 
   const handleShipToTypeChange = (newType: ShipToType) => {
-    setShipToType(newType);
-    if (newType === 'entity' && selectedLocationId) {
-      const loc = locationOptions.find((l) => l.id === selectedLocationId);
+    setValue('shipToType', newType);
+    if (newType === 'entity' && watchedOfficeLocationId) {
+      const loc = locationOptions.find((l) => l.id === watchedOfficeLocationId);
       if (loc) {
         const addressParts = [loc.address, loc.city, loc.state, loc.zip].filter(Boolean).join(', ');
-        setShipTo(addressParts ? `${loc.name}\n${addressParts}` : loc.name);
+        setValue('shipTo', addressParts ? `${loc.name}\n${addressParts}` : loc.name);
       }
     } else if (newType === 'custom') {
-      setShipTo('');
+      setValue('shipTo', null);
     }
   };
 
-  // ── Step 1 validation ──
-  const step1Valid = selectedVendor !== null;
+  // ── Step navigation with trigger-based validation ──
+  const handleStep1Next = async () => {
+    const valid = await trigger(['vendorId']);
+    if (valid) setActiveStep((s) => s + 1);
+  };
 
-  // ── Step 2 validation ──
-  const step2Valid =
-    items.length > 0 &&
-    items.every(
-      (i) =>
-        i.description.trim().length > 0 &&
-        i.quantity > 0 &&
-        i.unitPrice > 0
-    );
+  const handleStep2Next = async () => {
+    const valid = await trigger(['items']);
+    if (valid) setActiveStep((s) => s + 1);
+  };
 
   // ── Item mutations ──
   const addItem = () => {
-    setItems((prev) => [...prev, emptyItem(nextKey)]);
-    setNextKey((k) => k + 1);
-  };
-
-  const removeItem = (key: number) => {
-    setItems((prev) => prev.filter((r) => r._key !== key));
-  };
-
-  const updateItem = (key: number, field: keyof Omit<ItemRow, '_key'>, value: string | number) => {
-    setItems((prev) =>
-      prev.map((r) =>
-        r._key === key ? { ...r, [field]: value } : r
-      )
-    );
+    append({ description: '', quantity: 1, unitPrice: 0, model: '' });
   };
 
   // ── Navigation ──
-  const handleNext = () => setActiveStep((s) => s + 1);
   const handleBack = () => setActiveStep((s) => s - 1);
-
-  // ── Build payload ──
-  const buildPayload = (): CreatePurchaseOrderInput => ({
-    title: selectedVendor?.name ?? 'Purchase Order',
-    vendorId: selectedVendor!.id,
-    shipTo: shipTo.trim() || null,
-    shipToType: shipToType,
-    notes: notes.trim() || null,
-    program: null,
-    shippingCost: shippingCost ? Number(shippingCost) : null,
-    officeLocationId: selectedLocationId ?? null,
-    entityType: entityType ?? null,
-    workflowType,
-    items: items.map((item, index) => ({
-      description: item.description,
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      lineNumber: index + 1,
-      model: item.model?.trim() || null,
-    })),
-  });
 
   // ── Disregard Requisition ──
   const handleDisregardClick = () => {
@@ -286,21 +275,37 @@ export default function RequisitionWizard() {
   };
 
   // ── Save as Draft ──
-  const handleSaveDraft = () => {
+  const handleSaveDraft = handleSubmit((data) => {
     setSubmitError(null);
-    createMutation.mutate(buildPayload(), {
+    const payload: CreatePurchaseOrderInput = {
+      ...data,
+      items: data.items.map((item, index) => ({
+        ...item,
+        lineNumber: index + 1,
+        model: item.model?.trim() || null,
+      })),
+    };
+    createMutation.mutate(payload, {
       onSuccess: (po) => navigate(`/purchase-orders/${po.id}`),
       onError: (err: unknown) => {
         const e = err as { response?: { data?: { message?: string } } };
         setSubmitError(e?.response?.data?.message ?? 'Failed to save draft');
       },
     });
-  };
+  });
 
   // ── Save draft then immediately submit ──
-  const handleSaveAndSubmit = () => {
+  const handleSaveAndSubmit = handleSubmit((data) => {
     setSubmitError(null);
-    createMutation.mutate(buildPayload(), {
+    const payload: CreatePurchaseOrderInput = {
+      ...data,
+      items: data.items.map((item, index) => ({
+        ...item,
+        lineNumber: index + 1,
+        model: item.model?.trim() || null,
+      })),
+    };
+    createMutation.mutate(payload, {
       onSuccess: (po) => {
         submitMutation.mutate(po.id, {
           onSuccess: () => navigate(`/purchase-orders/${po.id}`),
@@ -315,12 +320,12 @@ export default function RequisitionWizard() {
         setSubmitError(e?.response?.data?.message ?? 'Failed to create requisition');
       },
     });
-  };
+  });
 
   const isSaving = createMutation.isPending || submitMutation.isPending;
 
-  const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const shipping = Number(shippingCost) || 0;
+  const subtotal = (watchedItems ?? []).reduce((s, i) => s + (i.quantity || 0) * (i.unitPrice || 0), 0);
+  const shipping = Number(watchedShippingCost) || 0;
   const grandTotal = subtotal + shipping;
 
   // ── Render ──
@@ -364,7 +369,11 @@ export default function RequisitionWizard() {
               getOptionLabel={(o) => o.name}
               loading={vendorsLoading}
               value={selectedVendor}
-              onChange={(_, v) => setSelectedVendor(v)}
+              onChange={(_, v) => {
+                setSelectedVendor(v);
+                setValue('vendorId', v?.id ?? '', { shouldValidate: !!v });
+                setValue('title', v?.name ?? 'Purchase Order');
+              }}
               noOptionsText={
                 vendorsError
                   ? 'Failed to load vendors'
@@ -377,8 +386,8 @@ export default function RequisitionWizard() {
                   {...params}
                   label="Vendor *"
                   fullWidth
-                  helperText="Please verify that the company information is correct."
-                  error={!selectedVendor && !vendorsLoading}
+                  error={!!errors.vendorId}
+                  helperText={errors.vendorId?.message ?? 'Please verify that the company information is correct.'}
                   InputProps={{
                     ...params.InputProps,
                     endAdornment: (
@@ -435,11 +444,11 @@ export default function RequisitionWizard() {
                 </Box>
               </Box>
             )}
-            <FormControl fullWidth>
+            <FormControl fullWidth error={!!errors.officeLocationId}>
               <InputLabel id="entity-location-label">Department / Program / School / District Office</InputLabel>
               <Select
                 labelId="entity-location-label"
-                value={selectedLocationId ?? ''}
+                value={watchedOfficeLocationId ?? ''}
                 label="Department / Program / School / District Office"
                 onChange={(e) => handleEntityLocationChange(e.target.value || null)}
               >
@@ -469,6 +478,9 @@ export default function RequisitionWizard() {
                   <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
                 ))}
               </Select>
+              {errors.officeLocationId && (
+                <FormHelperText>{errors.officeLocationId.message}</FormHelperText>
+              )}
             </FormControl>
             {selectedEntitySupervisor && (
               <Box sx={{ bgcolor: 'info.50', border: '1px solid', borderColor: 'info.200',
@@ -484,27 +496,27 @@ export default function RequisitionWizard() {
                 </Typography>
               </Box>
             )}
-            {selectedLocationId && !selectedEntitySupervisor && (
+            {watchedOfficeLocationId && !selectedEntitySupervisor && (
               <Alert severity="warning" sx={{ mt: -1 }}>
                 No primary supervisor is assigned to this location. The requisition will require manual routing.
               </Alert>
             )}
-            {workflowType === 'food_service' && (
+            {watchedWorkflowType === 'food_service' && (
               <Alert severity="info" sx={{ mt: -1 }}>
                 This location uses the <strong>Food Service</strong> approval flow: Food Services Supervisor → Director of Schools → PO Issuance (skips Finance Director).
               </Alert>
             )}
-            {selectedLocationId ? (
+            {watchedOfficeLocationId ? (
               <FormControl component="fieldset">
                 <FormLabel component="legend" sx={{ mb: 1 }}>Ship To</FormLabel>
                 <RadioGroup
-                  value={shipToType}
+                  value={watchedShipToType ?? 'custom'}
                   onChange={(e) => handleShipToTypeChange(e.target.value as ShipToType)}
                 >
                   <FormControlLabel
                     value="entity"
                     control={<Radio />}
-                    label={`${locationOptions.find((l) => l.id === selectedLocationId)?.name ?? 'Selected Location'} (entity address)`}
+                    label={`${locationOptions.find((l) => l.id === watchedOfficeLocationId)?.name ?? 'Selected Location'} (entity address)`}
                   />
 
                   <FormControlLabel
@@ -513,45 +525,71 @@ export default function RequisitionWizard() {
                     label="Custom address"
                   />
                 </RadioGroup>
-                {shipToType === 'entity' ? (
+                {watchedShipToType === 'entity' ? (
                   <Box sx={{ bgcolor: 'grey.50', p: 1.5, borderRadius: 1, mt: 1 }}>
                     <Typography variant="body2" sx={{ whiteSpace: 'pre-line' }}>
-                      {shipTo || '(No address on file for this location)'}
+                      {watchedShipTo || '(No address on file for this location)'}
                     </Typography>
                   </Box>
                 ) : (
-                  <TextField
-                    label="Custom Address"
-                    value={shipTo}
-                    onChange={(e) => setShipTo(e.target.value)}
-                    fullWidth
-                    multiline
-                    minRows={2}
-                    placeholder="Enter delivery address"
-                    inputProps={{ maxLength: 500 }}
-                    sx={{ mt: 1 }}
+                  <Controller
+                    control={control}
+                    name="shipTo"
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        {...field}
+                        value={field.value ?? ''}
+                        onChange={(e) => field.onChange(e.target.value || null)}
+                        label="Custom Address"
+                        fullWidth
+                        multiline
+                        minRows={2}
+                        placeholder="Enter delivery address"
+                        inputProps={{ maxLength: 500 }}
+                        sx={{ mt: 1 }}
+                        error={!!fieldState.error}
+                        helperText={fieldState.error?.message ?? `${(field.value ?? '').length}/500`}
+                      />
+                    )}
                   />
                 )}
               </FormControl>
             ) : (
-              <TextField
-                label="Ship To"
-                value={shipTo}
-                onChange={(e) => setShipTo(e.target.value)}
-                fullWidth
-                placeholder="Delivery address"
-                inputProps={{ maxLength: 500 }}
+              <Controller
+                control={control}
+                name="shipTo"
+                render={({ field, fieldState }) => (
+                  <TextField
+                    {...field}
+                    value={field.value ?? ''}
+                    onChange={(e) => field.onChange(e.target.value || null)}
+                    label="Ship To"
+                    fullWidth
+                    placeholder="Delivery address"
+                    inputProps={{ maxLength: 500 }}
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message ?? `${(field.value ?? '').length}/500`}
+                  />
+                )}
               />
             )}
-            <TextField
-              label="Notes / Special Instructions"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              multiline
-              minRows={3}
-              fullWidth
-              inputProps={{ maxLength: 2000 }}
-              helperText={`${notes.length}/2000`}
+            <Controller
+              control={control}
+              name="notes"
+              render={({ field, fieldState }) => (
+                <TextField
+                  {...field}
+                  value={field.value ?? ''}
+                  onChange={(e) => field.onChange(e.target.value || null)}
+                  label="Notes / Special Instructions"
+                  multiline
+                  minRows={3}
+                  fullWidth
+                  inputProps={{ maxLength: 2000 }}
+                  error={!!fieldState.error}
+                  helperText={fieldState.error?.message ?? `${(field.value ?? '').length}/2000`}
+                />
+              )}
             />
           </Box>
         </Paper>
@@ -580,24 +618,24 @@ export default function RequisitionWizard() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item._key}>
+                {fields.map((field, index) => (
+                  <TableRow key={field.id}>
                     <TableCell>
                       <TextField
                         size="small"
-                        value={item.model ?? ''}
-                        onChange={(e) => updateItem(item._key, 'model', e.target.value)}
+                        {...register(`items.${index}.model`)}
                         fullWidth
+                        {...getFieldError(errors.items?.[index]?.model)}
                         inputProps={{ maxLength: 200 }}
                       />
                     </TableCell>
                     <TableCell>
                       <TextField
                         size="small"
-                        value={item.description}
-                        onChange={(e) => updateItem(item._key, 'description', e.target.value)}
+                        {...register(`items.${index}.description`)}
                         fullWidth
-                        error={item.description.trim().length === 0}
+                        {...getFieldError(errors.items?.[index]?.description)}
+                        helperText={errors.items?.[index]?.description?.message ?? `${watchedItems[index]?.description?.length ?? 0}/500`}
                         inputProps={{ maxLength: 500 }}
                       />
                     </TableCell>
@@ -605,35 +643,35 @@ export default function RequisitionWizard() {
                       <TextField
                         size="small"
                         type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(item._key, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                        {...register(`items.${index}.quantity`, { valueAsNumber: true })}
                         onFocus={(e) => e.target.select()}
                         inputProps={{ min: 1, style: { textAlign: 'right' } }}
                         fullWidth
-                        error={item.quantity <= 0}
+                        error={!!errors.items?.[index]?.quantity}
+                        helperText={errors.items?.[index]?.quantity?.message ?? ''}
                       />
                     </TableCell>
                     <TableCell>
                       <TextField
                         size="small"
                         type="number"
-                        value={item.unitPrice}
-                        onChange={(e) => updateItem(item._key, 'unitPrice', Math.max(0, parseFloat(e.target.value) || 0))}
+                        {...register(`items.${index}.unitPrice`, { valueAsNumber: true })}
                         onFocus={(e) => e.target.select()}
                         inputProps={{ min: 0, step: '0.01', style: { textAlign: 'right' } }}
                         fullWidth
-                        error={item.unitPrice <= 0}
+                        error={!!errors.items?.[index]?.unitPrice}
+                        helperText={errors.items?.[index]?.unitPrice?.message ?? ''}
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <Typography variant="body2">{formatCurrency(item.quantity * item.unitPrice)}</Typography>
+                      <Typography variant="body2">{formatCurrency((watchedItems[index]?.quantity ?? 0) * (watchedItems[index]?.unitPrice ?? 0))}</Typography>
                     </TableCell>
                     <TableCell>
                       <IconButton
                         size="small"
                         color="error"
-                        onClick={() => removeItem(item._key)}
-                        disabled={items.length === 1}
+                        onClick={() => remove(index)}
+                        disabled={fields.length === 1}
                       >
                         <DeleteIcon fontSize="small" />
                       </IconButton>
@@ -649,13 +687,21 @@ export default function RequisitionWizard() {
             <Box sx={{ minWidth: 240 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mr: 2 }}>Shipping Cost ($)</Typography>
-                <TextField
-                  size="small"
-                  type="number"
-                  value={shippingCost}
-                  onChange={(e) => setShippingCost(e.target.value)}
-                  inputProps={{ min: 0, step: '0.01', style: { textAlign: 'right' } }}
-                  sx={{ width: 120 }}
+                <Controller
+                  control={control}
+                  name="shippingCost"
+                  render={({ field, fieldState }) => (
+                    <TextField
+                      size="small"
+                      type="number"
+                      value={field.value ?? ''}
+                      onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+                      inputProps={{ min: 0, step: '0.01', style: { textAlign: 'right' } }}
+                      sx={{ width: 120 }}
+                      error={!!fieldState.error}
+                      helperText={fieldState.error?.message ?? ''}
+                    />
+                  )}
                 />
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -688,13 +734,13 @@ export default function RequisitionWizard() {
             </Box>
             <Box>
               <Typography variant="caption" color="text.secondary">Ship To</Typography>
-              <Typography>{shipTo || '—'}</Typography>
-              {shipTo && (
+              <Typography>{watchedShipTo || '—'}</Typography>
+              {watchedShipTo && (
                 <Chip
                   size="small"
                   variant="outlined"
-                  label={shipToType === 'entity' ? 'Entity Address' : 'Custom'}
-                  color={shipToType === 'entity' ? 'primary' : 'default'}
+                  label={watchedShipToType === 'entity' ? 'Entity Address' : 'Custom'}
+                  color={watchedShipToType === 'entity' ? 'primary' : 'default'}
                   sx={{ mt: 0.5 }}
                 />
               )}
@@ -702,25 +748,25 @@ export default function RequisitionWizard() {
             <Box>
               <Typography variant="caption" color="text.secondary">Department / School / Program</Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography>{locationOptions.find((l) => l.id === selectedLocationId)?.name ?? '—'}</Typography>
-                {entityType && (
+                <Typography>{locationOptions.find((l) => l.id === watchedOfficeLocationId)?.name ?? '—'}</Typography>
+                {watchedEntityType && (
                   <Chip
-                    label={entityType.charAt(0) + entityType.slice(1).toLowerCase()}
+                    label={watchedEntityType.charAt(0) + watchedEntityType.slice(1).toLowerCase()}
                     size="small"
-                    color={entityType === 'SCHOOL' ? 'primary' : 'default'}
+                    color={watchedEntityType === 'SCHOOL' ? 'primary' : 'default'}
                   />
                 )}
               </Box>
             </Box>
-            {notes && (
+            {watchedNotes && (
               <Box sx={{ gridColumn: '1 / -1' }}>
                 <Typography variant="caption" color="text.secondary">Notes</Typography>
-                <Typography whiteSpace="pre-line">{notes}</Typography>
+                <Typography whiteSpace="pre-line">{watchedNotes}</Typography>
               </Box>
             )}
           </Box>
 
-          {workflowType === 'food_service' && (
+          {watchedWorkflowType === 'food_service' && (
             <Alert severity="info" sx={{ mt: 2 }}>
               This requisition will follow the <strong>Food Service</strong> approval flow.
             </Alert>
@@ -742,14 +788,14 @@ export default function RequisitionWizard() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {items.map((item, idx) => (
-                  <TableRow key={item._key}>
+                {watchedItems.map((item, idx) => (
+                  <TableRow key={idx}>
                     <TableCell>{idx + 1}</TableCell>
                     <TableCell>{item.model || '—'}</TableCell>
                     <TableCell>{item.description}</TableCell>
                     <TableCell align="right">{item.quantity}</TableCell>
                     <TableCell align="right">{formatCurrency(item.unitPrice)}</TableCell>
-                    <TableCell align="right">{formatCurrency(item.quantity * item.unitPrice)}</TableCell>
+                    <TableCell align="right">{formatCurrency((item.quantity || 0) * (item.unitPrice || 0))}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -799,11 +845,7 @@ export default function RequisitionWizard() {
           {activeStep < 2 && (
             <Button
               variant="contained"
-              onClick={handleNext}
-              disabled={
-                (activeStep === 0 && !step1Valid) ||
-                (activeStep === 1 && !step2Valid)
-              }
+              onClick={activeStep === 0 ? handleStep1Next : handleStep2Next}
             >
               Next
             </Button>
