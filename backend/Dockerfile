@@ -46,6 +46,8 @@ WORKDIR /workspace
 # ── Shared dist (needed at runtime — backend imports Zod schemas from it) ───
 COPY --from=builder /workspace/shared/package.json ./shared/
 COPY --from=builder /workspace/shared/dist ./shared/dist/
+WORKDIR /workspace/shared
+RUN npm install --omit=dev
 
 # ── Backend production deps ─────────────────────────────────────────────────
 WORKDIR /workspace/backend
