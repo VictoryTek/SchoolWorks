@@ -338,11 +338,14 @@ export class LocationService {
       throw new NotFoundError('Office location', locationId);
     }
 
-    // Validate business rules for District Office — only Director of Schools
-    if (location.type === 'DISTRICT_OFFICE') {
+    // Worker/operational types that can be assigned to ANY location (including District Office)
+    const operationalWorkerTypes = ['TECHNOLOGY_ASSISTANT', 'MAINTENANCE_WORKER', 'FOOD_SERVICES_SUPERVISOR'];
+
+    // Validate business rules for District Office — only Director of Schools for leadership roles
+    if (location.type === 'DISTRICT_OFFICE' && !operationalWorkerTypes.includes(data.supervisorType)) {
       if (data.supervisorType !== 'DIRECTOR_OF_SCHOOLS') {
         throw new ValidationError(
-          `Only Director of Schools can be assigned to District Office. Use the appropriate department for ${data.supervisorType}.`,
+          `Only Director of Schools can be assigned as a leadership supervisor to District Office. Use the appropriate department for ${data.supervisorType}.`,
           'supervisorType'
         );
       }

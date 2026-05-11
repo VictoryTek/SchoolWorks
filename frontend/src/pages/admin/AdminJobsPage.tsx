@@ -404,7 +404,7 @@ export default function AdminJobsPage() {
     },
     syncSupervisors: {
       title: 'Rebuild Supervisor Assignments?',
-      body: 'This will DELETE all existing supervisor-location assignments and rebuild them from Entra group membership. This action cannot be undone. Only run this if supervisor assignments are out of sync.',
+      body: 'This will rebuild supervisor-location assignments (Principals, Vice Principals, Directors, etc.) from Entra group membership. Technology Assistants and Maintenance Workers assigned manually are NOT affected. Only run this if Entra-synced supervisor assignments are out of sync.',
       isDestructive: true,
     },
   };
@@ -521,7 +521,7 @@ export default function AdminJobsPage() {
             title="Update Supervisors"
             description="Rebuilds supervisor-location assignments from Entra group membership."
             icon={<SupervisorAccountIcon />}
-            warningText="Destructive: clears ALL existing supervisor assignments before rebuilding from Entra."
+            warningText="Rebuilds Entra-synced supervisor assignments only. Manually assigned Technology Assistants and Maintenance Workers are preserved."
             statusLine={`Last rebuild: ${lastSupervisorSync} Â· ${jobStatus?.supervisorSync.currentCount ?? 'â€”'} active assignments`}
             schedule={getSchedule('sync-supervisors')}
             isRunningNow={

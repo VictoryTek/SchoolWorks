@@ -158,10 +158,14 @@ async function syncSupervisors() {
 
     console.log(`📍 Found ${locations.length} active locations (${schools.length} schools)\n`);
 
-    // Clear existing supervisor assignments
-    console.log('🗑️  Clearing existing supervisor assignments...');
-    const deleted = await prisma.locationSupervisor.deleteMany({});
-    console.log(`   Deleted ${deleted.count} existing assignments\n`);
+    // Only delete Entra-managed supervisor types; preserve manually assigned ones
+    // (e.g. TECHNOLOGY_ASSISTANT, MAINTENANCE_WORKER) that are not in supervisorGroups
+    const entraManagedTypes = supervisorGroups.map((g) => g.supervisorType);
+    console.log('🗑️  Clearing Entra-managed supervisor assignments (preserving manual assignments)...');
+    const deleted = await prisma.locationSupervisor.deleteMany({
+      where: { supervisorType: { in: entraManagedTypes } },
+    });
+    console.log(`   Deleted ${deleted.count} existing Entra-managed assignments\n`);
 
     let totalAssignments = 0;
     let newAssignments = 0;
