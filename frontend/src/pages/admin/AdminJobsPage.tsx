@@ -148,8 +148,9 @@ function ScheduledJobCard({
 
   const cronDesc = getCronDescription(localCron);
   const isDirty =
-    schedule !== undefined &&
-    (localCron !== schedule.cronExpr || localEnabled !== schedule.enabled);
+    schedule === undefined ||
+    localCron !== schedule.cronExpr ||
+    localEnabled !== schedule.enabled;
   const canSave = isDirty && cronDesc.ok;
 
   const chipProps = getStatusChipProps(schedule?.lastRunStatus ?? null);
@@ -201,7 +202,8 @@ function ScheduledJobCard({
             <TextField
               label="Schedule (cron expression)"
               value={localCron}
-              onChange={(e) => setLocalCron(e.target.value.trim())}
+              onChange={(e) => setLocalCron(e.target.value)}
+              onBlur={(e) => setLocalCron(e.target.value.trim())}
               size="small"
               fullWidth
               error={!cronDesc.ok}
@@ -315,9 +317,19 @@ function ScheduledJobCard({
   );
 }
 
-// â”€â”€â”€ AdminJobsPage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export function AdminJobsContent() {
+  return <AdminJobsInner />;
+}
 
 export default function AdminJobsPage() {
+  return (
+    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1100, mx: 'auto' }}>
+      <AdminJobsInner />
+    </Box>
+  );
+}
+
+function AdminJobsInner() {
   const [confirmJob, setConfirmJob] = useState<JobKey | null>(null);
   const [cardState, setCardState] = useState<Record<JobKey, CardState>>({
     syncStaff:       { lastResult: null, lastError: null },
@@ -414,7 +426,7 @@ export default function AdminJobsPage() {
 
   if (isSchedulesLoading) {
     return (
-      <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1100, mx: 'auto' }}>
+      <Box>
         <Skeleton variant="text" width={200} height={40} sx={{ mb: 1 }} />
         <Grid container spacing={3}>
           {[0, 1, 2, 3].map((i) => (
@@ -439,7 +451,7 @@ export default function AdminJobsPage() {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1100, mx: 'auto' }}>
+    <Box>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           Admin Jobs

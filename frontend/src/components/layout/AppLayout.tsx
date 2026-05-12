@@ -60,7 +60,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Locations & Supervisors', icon: '🏢', path: '/supervisors', adminOnly: true },
       { label: 'Room Assignments', icon: '🚪', path: '/room-assignments', requireRoomAssignment: true },
       { label: 'Admin Settings', icon: '⚙️', path: '/admin/settings', adminOnly: true },
-      { label: 'Admin Jobs', icon: '🔄', path: '/admin/jobs', adminOnly: true },
     ],
   },
   {

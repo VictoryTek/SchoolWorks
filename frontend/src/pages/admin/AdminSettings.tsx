@@ -59,12 +59,14 @@ import settingsService, {
 } from '../../services/settingsService';
 import { queryKeys } from '../../lib/queryKeys';
 import { useIsMobile } from '../../hooks/useResponsive';
+import { AdminJobsContent } from './AdminJobsPage';
+import SyncIcon from '@mui/icons-material/Sync';
 
 // ---------------------------------------------------------------------------
 // Tab hash helpers
 // ---------------------------------------------------------------------------
 
-const TAB_HASHES = ['#general', '#requisitions', '#fiscal-year'] as const;
+const TAB_HASHES = ['#general', '#requisitions', '#fiscal-year', '#jobs'] as const;
 
 function hashToTab(hash: string): number {
   const idx = TAB_HASHES.indexOf(hash as (typeof TAB_HASHES)[number]);
@@ -295,7 +297,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <Box maxWidth={800} mx="auto" mt={3}>
+    <Box maxWidth={activeTab === 3 ? 1100 : 800} mx="auto" mt={3}>
       <Typography variant="h5" gutterBottom>
         Admin Settings
       </Typography>
@@ -313,6 +315,7 @@ export default function AdminSettings() {
           <Tab label="General" />
           <Tab label="Requisitions & POs" />
           <Tab label="Fiscal Year" />
+          <Tab label="Jobs" icon={<SyncIcon />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -585,6 +588,11 @@ export default function AdminSettings() {
           isFiscalYearExpired={isFiscalYearExpired}
         />
       )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/*  Tab 4: Jobs                                                 */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 3 && <AdminJobsContent />}
     </Box>
   );
 }

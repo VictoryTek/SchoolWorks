@@ -14,7 +14,7 @@ import {
   PurchaseOrderDetail,
 } from './pages/PurchaseOrders'
 import AdminSettings from './pages/admin/AdminSettings'
-import AdminJobsPage from './pages/admin/AdminJobsPage'
+
 import WorkOrderListPage from './pages/WorkOrderListPage'
 import NewWorkOrderPage from './pages/NewWorkOrderPage'
 import WorkOrderDetailPage from './pages/WorkOrderDetailPage'
@@ -76,13 +76,7 @@ function App() {
         />
         <Route
           path="/admin/jobs"
-          element={
-            <ProtectedRoute requireAdmin>
-              <AppLayout>
-                <AdminJobsPage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/admin/settings#jobs" replace />}
         />
         <Route
           path="/admin/new-fiscal-year"
