@@ -254,7 +254,8 @@ export class PurchaseOrderService {
    * Three-tier access model:
    *   permLevels 1-2 (or onlyMine flag): own POs only
    *   permLevel 3 (Supervisor): own POs + POs from their supervised location(s)
-   *   permLevel 4+: global visibility (no restriction)
+   *   permLevel 4+ (Food Service groups): own POs + all food_service POs
+   *   permLevel 4+ (all others): global visibility (no restriction)
    */
   async getPurchaseOrders(
     filters: PurchaseOrderQueryDto,
@@ -264,6 +265,13 @@ export class PurchaseOrderService {
   ): Promise<PurchaseOrderListResponse> {
     const { page = 1, limit = 25, status, search, dateFrom, dateTo, locationId, fiscalYear, onlyMine, pendingMyApproval, workflowType } = filters;
     const skip = (page - 1) * limit;
+
+    // Detect Food Service group membership
+    const fsSupervisorGroupId = process.env.ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID;
+    const fsPoEntryGroupId = process.env.ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID;
+    const isFsSupervisor = fsSupervisorGroupId ? userGroups.includes(fsSupervisorGroupId) : false;
+    const isFsPoEntry = fsPoEntryGroupId ? userGroups.includes(fsPoEntryGroupId) : false;
+    const isFoodServiceOnly = (isFsSupervisor || isFsPoEntry);
 
     // Build user-scope constraint using three-tier access model
     let userScopeClause: Prisma.purchase_ordersWhereInput = {};
@@ -277,10 +285,6 @@ export class PurchaseOrderService {
         select: { locationId: true },
       });
       const supervisorLocationIds = supervisedLocations.map((ls) => ls.locationId);
-
-      // Food Service Supervisors see ALL food_service POs across the district
-      const fsSupervisorGroupId = process.env.ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID;
-      const isFsSupervisor = fsSupervisorGroupId ? userGroups.includes(fsSupervisorGroupId) : false;
 
       const orClauses: Prisma.purchase_ordersWhereInput[] = [
         { requestorId: userId },
@@ -299,8 +303,17 @@ export class PurchaseOrderService {
         logger.warn('Level-3 supervisor has no LocationSupervisor records; falling back to own-only scope', { userId });
         userScopeClause = { requestorId: userId };
       }
+    } else if (isFoodServiceOnly) {
+      // Food Service groups (Supervisor or PO Entry at level 4+):
+      // Own POs + all food_service POs — NOT global visibility of standard POs
+      userScopeClause = {
+        OR: [
+          { requestorId: userId },
+          { workflowType: 'food_service' },
+        ],
+      };
     }
-    // permLevel >= 4: global visibility — userScopeClause stays {}
+    // permLevel >= 4 (non-food-service): global visibility — userScopeClause stays {}
 
     const andClauses: Prisma.purchase_ordersWhereInput[] = [];
 
