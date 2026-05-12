@@ -331,11 +331,12 @@ export class PurchaseOrderService {
       }
 
       // Stage 2: Finance Director approval (status = 'supervisor_approved') — standard flow only
+      // ONLY Finance Director group sees POs at this stage — DOS sees them at the next stage
       const fdGroupId  = process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID;
       const dosGroupId = process.env.ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID;
       const isFD  = fdGroupId  ? userGroups.includes(fdGroupId)  : false;
       const isDoS = dosGroupId ? userGroups.includes(dosGroupId) : false;
-      if (isFD || isDoS) {
+      if (isFD) {
         pendingOrClauses.push({ status: 'supervisor_approved', workflowType: 'standard' });
       }
 
@@ -512,16 +513,38 @@ export class PurchaseOrderService {
     data: UpdatePurchaseOrderDto,
     userId: string,
     permLevel: number,
+    userGroups: string[] = [],
   ) {
     await this.assertFiscalYearActive();
 
     const po = await this.getPurchaseOrderById(id, userId, permLevel);
 
+    // PO Entry users can edit limited fields when status = 'dos_approved'
+    const PO_ENTRY_EDITABLE_STATUSES: POStatus[] = ['dos_approved'];
+    const PO_ENTRY_ALLOWED_FIELDS = ['notes', 'shippingCost', 'shipTo', 'shipToType'];
+    const poEntryGroupId = process.env.ENTRA_FINANCE_PO_ENTRY_GROUP_ID;
+    const fsPoEntryGroupId = process.env.ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID;
+    const isPoEntry = (poEntryGroupId ? userGroups.includes(poEntryGroupId) : false)
+      || (fsPoEntryGroupId ? userGroups.includes(fsPoEntryGroupId) : false);
+
     if (!EDITABLE_STATUSES.includes(po.status as POStatus)) {
-      throw new ValidationError(
-        `Purchase order cannot be edited in status "${po.status}". Only draft POs can be edited.`,
-        'status',
-      );
+      if (PO_ENTRY_EDITABLE_STATUSES.includes(po.status as POStatus) && isPoEntry && permLevel >= 4) {
+        // Restrict to allowed fields only
+        const disallowedFields = Object.keys(data).filter(
+          k => !PO_ENTRY_ALLOWED_FIELDS.includes(k) && data[k as keyof typeof data] !== undefined
+        );
+        if (disallowedFields.length > 0) {
+          throw new ValidationError(
+            `At the PO Entry stage, only the following fields can be modified: ${PO_ENTRY_ALLOWED_FIELDS.join(', ')}`,
+            'status',
+          );
+        }
+      } else {
+        throw new ValidationError(
+          `Purchase order cannot be edited in status "${po.status}". Only draft POs can be edited.`,
+          'status',
+        );
+      }
     }
 
     if (permLevel < 3 && po.requestorId !== userId) {
@@ -581,7 +604,7 @@ export class PurchaseOrderService {
           ...(data.program          !== undefined && { program:          data.program }),
           ...(data.officeLocationId !== undefined && { officeLocationId: data.officeLocationId }),
           ...(resolvedEntityType    !== undefined && { entityType:       resolvedEntityType }),
-          ...(data.items            !== undefined && { amount:           new Prisma.Decimal(totalAmount) }),
+          ...((data.items !== undefined || data.shippingCost !== undefined) && { amount: new Prisma.Decimal(totalAmount) }),
         },
         include: {
           po_items:       { orderBy: { lineNumber: 'asc' } },

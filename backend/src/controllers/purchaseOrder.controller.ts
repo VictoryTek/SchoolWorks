@@ -106,11 +106,12 @@ export const getPurchaseOrder = async (req: AuthRequest, res: Response): Promise
  */
 export const updatePurchaseOrder = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const data    = UpdatePurchaseOrderSchema.parse(req.body);
-    const userId  = req.user!.id;
-    const permLvl = req.user!.permLevel ?? 1;
+    const data       = UpdatePurchaseOrderSchema.parse(req.body);
+    const userId     = req.user!.id;
+    const permLvl    = req.user!.permLevel ?? 1;
+    const userGroups = req.user!.groups ?? [];
 
-    const po = await service.updatePurchaseOrder(req.params.id as string, data, userId, permLvl);
+    const po = await service.updatePurchaseOrder(req.params.id as string, data, userId, permLvl, userGroups);
     res.json(po);
   } catch (error) {
     handleControllerError(error, res);
@@ -290,17 +291,17 @@ export const assignAccountCode = async (req: AuthRequest, res: Response): Promis
     const userGroups = req.user!.groups ?? [];
     const poId = req.params.id as string;
 
-    // Fetch PO to determine workflow type
-    const poRecord = await prisma.purchase_orders.findUnique({ where: { id: poId }, select: { workflowType: true } });
+    // Fetch PO to determine workflow type and status
+    const poRecord = await prisma.purchase_orders.findUnique({ where: { id: poId }, select: { workflowType: true, status: true } });
     if (!poRecord) {
       res.status(404).json({ error: 'Not Found', message: 'Purchase order not found' });
       return;
     }
 
     if (poRecord.workflowType === 'food_service') {
-      const fsSupGroupId = process.env.ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID;
-      const isAuthorised = fsSupGroupId && userGroups.includes(fsSupGroupId);
-      if (!isAuthorised) {
+      const fsSupGroupId   = process.env.ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID;
+      const isFsSupervisor = fsSupGroupId ? userGroups.includes(fsSupGroupId) : false;
+      if (!isFsSupervisor) {
         res.status(403).json({
           error: 'Forbidden',
           message: 'Assigning an account code to a Food Service PO requires membership in the Food Services Supervisor group',
@@ -309,12 +310,15 @@ export const assignAccountCode = async (req: AuthRequest, res: Response): Promis
       }
     } else {
       const fdGroupId = process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID;
+      const poEntryGroupId = process.env.ENTRA_FINANCE_PO_ENTRY_GROUP_ID;
       if (fdGroupId) {
-        const isAuthorised = userGroups.includes(fdGroupId);
-        if (!isAuthorised) {
+        const isFinanceDirector = userGroups.includes(fdGroupId);
+        const isPoEntry = poEntryGroupId ? userGroups.includes(poEntryGroupId) : false;
+        // Finance Director can assign at any eligible status; PO Entry can assign at dos_approved
+        if (!isFinanceDirector && !(isPoEntry && poRecord.status === 'dos_approved')) {
           res.status(403).json({
             error: 'Forbidden',
-            message: 'Assigning an account code requires membership in the Finance Director group',
+            message: 'Assigning an account code requires membership in the Finance Director or PO Entry group',
           });
           return;
         }

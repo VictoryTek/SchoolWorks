@@ -247,12 +247,14 @@ export default function PurchaseOrderDetail() {
     'dos_approved',
   ];
   const canAssign   = isFoodService
-    ? (isFoodServiceSupervisor || isStrictFinanceDirector) && permLevel >= 3 && ACCOUNT_CODE_ASSIGNABLE_STATUSES.includes(po.status as POStatus)
-    : isStrictFinanceDirector && permLevel >= 5 && ACCOUNT_CODE_ASSIGNABLE_STATUSES.includes(po.status as POStatus);
+    ? ((isFoodServiceSupervisor || isStrictFinanceDirector) && permLevel >= 3 && ACCOUNT_CODE_ASSIGNABLE_STATUSES.includes(po.status as POStatus))
+    : (isStrictFinanceDirector && permLevel >= 5 && ACCOUNT_CODE_ASSIGNABLE_STATUSES.includes(po.status as POStatus))
+      || (isPoEntryUser && po.status === 'dos_approved');
   const canIssue    = isFoodService
     ? isFoodServicePoEntry && permLevel >= 4 && po.status === 'dos_approved'
-    : isPoEntryUser && permLevel >= 4 && po.status === 'dos_approved' && !!po.accountCode;
-  const canEdit     = po.status === 'draft' && (po.requestorId === user?.id || permLevel >= 2);
+    : isPoEntryUser && permLevel >= 4 && po.status === 'dos_approved';
+  const canEdit     = (po.status === 'draft' && (po.requestorId === user?.id || permLevel >= 2))
+    || (po.status === 'dos_approved' && (isPoEntryUser || isFoodServicePoEntry) && permLevel >= 4);
   const canPdf      = permLevel >= 1;
 
   const isBusy =
@@ -713,7 +715,7 @@ export default function PurchaseOrderDetail() {
                   fullWidth
                   onClick={() => navigate(`/purchase-orders/new?edit=${po.id}`)}
                 >
-                  Edit Draft
+                  {po.status === 'draft' ? 'Edit Draft' : 'Edit PO Details'}
                 </Button>
               )}
 
