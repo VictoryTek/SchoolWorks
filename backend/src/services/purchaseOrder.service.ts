@@ -1013,18 +1013,24 @@ export class PurchaseOrderService {
     // approve. This enforces separation of duties by preventing admins, the
     // DoS, or the Finance Director from acting as an entity's supervisor.
     if (po.status === 'submitted') {
-      if (po.officeLocationId) {
-        // Determine expected supervisor type — must match the submit/email routing logic.
-        // Food service POs require the FOOD_SERVICES_SUPERVISOR.
+      if (po.workflowType === 'food_service') {
+        // Food service POs: the Food Services Supervisor group manages ALL food
+        // service POs regardless of location. Authorise via Entra group membership
+        // rather than requiring a per-location locationSupervisor record.
+        const fsSupervisorGroupId = process.env.ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID;
+        const isFsSupervisor = fsSupervisorGroupId ? userGroups.includes(fsSupervisorGroupId) : false;
+        if (!isFsSupervisor) {
+          throw new AuthorizationError(
+            'Food Service purchase order approval requires membership in the Food Services Supervisor group',
+          );
+        }
+      } else if (po.officeLocationId) {
+        // Standard POs: require a per-location primary supervisor record.
         // SCHOOL locations require the PRINCIPAL.
         // Other location types allow any primary supervisor.
         let expectedSupervisorType: string | undefined;
-        if (po.workflowType === 'food_service') {
-          expectedSupervisorType = 'FOOD_SERVICES_SUPERVISOR';
-        } else {
-          const entityLoc = await this.prisma.officeLocation.findUnique({ where: { id: po.officeLocationId }, select: { type: true } });
-          expectedSupervisorType = entityLoc?.type === 'SCHOOL' ? 'PRINCIPAL' : undefined;
-        }
+        const entityLoc = await this.prisma.officeLocation.findUnique({ where: { id: po.officeLocationId }, select: { type: true } });
+        expectedSupervisorType = entityLoc?.type === 'SCHOOL' ? 'PRINCIPAL' : undefined;
         const locSup = await this.prisma.locationSupervisor.findFirst({
           where: {
             locationId: po.officeLocationId,
