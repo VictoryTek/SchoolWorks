@@ -146,9 +146,13 @@ export const deleteVendor = async (req: AuthRequest, res: Response): Promise<voi
     const id = req.params.id as string;
     const existing = await prisma.vendors.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('Vendor not found');
-    const item = await prisma.vendors.update({ where: { id }, data: { isActive: false } });
-    res.json({ message: 'Vendor deactivated', item });
-  } catch (error) {
+    await prisma.vendors.delete({ where: { id } });
+    res.json({ message: 'Vendor deleted' });
+  } catch (error: any) {
+    if (error?.code === 'P2003') {
+      res.status(409).json({ message: 'Cannot delete vendor — it is referenced by existing equipment or purchase orders.' });
+      return;
+    }
     handleControllerError(error, res);
   }
 };

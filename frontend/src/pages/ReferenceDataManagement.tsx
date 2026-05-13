@@ -264,7 +264,6 @@ function VendorsTab() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Vendor | null>(null);
 
@@ -279,31 +278,30 @@ function VendorsTab() {
   const [fState, setFState] = useState('');
   const [fZip, setFZip] = useState('');
   const [fWebsite, setFWebsite] = useState('');
-  const [fIsActive, setFIsActive] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const r = await vendorsService.getAll({ search: search || undefined, isActive: showInactive ? undefined : true, limit: 5000 });
+      const r = await vendorsService.getAll({ search: search || undefined, limit: 5000 });
       setItems(r.items);
     } catch (e: any) { setError(e.response?.data?.message ?? e.message); }
     finally { setLoading(false); }
-  }, [search, showInactive]);
+  }, [search]);
 
   useEffect(() => { load(); }, [load]);
 
   const openCreate = () => {
     setEditing(null); setFName(''); setFContact(''); setFEmail(''); setFPhone('');
     setFFax(''); setFAddress(''); setFCity(''); setFState(''); setFZip('');
-    setFWebsite(''); setFIsActive(true); setFormError(null); setModalOpen(true);
+    setFWebsite(''); setFormError(null); setModalOpen(true);
   };
   const openEdit = (v: Vendor) => {
     setEditing(v); setFName(v.name); setFContact(v.contactName ?? ''); setFEmail(v.email ?? '');
     setFPhone(v.phone ?? ''); setFFax(v.fax ?? ''); setFAddress(v.address ?? '');
     setFCity(v.city ?? ''); setFState(v.state ?? ''); setFZip(v.zip ?? '');
-    setFWebsite(v.website ?? ''); setFIsActive(v.isActive); setFormError(null); setModalOpen(true);
+    setFWebsite(v.website ?? ''); setFormError(null); setModalOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -315,7 +313,7 @@ function VendorsTab() {
         city: fCity || null, state: fState || null, zip: fZip || null,
         website: fWebsite || null };
       if (editing) {
-        await vendorsService.update(editing.id, { ...payload, isActive: fIsActive });
+        await vendorsService.update(editing.id, payload);
       } else {
         await vendorsService.create(payload);
       }
@@ -325,13 +323,9 @@ function VendorsTab() {
     finally { setFormLoading(false); }
   };
 
-  const handleDeactivate = async (v: Vendor) => {
-    if (!window.confirm(`Deactivate "${v.name}"?`)) return;
+  const handleDelete = async (v: Vendor) => {
+    if (!window.confirm(`Delete "${v.name}"? This cannot be undone.`)) return;
     try { await vendorsService.deactivate(v.id); await load(); }
-    catch (e: any) { alert(e.response?.data?.message ?? e.message); }
-  };
-  const handleReactivate = async (v: Vendor) => {
-    try { await vendorsService.update(v.id, { isActive: true }); await load(); }
     catch (e: any) { alert(e.response?.data?.message ?? e.message); }
   };
 
@@ -340,9 +334,8 @@ function VendorsTab() {
       <CrudTableShell
         title="Vendors" description="Suppliers and vendors for equipment purchases"
         loading={loading} error={error} searchValue={search} onSearchChange={setSearch}
-        showInactive={showInactive} onShowInactiveChange={setShowInactive}
         onAddClick={openCreate} addLabel="+ Add Vendor"
-        headers={['Name', 'Location', 'Contact', 'Email', 'Phone', 'Status', 'Actions']}
+        headers={['Name', 'Location', 'Contact', 'Email', 'Phone', 'Actions']}
         empty={items.length === 0}
       >
         {items.map((v) => (
@@ -356,13 +349,10 @@ function VendorsTab() {
             <td>{v.contactName || <em style={{ opacity: 0.5 }}>—</em>}</td>
             <td>{v.email ? <a href={`mailto:${v.email}`} style={{ color: 'var(--primary-blue)' }}>{v.email}</a> : <em style={{ opacity: 0.5 }}>—</em>}</td>
             <td>{v.phone || <em style={{ opacity: 0.5 }}>—</em>}</td>
-            <td><span className={`badge ${v.isActive ? 'badge-success' : 'badge-secondary'}`}>{v.isActive ? 'Active' : 'Inactive'}</span></td>
             <td style={{ textAlign: 'right' }}>
               <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                 <button className="btn btn-sm btn-secondary" onClick={() => openEdit(v)}>Edit</button>
-                {v.isActive
-                  ? <button className="btn btn-sm btn-danger" onClick={() => handleDeactivate(v)}>Deactivate</button>
-                  : <button className="btn btn-sm btn-secondary" onClick={() => handleReactivate(v)}>Reactivate</button>}
+                <button className="btn btn-sm btn-danger" onClick={() => handleDelete(v)}>Delete</button>
               </div>
             </td>
           </tr>
@@ -387,7 +377,6 @@ function VendorsTab() {
           </Box>
           <TextField fullWidth label="Website URL" value={fWebsite} onChange={(e) => setFWebsite(e.target.value)} disabled={formLoading}
             placeholder="https://example.com" sx={{ mb: 2 }} />
-          {editing && <FormControlLabel control={<Switch checked={fIsActive} onChange={(e) => setFIsActive(e.target.checked)} disabled={formLoading} />} label="Active" />}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModalOpen(false)} disabled={formLoading}>Cancel</Button>
