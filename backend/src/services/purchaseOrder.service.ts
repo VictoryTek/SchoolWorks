@@ -333,6 +333,7 @@ export class PurchaseOrderService {
         pendingOrClauses.push({
           status: 'submitted',
           officeLocationId: { in: supervisorLocationIds },
+          entityType: { not: 'DISTRICT_OFFICE' },
         });
       }
 
