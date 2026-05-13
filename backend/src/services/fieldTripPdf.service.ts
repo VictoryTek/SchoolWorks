@@ -609,6 +609,13 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
       }
 
       // ---- Section 7: Signature Blocks ----------------------------------
+      // Check if signature block fits on current page; if not, start a new page
+      const SIGNATURE_BLOCK_HEIGHT = 170;
+      const PAGE_H = 792; // US Letter height in points
+      if (doc.y + SIGNATURE_BLOCK_HEIGHT > PAGE_H - MARGIN) {
+        doc.addPage();
+      }
+
       // Layout: 2×2 grid (two rows, two columns)
       doc.moveDown(0.5);
       sectionHeader(doc, 'SIGNATURES');
