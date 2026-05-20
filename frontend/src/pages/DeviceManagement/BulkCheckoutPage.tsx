@@ -333,7 +333,7 @@ export default function BulkCheckoutPage() {
                 Assigned this session ({assignedDevices.filter((d) => d.success).length} success, {assignedDevices.filter((d) => !d.success).length} failed)
               </Typography>
               <List dense>
-                {assignedDevices.map((d, idx) => (
+                {assignedDevices.slice(0, 6).map((d, idx) => (
                   <ListItem key={`${d.equipmentId}-${idx}`}>
                     {d.success ? (
                       <CheckCircleIcon color="success" sx={{ mr: 1 }} fontSize="small" />

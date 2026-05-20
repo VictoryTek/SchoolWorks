@@ -433,7 +433,7 @@ export default function BulkCheckinPage() {
           </Box>
           <Divider sx={{ mb: 1 }} />
           <List dense disablePadding>
-            {sessionLog.map((entry, index) => (
+            {sessionLog.slice(0, 6).map((entry, index) => (
               <div key={entry.id}>
                 <ListItem disablePadding sx={{ py: 0.5, alignItems: 'flex-start' }}>
                   <Box sx={{ mt: 0.25, mr: 1, flexShrink: 0 }}>
