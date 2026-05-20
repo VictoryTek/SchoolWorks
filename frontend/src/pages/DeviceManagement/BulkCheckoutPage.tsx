@@ -191,7 +191,7 @@ export default function BulkCheckoutPage() {
   };
 
   return (
-    <Box>
+    <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
       <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
         Bulk Device Checkout
       </Typography>

@@ -169,7 +169,7 @@ export default function CheckoutPage() {
   });
 
   return (
-    <Box>
+    <Box sx={{ p: 3, maxWidth: 1400, mx: 'auto' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="h5" fontWeight={600}>
           Active Checkouts
