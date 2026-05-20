@@ -7,7 +7,7 @@ import { UserSyncService } from '../services/userSync.service';
 import { getCookieConfig } from '../config/cookies';
 import { loggers } from '../lib/logger';
 import { redactEmail, redactEntraId } from '../utils/redact';
-import { derivePermLevelFromGroups } from '../utils/groupAuth';
+import { derivePermLevelFromGroups, hasDeviceManagementAccess } from '../utils/groupAuth';
 import { 
   GraphUser, 
   isGraphUser,
@@ -286,6 +286,7 @@ export const callback = async (
       .filter(([key, val]) => key.startsWith('ENTRA_') && key.endsWith('_GROUP_ID') && val)
       .map(([, val]) => val!);
     const hasBaseAccess = configuredGroupIds.some((gid) => groupIds.includes(gid));
+    const canAccessDeviceManagement = hasDeviceManagementAccess(groupIds);
 
     // Build properly typed response (no tokens in body)
     const authResponse: AuthResponse = {
@@ -303,6 +304,7 @@ export const callback = async (
         groups: groupIds,
         permLevels: { ...permLevels, isFinanceDirectorApprover, isStrictFinanceDirector, isDosApprover, isPoEntryUser, isFoodServiceSupervisor, isFoodServicePoEntry, isTransportationSecretary },
         hasBaseAccess,
+        canAccessDeviceManagement,
       },
     };
 

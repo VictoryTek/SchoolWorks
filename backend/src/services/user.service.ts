@@ -60,6 +60,7 @@ export interface UserSearchResult {
   email: string;
   jobTitle: string | null;
   department: string | null;
+  employeeId: string | null;
 }
 
 /**
@@ -543,18 +544,37 @@ export class UserService {
    * @param limit - Max results to return (capped at 50)
    * @returns Slim user list suitable for autocomplete
    */
-  async searchForAutocomplete(query: string, limit = 20): Promise<UserSearchResult[]> {
+  async searchForAutocomplete(query: string, limit = 20, locationId?: string): Promise<UserSearchResult[]> {
+    const orConditions: Prisma.UserWhereInput[] = [];
+
+    if (query.length >= 2) {
+      orConditions.push(
+        { email: { contains: query, mode: 'insensitive' } },
+        { firstName: { contains: query, mode: 'insensitive' } },
+        { lastName: { contains: query, mode: 'insensitive' } },
+        { displayName: { contains: query, mode: 'insensitive' } },
+      );
+    }
+
+    // Employee ID: match with startsWith so partial/scanned IDs work (min 1 char)
+    if (query.length >= 1) {
+      orConditions.push(
+        { employeeId: { startsWith: query, mode: 'insensitive' } },
+      );
+    }
+
     const where: Prisma.UserWhereInput = {
       isActive: true,
-      ...(query.length >= 2 && {
-        OR: [
-          { email: { contains: query, mode: 'insensitive' } },
-          { firstName: { contains: query, mode: 'insensitive' } },
-          { lastName: { contains: query, mode: 'insensitive' } },
-          { displayName: { contains: query, mode: 'insensitive' } },
-        ],
-      }),
+      ...(orConditions.length > 0 && { OR: orConditions }),
     };
+
+    // Filter by location if provided
+    if (locationId) {
+      const loc = await this.prisma.officeLocation.findUnique({ where: { id: locationId }, select: { name: true } });
+      if (loc) {
+        where.officeLocation = { equals: loc.name, mode: 'insensitive' };
+      }
+    }
 
     const users = await this.prisma.user.findMany({
       where,
@@ -566,6 +586,7 @@ export class UserService {
         email: true,
         jobTitle: true,
         department: true,
+        employeeId: true,
       },
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       take: limit,

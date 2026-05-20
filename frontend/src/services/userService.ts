@@ -27,6 +27,7 @@ export interface UserSearchResult {
   email: string;
   jobTitle: string | null;
   department: string | null;
+  employeeId?: string | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -54,8 +55,9 @@ class UserService {
   }
 
   // Search users for autocomplete (accessible to TECHNOLOGY permission holders)
-  async searchUsers(query: string, limit = 20): Promise<UserSearchResult[]> {
+  async searchUsers(query: string, limit = 20, locationId?: string): Promise<UserSearchResult[]> {
     const params = new URLSearchParams({ q: query, limit: limit.toString() });
+    if (locationId) params.append('locationId', locationId);
     const response = await api.get(`/users/search?${params}`);
     return response.data;
   }

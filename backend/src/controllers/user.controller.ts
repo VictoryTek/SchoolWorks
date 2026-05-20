@@ -199,10 +199,11 @@ export const searchUsers = async (req: Request, res: Response) => {
   try {
     const q = String(req.query.q ?? '').trim();
     const limit = Math.min(parseInt(String(req.query.limit ?? '20'), 10), 50);
+    const locationId = req.query.locationId ? String(req.query.locationId) : undefined;
 
-    logger.debug('User autocomplete search', { q, limit });
+    logger.debug('User autocomplete search', { q, limit, locationId });
 
-    const users = await userService.searchForAutocomplete(q, limit);
+    const users = await userService.searchForAutocomplete(q, limit, locationId);
     res.json(users);
   } catch (error) {
     handleControllerError(error, res);

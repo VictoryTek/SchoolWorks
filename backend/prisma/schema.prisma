@@ -96,6 +96,9 @@ model equipment {
   maintenanceHistory  MaintenanceHistory[]
   assignmentHistory   EquipmentAssignmentHistory[]
   tickets             Ticket[]              @relation("TicketEquipment")
+  deviceAssignments DeviceAssignment[]
+  damageIncidents   DamageIncident[]
+  repairTickets     RepairTicket[]
 
   @@index([assetTag])
   @@index([locationId])
@@ -286,6 +289,7 @@ model OfficeLocation {
   purchase_orders         purchase_orders[] @relation("POOfficeLocation")
   tickets                 Ticket[]
   transportationRequests  TransportationRequest[]
+  deviceAssignments       DeviceAssignment[]
 
   @@index([isActive])
   @@index([type])
@@ -516,6 +520,18 @@ model User {
   transportationRequestDenials                              TransportationRequest[]          @relation("TransportationRequestDenier")
   transportationRequestSupervisorApprovals                  TransportationRequest[]          @relation("TransportationRequestSupervisorApprover")
   transportationRequestSupervisorDenials                    TransportationRequest[]          @relation("TransportationRequestSupervisorDenier")
+  // Device Management
+  deviceAssignments             DeviceAssignment[]    @relation("DeviceAssignmentUser")
+  deviceAssignmentsCheckedOutBy DeviceAssignment[]    @relation("DeviceAssignmentCheckedOutBy")
+  deviceAssignmentsReturnedBy   DeviceAssignment[]    @relation("DeviceAssignmentReturnedBy")
+  damageIncidentsInvolved       DamageIncident[]      @relation("DamageIncidentUser")
+  damageIncidentsReported       DamageIncident[]      @relation("DamageIncidentReporter")
+  damageIncidentsResolved       DamageIncident[]      @relation("DamageIncidentResolver")
+  damageIncidentPhotos          DamageIncidentPhoto[]
+  repairTicketsCreated          RepairTicket[]        @relation("RepairTicketCreator")
+  damageInvoices                DamageInvoice[]       @relation("DamageInvoiceUser")
+  damageInvoicesCreated         DamageInvoice[]       @relation("DamageInvoiceCreator")
+  invoicePaymentsRecorded       InvoicePayment[]
 
   @@index([employeeId])
   @@map("users")
@@ -705,6 +721,7 @@ model vendors {
   updatedAt       DateTime          @updatedAt
   purchase_orders purchase_orders[]
   equipment       equipment[]
+  repairTickets   RepairTicket[]
 }
 
 // ============================================
@@ -1094,6 +1111,10 @@ model email_queue {
   /// Rendered HTML body (ready to send)
   htmlBody        String   @db.Text
 
+  /// Optional email attachments.
+  /// Array of: { filename: string; contentType: string; data: string } where data is base64-encoded.
+  attachments     Json?
+
   /// Priority: 1=high, 2=normal, 3=low (numeric for correct sort order)
   priority        Int      @default(2)
 
@@ -1150,4 +1171,216 @@ model WorkOrderCategory {
   @@index([module, isActive])
   @@index([module, sortOrder])
   @@map("work_order_categories")
+}
+
+// ============================================
+// DEVICE MANAGEMENT (MANAGE1TO1 REPLACEMENT)
+// ============================================
+
+/// Checkout / check-in record for a device assigned to any User (student or staff).
+/// Only one active (returnedAt IS NULL) assignment per equipment item is allowed.
+model DeviceAssignment {
+  id                String    @id @default(uuid())
+  equipmentId       String
+  userId            String    // FK → User — the person holding the device (student or staff)
+  assigneeType      String    // "student" | "staff" — drives UI display and reports
+  checkoutBy        String    // User.id — technician who performed the checkout
+  checkoutAt        DateTime  @default(now())
+  checkoutCondition String    // "perfect" | "good" | "fair" | "damaged"
+  returnedAt        DateTime?
+  returnCondition   String?   // "perfect" | "good" | "fair" | "damaged"
+  returnedBy        String?   // User.id — technician who processed the return
+  notes             String?
+  returnNotes       String?
+  locationId        String?   // FK → OfficeLocation — user's location at checkout time
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  equipment        equipment        @relation(fields: [equipmentId], references: [id])
+  user             User             @relation("DeviceAssignmentUser", fields: [userId], references: [id])
+  checkedOutByUser User             @relation("DeviceAssignmentCheckedOutBy", fields: [checkoutBy], references: [id])
+  returnedByUser   User?            @relation("DeviceAssignmentReturnedBy", fields: [returnedBy], references: [id])
+  location         OfficeLocation?  @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  damageIncidents  DamageIncident[]
+
+  @@index([equipmentId])
+  @@index([userId])
+  @@index([assigneeType])
+  @@index([checkoutAt])
+  @@index([returnedAt])
+  @@index([equipmentId, returnedAt])
+  @@index([locationId])
+  @@map("device_assignments")
+}
+
+model DamageIncident {
+  id              String    @id @default(uuid())
+  incidentNumber  String?   @unique
+  equipmentId     String
+  assignmentId    String?   // FK → DeviceAssignment (null for walk-in with no active checkout)
+  userId          String?   // FK → User — the student/staff member responsible (denormalised)
+  reportedBy      String    // User.id — technician who logged the incident
+  reportedAt      DateTime  @default(now())
+  damageType      String    // "cracked_screen"|"liquid_damage"|"physical_damage"|"missing_keys"|"missing_charger"|"missing_device"|"other"
+  severity        String    // "minor"|"moderate"|"severe"|"total_loss"
+  description     String?
+  estimatedCost   Decimal?  @db.Decimal(10, 2)
+  status          String    @default("reported") // "reported"|"invoiced"|"in_repair"|"resolved"|"waived"
+  resolvedAt      DateTime?
+  resolvedBy      String?   // User.id
+  resolutionNotes String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  equipment     equipment             @relation(fields: [equipmentId], references: [id])
+  assignment    DeviceAssignment?     @relation(fields: [assignmentId], references: [id])
+  user          User?                 @relation("DamageIncidentUser", fields: [userId], references: [id])
+  reporter      User                  @relation("DamageIncidentReporter", fields: [reportedBy], references: [id])
+  resolvedUser  User?                 @relation("DamageIncidentResolver", fields: [resolvedBy], references: [id])
+  photos        DamageIncidentPhoto[]
+  repairTickets RepairTicket[]
+  invoices      DamageInvoice[]
+
+  @@index([equipmentId])
+  @@index([assignmentId])
+  @@index([userId])
+  @@index([status])
+  @@index([reportedAt])
+  @@index([incidentNumber])
+  @@map("damage_incidents")
+}
+
+model DamageIncidentPhoto {
+  id         String   @id @default(uuid())
+  incidentId String
+  fileName   String
+  fileUrl    String
+  fileType   String   // "image/jpeg"|"image/png"|"image/webp"
+  fileSize   Int      // bytes
+  uploadedBy String   // User.id
+  uploadedAt DateTime @default(now())
+
+  incident DamageIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  uploader User           @relation(fields: [uploadedBy], references: [id])
+
+  @@index([incidentId])
+  @@map("damage_incident_photos")
+}
+
+model RepairTicket {
+  id                 String    @id @default(uuid())
+  ticketNumber       String    @unique // RT-{YEAR}-{SEQUENCE}
+  equipmentId        String
+  damageIncidentId   String?   // Optional — routine repairs have no incident
+  vendorId           String?   // FK → vendors
+  createdBy          String    // User.id
+  status             String    @default("pending") // "pending"|"sent_to_vendor"|"in_repair"|"returned"|"unrepairable"|"cancelled"
+  sentForRepairAt    DateTime?
+  expectedReturnDate DateTime?
+  returnedAt         DateTime?
+  repairCost         Decimal?  @db.Decimal(10, 2)
+  trackingNumber     String?
+  repairNotes        String?
+  internalNotes      String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  equipment      equipment       @relation(fields: [equipmentId], references: [id])
+  damageIncident DamageIncident? @relation(fields: [damageIncidentId], references: [id])
+  vendor         vendors?        @relation(fields: [vendorId], references: [id])
+  creator        User            @relation("RepairTicketCreator", fields: [createdBy], references: [id])
+
+  @@index([equipmentId])
+  @@index([damageIncidentId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([sentForRepairAt])
+  @@map("repair_tickets")
+}
+
+/// Invoice sent to a parent/guardian email for a damage incident.
+/// Recipient contact info is entered manually at invoice creation — no guardian DB record.
+model DamageInvoice {
+  id               String    @id @default(uuid())
+  invoiceNumber    String    @unique  // INV-{YEAR}-{SEQUENCE}
+  damageIncidentId String
+  userId           String?   // FK → User — the student the invoice is for (if applicable)
+  recipientEmail   String    // Parent/guardian email — manually entered
+  recipientName    String?   // Display name for email greeting
+  amount           Decimal   @db.Decimal(10, 2)
+  dueDate          DateTime
+  status           String    @default("draft") // "draft"|"sent"|"paid"|"waived"|"collections"
+  sentAt           DateTime?
+  paidAt           DateTime?
+  notes            String?
+  createdBy        String    // User.id
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  damageIncident DamageIncident  @relation(fields: [damageIncidentId], references: [id])
+  user           User?           @relation("DamageInvoiceUser", fields: [userId], references: [id])
+  creator        User            @relation("DamageInvoiceCreator", fields: [createdBy], references: [id])
+  payments       InvoicePayment[]
+  lineItems      DamageInvoiceLineItem[]
+
+  @@index([damageIncidentId])
+  @@index([userId])
+  @@index([status])
+  @@index([dueDate])
+  @@map("damage_invoices")
+}
+
+model InvoicePayment {
+  id            String   @id @default(uuid())
+  invoiceId     String
+  amount        Decimal  @db.Decimal(10, 2)
+  paidAt        DateTime
+  paymentMethod String?  // "cash"|"check"|"online"|"other"
+  checkNumber   String?
+  notes         String?
+  recordedBy    String   // User.id
+  createdAt     DateTime @default(now())
+
+  invoice  DamageInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  recorder User          @relation(fields: [recordedBy], references: [id])
+
+  @@index([invoiceId])
+  @@index([paidAt])
+  @@map("invoice_payments")
+}
+
+/// Global reference table of component replacement prices for damage invoicing.
+/// Prices are global (not per-device-type) for simplicity in a K-12 district context.
+model DamageComponentPrice {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  category    String   @default("Other")
+  description String?
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  lineItems   DamageInvoiceLineItem[]
+
+  @@index([isActive])
+  @@map("damage_component_prices")
+}
+
+/// Line items attached to a DamageInvoice, replacing the flat amount field.
+model DamageInvoiceLineItem {
+  id               String                @id @default(uuid())
+  invoiceId        String
+  componentPriceId String?
+  description      String
+  unitPrice        Decimal               @db.Decimal(10, 2)
+  quantity         Int                   @default(1)
+  lineTotal        Decimal               @db.Decimal(10, 2)
+  isReplacement    Boolean               @default(false)
+  createdAt        DateTime              @default(now())
+
+  invoice          DamageInvoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  componentPrice   DamageComponentPrice? @relation(fields: [componentPriceId], references: [id])
+
+  @@index([invoiceId])
+  @@map("damage_invoice_line_items")
 }

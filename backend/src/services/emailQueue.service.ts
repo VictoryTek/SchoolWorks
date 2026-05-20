@@ -14,6 +14,7 @@
 
 import nodemailer from 'nodemailer';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('EmailQueueService');
@@ -57,6 +58,12 @@ const FROM_ADDRESS = process.env.SMTP_FROM ?? 'noreply@district.org';
 const PRIORITY_MAP = { high: 1, normal: 2, low: 3 } as const;
 type PriorityName = keyof typeof PRIORITY_MAP;
 
+export interface EmailAttachment {
+  filename:    string;
+  contentType: string;
+  data:        string; // base64-encoded file content
+}
+
 export interface EnqueueEmailOptions {
   to:              string | string[];
   subject:        string;
@@ -64,6 +71,7 @@ export interface EnqueueEmailOptions {
   priority?:      PriorityName;
   context?:       string;
   relatedEntityId?: string;
+  attachments?:   EmailAttachment[];
 }
 
 /**
@@ -83,6 +91,7 @@ export async function enqueueEmail(options: EnqueueEmailOptions): Promise<string
         priority:        PRIORITY_MAP[options.priority ?? 'normal'],
         context:         options.context ?? null,
         relatedEntityId: options.relatedEntityId ?? null,
+        attachments:     options.attachments as unknown as Prisma.InputJsonValue | undefined,
         status:          'pending',
         attempts:        0,
         nextAttemptAt:   new Date(),
@@ -220,6 +229,16 @@ async function processBatch(): Promise<void> {
           to:      (email.recipients as string[]).join(', '),
           subject: email.subject,
           html:    email.htmlBody,
+          ...(email.attachments && Array.isArray(email.attachments)
+            ? {
+                attachments: (email.attachments as unknown as EmailAttachment[]).map((a) => ({
+                  filename:    a.filename,
+                  contentType: a.contentType,
+                  content:     Buffer.from(a.data, 'base64'),
+                  encoding:    'base64' as const,
+                })),
+              }
+            : {}),
         });
 
         // Check if SMTP server rejected any recipients

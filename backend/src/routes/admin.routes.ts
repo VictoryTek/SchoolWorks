@@ -259,7 +259,8 @@ const jobLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many job triggers. Please wait before retrying.' },
-  keyGenerator: (req) => (req as AuthRequest).user?.id ?? req.ip ?? 'unknown',
+  keyGenerator: (req) => (req as AuthRequest).user?.id ?? 'unknown',
+  validate:      { keyGeneratorIpFallback: false },
 });
 
 // Sync office locations from the canonical location mapping

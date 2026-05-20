@@ -191,3 +191,20 @@ export interface RoomWithAssignments extends Room {
   };
   userAssignments: UserRoomAssignment[];
 }
+
+// ============================================
+// DEVICE MANAGEMENT MODULE
+// ============================================
+
+export type AssigneeType        = 'student' | 'staff';
+export type CheckoutCondition   = 'perfect' | 'good' | 'fair' | 'damaged';
+export type DamageType          =
+  | 'cracked_screen' | 'liquid_damage' | 'physical_damage'
+  | 'missing_keys'   | 'missing_charger' | 'missing_device' | 'other';
+export type DamageSeverity      = 'minor' | 'moderate' | 'severe' | 'total_loss';
+export type DamageIncidentStatus = 'reported' | 'invoiced' | 'in_repair' | 'resolved' | 'waived';
+export type RepairTicketStatus  =
+  | 'pending' | 'sent_to_vendor' | 'in_repair'
+  | 'returned' | 'unrepairable'  | 'cancelled';
+export type InvoiceStatus       = 'draft' | 'sent' | 'paid' | 'waived' | 'collections';
+

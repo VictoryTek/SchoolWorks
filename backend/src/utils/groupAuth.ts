@@ -12,7 +12,13 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
 
-type PermissionModuleType = 'TECHNOLOGY' | 'MAINTENANCE' | 'REQUISITIONS' | 'WORK_ORDERS' | 'FIELD_TRIPS' | 'TRANSPORTATION_REQUESTS';
+type PermissionModuleType = 'TECHNOLOGY' | 'MAINTENANCE' | 'REQUISITIONS' | 'WORK_ORDERS' | 'FIELD_TRIPS' | 'TRANSPORTATION_REQUESTS' | 'CHECKOUT' | 'INVOICING';
+
+const DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS = [
+  'ENTRA_ADMIN_GROUP_ID',
+  'ENTRA_TECH_ASSISTANTS_GROUP_ID',
+  'ENTRA_OCBOE_LIBRARIANS_GROUP_ID',
+] as const;
 
 /**
  * Maps each env var name to the permission level it grants per module.
@@ -102,6 +108,26 @@ const GROUP_MODULE_MAP: Record<PermissionModuleType, Array<[string, number]>> = 
     ['ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID',         2],
     ['ENTRA_ALL_STAFF_GROUP_ID',                   1],  // All staff: submit + view own
   ],
+  CHECKOUT: [
+    ['ENTRA_ADMIN_GROUP_ID',                    3],
+    ['ENTRA_TECHNOLOGY_DIRECTOR_GROUP_ID',      3],
+    ['ENTRA_TECH_ASSISTANTS_GROUP_ID',          3],
+    ['ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID',      2],
+    ['ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID', 2],
+    ['ENTRA_PRINCIPALS_GROUP_ID',               2],
+    ['ENTRA_VICE_PRINCIPALS_GROUP_ID',          2],
+    ['ENTRA_ALL_STAFF_GROUP_ID',                1],
+  ],
+  INVOICING: [
+    ['ENTRA_ADMIN_GROUP_ID',                    3],
+    ['ENTRA_TECHNOLOGY_DIRECTOR_GROUP_ID',      3],
+    ['ENTRA_TECH_ASSISTANTS_GROUP_ID',          3],
+    ['ENTRA_FINANCE_DIRECTOR_GROUP_ID',         3],
+    ['ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID',      2],
+    ['ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID', 2],
+    ['ENTRA_PRINCIPALS_GROUP_ID',               1],
+    ['ENTRA_ALL_STAFF_GROUP_ID',                1],
+  ],
 };
 
 /**
@@ -127,6 +153,18 @@ export function derivePermLevelFromGroups(
     }
   }
   return highest;
+}
+
+export function getDeviceManagementAllowedGroupIds(): string[] {
+  return DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS
+    .map((envVar) => process.env[envVar])
+    .filter((groupId): groupId is string => Boolean(groupId));
+}
+
+export function hasDeviceManagementAccess(groupIds: string[]): boolean {
+  const allowedGroupIds = getDeviceManagementAllowedGroupIds();
+  const normalizedUserGroups = groupIds.map((g) => g.toLowerCase());
+  return allowedGroupIds.some((groupId) => normalizedUserGroups.includes(groupId.toLowerCase()));
 }
 
 /**
@@ -177,6 +215,25 @@ export function requireModule(
     }
 
     req.user.permLevel = level;
+    next();
+  };
+}
+
+export function requireDeviceManagementAccess() {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!hasDeviceManagementAccess(req.user.groups ?? [])) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: 'Device Management access is not permitted for this user',
+      });
+      return;
+    }
+
     next();
   };
 }

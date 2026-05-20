@@ -4,7 +4,7 @@ import { ReactNode, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Drawer, IconButton, useMediaQuery } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import { useAuthStore } from '../../store/authStore';
+import { useAuthStore, selectCanAccessDeviceManagement } from '../../store/authStore';
 import { authApi } from '../../services/authService';
 import { useRoomAssignmentAccess } from '../../hooks/useRoomAssignmentAccess';
 import { OfflineIndicator } from '../responsive/OfflineIndicator';
@@ -17,6 +17,7 @@ interface NavItem {
   disabled?: boolean;
   adminOnly?: boolean;
   requireTech?: boolean;
+  requireDeviceManagement?: boolean;
   requireRoomAssignment?: boolean;
   requireFieldTripApprover?: boolean;
   staffOnly?: boolean;  // Hidden from students (ALL_STUDENTS group)
@@ -53,6 +54,20 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: 'Device Management',
+    items: [
+      { label: 'DM Dashboard',   icon: '📱', path: '/device-management',               requireDeviceManagement: true },
+      { label: 'Checkouts',      icon: '📤', path: '/device-management/checkouts',      requireDeviceManagement: true },
+      { label: 'Bulk Checkout',  icon: '📋', path: '/device-management/checkouts/bulk',          requireDeviceManagement: true },
+      { label: 'Bulk Check-In',   icon: '📥', path: '/device-management/checkouts/bulk-checkin', requireDeviceManagement: true },
+      { label: 'Damage Reports', icon: '⚠️', path: '/device-management/incidents',      requireDeviceManagement: true },
+      { label: 'Repair Tickets', icon: '🔧', path: '/device-management/repair-tickets', requireDeviceManagement: true },
+      { label: 'Invoices',       icon: '💰', path: '/device-management/invoices',       requireDeviceManagement: true },
+      { label: 'Component Prices', icon: '🏷️', path: '/device-management/component-prices', requireDeviceManagement: true },
+      { label: 'DM Reports',     icon: '📊', path: '/device-management/reports',        requireDeviceManagement: true },
+    ],
+  },
+  {
     title: 'Admin',
     items: [
       { label: 'Users', icon: '👥', path: '/users', adminOnly: true },
@@ -60,11 +75,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Room Assignments', icon: '🚪', path: '/room-assignments', requireRoomAssignment: true },
       { label: 'Reference Data', icon: '🏷️', path: '/reference-data', adminOnly: true },
       { label: 'Admin Settings', icon: '⚙️', path: '/admin/settings', adminOnly: true },
-    ],
-  },
-  {
-    items: [
-      { label: 'Reports', icon: '📊', disabled: true, requireTech: true },
     ],
   },
 ];
@@ -75,6 +85,7 @@ interface AppLayoutProps {
 
 export const AppLayout = ({ children }: AppLayoutProps) => {
   const { user, clearAuth } = useAuthStore();
+  const canAccessDeviceManagement = useAuthStore(selectCanAccessDeviceManagement);
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = user?.roles?.includes('ADMIN');
@@ -111,6 +122,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         const visibleItems = section.items.filter((item) =>
           (!item.adminOnly || isAdmin) &&
           (!item.requireTech || hasTechAccess) &&
+          (!item.requireDeviceManagement || canAccessDeviceManagement) &&
           (!item.requireFieldTripApprover || hasFieldTripApproverAccess) &&
           (!item.staffOnly || isStaff) &&
           (!item.requireRoomAssignment || canAccessRoomAssignments)
@@ -123,9 +135,23 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
             )}
             {visibleItems.map((item) => {
               const isActive = item.path
-                ? (item.path === '/field-trips'
-                    ? location.pathname === item.path
-                    : location.pathname === item.path || location.pathname.startsWith(item.path + '/'))
+                ? (() => {
+                    // Exact match always wins
+                    if (location.pathname === item.path) return true;
+                    // For startsWith matching, ensure no other sibling nav item is a better (longer) match
+                    if (location.pathname.startsWith(item.path + '/')) {
+                      // Check if any other item in this section is a longer prefix match
+                      const hasMoreSpecificMatch = visibleItems.some(
+                        (other) =>
+                          other.path &&
+                          other.path !== item.path &&
+                          other.path.startsWith(item.path + '/') &&
+                          (location.pathname === other.path || location.pathname.startsWith(other.path + '/'))
+                      );
+                      return !hasMoreSpecificMatch;
+                    }
+                    return false;
+                  })()
                 : false;
               if (item.disabled) {
                 return (

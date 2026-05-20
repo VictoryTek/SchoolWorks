@@ -33,6 +33,19 @@ import {
   TransportationRequestFormPage,
   TransportationRequestDetailPage,
 } from './pages/TransportationRequests'
+import CheckoutPage from './pages/DeviceManagement/CheckoutPage'
+import CheckoutScanPage from './pages/DeviceManagement/CheckoutScanPage'
+import BulkCheckoutPage from './pages/DeviceManagement/BulkCheckoutPage'
+import BulkCheckinPage from './pages/DeviceManagement/BulkCheckinPage'
+import DamageIncidentsPage from './pages/DeviceManagement/DamageIncidentsPage'
+import DamageIncidentDetailPage from './pages/DeviceManagement/DamageIncidentDetailPage'
+import RepairTicketsPage from './pages/DeviceManagement/RepairTicketsPage'
+import RepairTicketDetailPage from './pages/DeviceManagement/RepairTicketDetailPage'
+import InvoicesPage from './pages/DeviceManagement/InvoicesPage'
+import InvoiceDetailPage from './pages/DeviceManagement/InvoiceDetailPage'
+import ComponentPricesPage from './pages/DeviceManagement/ComponentPricesPage'
+import DeviceManagementDashboard from './pages/DeviceManagement/index'
+import ReportsPage from './pages/DeviceManagement/ReportsPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PwaUpdatePrompt } from './components/layout/PwaUpdatePrompt'
 import AppLayout from './components/layout/AppLayout'
@@ -323,6 +336,136 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <TransportationRequestDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/checkouts"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <CheckoutPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/checkouts/scan"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <CheckoutScanPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/checkouts/bulk"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <BulkCheckoutPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/checkouts/bulk-checkin"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <BulkCheckinPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/incidents"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <DamageIncidentsPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/incidents/:id"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <DamageIncidentDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/repair-tickets"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <RepairTicketsPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/repair-tickets/:id"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <RepairTicketDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/invoices"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <InvoicesPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/invoices/:id"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <InvoiceDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/component-prices"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <ComponentPricesPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <DeviceManagementDashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/reports"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <ReportsPage />
               </AppLayout>
             </ProtectedRoute>
           }

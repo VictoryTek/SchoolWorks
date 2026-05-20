@@ -1,0 +1,392 @@
+import { useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  FormControlLabel,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  MenuItem,
+  Select,
+  Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import BlockIcon from '@mui/icons-material/Block';
+import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { componentPriceService } from '../../services/invoice.service';
+import { useAuthStore, selectCanAccessDeviceManagement } from '../../store/authStore';
+import type { DamageComponentPrice } from '../../types/invoice.types';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const CATEGORIES = ['Screen', 'Input', 'Power', 'Chassis', 'Storage', 'Other'] as const;
+type Category = (typeof CATEGORIES)[number];
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function formatCurrency(value: string | number): string {
+  return parseFloat(String(value)).toLocaleString('en-US', {
+    style:    'currency',
+    currency: 'USD',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Form state
+// ---------------------------------------------------------------------------
+
+interface PriceFormData {
+  name:        string;
+  category:    Category;
+  description: string;
+  unitPrice:   string;
+}
+
+const emptyForm: PriceFormData = {
+  name:        '',
+  category:    'Other',
+  description: '',
+  unitPrice:   '',
+};
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export default function ComponentPricesPage() {
+  const queryClient = useQueryClient();
+  const canWrite    = useAuthStore(selectCanAccessDeviceManagement);
+
+  const [showInactive,  setShowInactive]  = useState(false);
+  const [dialogOpen,    setDialogOpen]    = useState(false);
+  const [editingPrice,  setEditingPrice]  = useState<DamageComponentPrice | null>(null);
+  const [form,          setForm]          = useState<PriceFormData>(emptyForm);
+  const [dialogError,   setDialogError]   = useState<string | null>(null);
+  const [pageError,     setPageError]     = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Queries
+  // ---------------------------------------------------------------------------
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['componentPrices', { showInactive }],
+    queryFn:  () =>
+      componentPriceService.getAll({
+        limit:           100,
+        includeInactive: showInactive || undefined,
+      }),
+  });
+
+  const prices: DamageComponentPrice[] = data?.items ?? [];
+
+  // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
+
+  const createMutation = useMutation({
+    mutationFn: (d: PriceFormData) =>
+      componentPriceService.create({
+        name:        d.name.trim(),
+        category:    d.category,
+        description: d.description.trim() || undefined,
+        unitPrice:   parseFloat(d.unitPrice),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['componentPrices'] });
+      handleCloseDialog();
+    },
+    onError: () => setDialogError('Failed to create component price. Please try again.'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, d }: { id: string; d: PriceFormData }) =>
+      componentPriceService.update(id, {
+        name:        d.name.trim(),
+        category:    d.category,
+        description: d.description.trim() || undefined,
+        unitPrice:   parseFloat(d.unitPrice),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['componentPrices'] });
+      handleCloseDialog();
+    },
+    onError: () => setDialogError('Failed to update component price. Please try again.'),
+  });
+
+  const deactivateMutation = useMutation({
+    mutationFn: (id: string) => componentPriceService.deactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['componentPrices'] });
+      setPageError(null);
+    },
+    onError: () => setPageError('Failed to deactivate component price. Please try again.'),
+  });
+
+  // ---------------------------------------------------------------------------
+  // Handlers
+  // ---------------------------------------------------------------------------
+
+  const handleOpenCreate = () => {
+    setEditingPrice(null);
+    setForm(emptyForm);
+    setDialogError(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (price: DamageComponentPrice) => {
+    setEditingPrice(price);
+    setForm({
+      name:        price.name,
+      category:    (CATEGORIES.includes(price.category as Category)
+        ? price.category
+        : 'Other') as Category,
+      description: price.description ?? '',
+      unitPrice:   parseFloat(price.unitPrice).toFixed(2),
+    });
+    setDialogError(null);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setEditingPrice(null);
+    setForm(emptyForm);
+    setDialogError(null);
+  };
+
+  const handleSave = () => {
+    if (!form.name.trim()) {
+      setDialogError('Name is required.');
+      return;
+    }
+    const price = parseFloat(form.unitPrice);
+    if (isNaN(price) || price <= 0) {
+      setDialogError('Unit price must be greater than 0.');
+      return;
+    }
+    if (editingPrice) {
+      updateMutation.mutate({ id: editingPrice.id, d: form });
+    } else {
+      createMutation.mutate(form);
+    }
+  };
+
+  const handleDeactivate = (price: DamageComponentPrice) => {
+    if (
+      !window.confirm(
+        `Deactivate "${price.name}"? It will no longer appear in the component dropdown when creating invoices.`,
+      )
+    )
+      return;
+    deactivateMutation.mutate(price.id);
+  };
+
+  const isPending = createMutation.isPending || updateMutation.isPending;
+  const colSpan   = canWrite ? 5 : 4;
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
+
+  return (
+    <Box sx={{ p: 3 }}>
+      {/* Page header */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <LocalOfferIcon color="primary" />
+          <Typography variant="h5" fontWeight="bold">
+            Component Price List
+          </Typography>
+        </Box>
+        {canWrite && (
+          <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreate}>
+            Add Price
+          </Button>
+        )}
+      </Box>
+
+      {/* Show inactive toggle */}
+      <FormControlLabel
+        control={
+          <Switch
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+            size="small"
+          />
+        }
+        label="Show Inactive"
+        sx={{ mb: 2 }}
+      />
+
+      {/* Page-level errors (e.g. deactivate failure) */}
+      {pageError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setPageError(null)}>
+          {pageError}
+        </Alert>
+      )}
+
+      {isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Failed to load component prices.
+        </Alert>
+      )}
+
+      {/* Price table */}
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell>Name</TableCell>
+            <TableCell>Category</TableCell>
+            <TableCell align="right">Unit Price</TableCell>
+            <TableCell>Status</TableCell>
+            {canWrite && <TableCell align="center">Actions</TableCell>}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {isLoading && (
+            <TableRow>
+              <TableCell colSpan={colSpan} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                Loading…
+              </TableCell>
+            </TableRow>
+          )}
+          {!isLoading && prices.length === 0 && (
+            <TableRow>
+              <TableCell colSpan={colSpan} sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                No component prices found.
+              </TableCell>
+            </TableRow>
+          )}
+          {prices.map((price) => (
+            <TableRow key={price.id} sx={{ opacity: price.isActive ? 1 : 0.5 }}>
+              <TableCell>{price.name}</TableCell>
+              <TableCell>{price.category}</TableCell>
+              <TableCell align="right">{formatCurrency(price.unitPrice)}</TableCell>
+              <TableCell>
+                <Chip
+                  label={price.isActive ? 'Active' : 'Inactive'}
+                  color={price.isActive ? 'success' : 'default'}
+                  size="small"
+                />
+              </TableCell>
+              {canWrite && (
+                <TableCell align="center">
+                  <Tooltip title="Edit">
+                    <IconButton size="small" onClick={() => handleOpenEdit(price)}>
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  {price.isActive && (
+                    <Tooltip title="Deactivate">
+                      <IconButton
+                        size="small"
+                        color="warning"
+                        onClick={() => handleDeactivate(price)}
+                        disabled={deactivateMutation.isPending}
+                      >
+                        <BlockIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      {/* Create / Edit dialog */}
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingPrice ? 'Edit Component Price' : 'Add Component Price'}
+        </DialogTitle>
+        <DialogContent>
+          {dialogError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {dialogError}
+            </Alert>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <TextField
+              label="Name"
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              required
+              fullWidth
+              disabled={isPending}
+              inputProps={{ maxLength: 200 }}
+            />
+            <FormControl fullWidth required>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={form.category}
+                label="Category"
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, category: e.target.value as Category }))
+                }
+                disabled={isPending}
+              >
+                {CATEGORIES.map((cat) => (
+                  <MenuItem key={cat} value={cat}>
+                    {cat}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Description (optional)"
+              value={form.description}
+              onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+              multiline
+              rows={2}
+              fullWidth
+              disabled={isPending}
+            />
+            <TextField
+              label="Unit Price"
+              type="number"
+              value={form.unitPrice}
+              onChange={(e) => setForm((prev) => ({ ...prev, unitPrice: e.target.value }))}
+              required
+              fullWidth
+              disabled={isPending}
+              inputProps={{ min: 0.01, step: '0.01' }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleSave} disabled={isPending}>
+            {isPending ? 'Saving…' : editingPrice ? 'Save Changes' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}

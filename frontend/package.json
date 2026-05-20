@@ -24,6 +24,7 @@
     "@tanstack/react-query-devtools": "^5.91.3",
     "axios": "^1.15.2",
     "cronstrue": "^3.14.0",
+    "html5-qrcode": "^2.3.8",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-hook-form": "^7.71.2",

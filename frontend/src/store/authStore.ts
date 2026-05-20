@@ -70,3 +70,19 @@ export const useAuthStore = create<AuthState>()(
 );
 
 // No localStorage token sync needed - tokens are in HttpOnly cookies
+
+// ---------------------------------------------------------------------------
+// Derived selector — computed from user.groups at call time.
+// Never persisted to localStorage, so it cannot be tampered with by editing
+// the auth-storage entry. Use this in place of user?.canAccessDeviceManagement.
+// ---------------------------------------------------------------------------
+export const selectCanAccessDeviceManagement = (state: AuthState): boolean => {
+  const groups = state.user?.groups;
+  if (!groups) return false;
+  const allowlist = [
+    import.meta.env.VITE_ENTRA_ADMIN_GROUP_ID,
+    import.meta.env.VITE_ENTRA_TECH_ASSISTANTS_GROUP_ID,
+    import.meta.env.VITE_ENTRA_OCBOE_LIBRARIANS_GROUP_ID,
+  ].filter(Boolean) as string[];
+  return groups.some((g) => allowlist.some((id) => g.toLowerCase() === id.toLowerCase()));
+};

@@ -88,6 +88,8 @@ export interface AuthUserInfo {
   };
   /** True if user belongs to at least ALL_STAFF or ALL_STUDENTS base groups */
   hasBaseAccess: boolean;
+  /** True if user belongs to the dedicated Device Management allowlist */
+  canAccessDeviceManagement: boolean;
 }
 
 /**

@@ -20,12 +20,19 @@ import userRoomAssignmentRoutes from './routes/userRoomAssignment.routes';
 import fieldTripRoutes from './routes/fieldTrip.routes';
 import transportationRequestRoutes from './routes/transportationRequest.routes';
 import workOrderCategoryRoutes from './routes/workOrderCategory.routes';
+import deviceAssignmentRoutes from './routes/deviceAssignment.routes';
+import damageIncidentRoutes from './routes/damageIncident.routes';
+import repairTicketRoutes from './routes/repairTicket.routes';
+import invoiceRoutes from './routes/invoice.routes';
+import checkoutReportRoutes from './routes/checkoutReport.routes';
+import damageComponentPriceRouter from './routes/damageComponentPrice.routes';
 import { cronJobsService } from './services/cronJobs.service';
 import { schedulerService } from './services/scheduler.service';
 import { startEmailQueueWorker, stopEmailQueueWorker } from './services/emailQueue.service';
 import { provideCsrfToken, getCsrfToken } from './middleware/csrf';
 import { logger, loggers } from './lib/logger';
 import { requestId, httpLogger } from './middleware/requestLogger';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
@@ -91,6 +98,9 @@ app.use(cookieParser());
 app.use(requestId);
 app.use(httpLogger);
 
+// Serve uploaded damage-incident photos
+app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
+
 // CSRF token provider - applies to all routes
 // Provides CSRF token in response header and cookie
 app.use(provideCsrfToken);
@@ -127,6 +137,12 @@ app.use('/api', userRoomAssignmentRoutes);
 app.use('/api/field-trips', fieldTripRoutes);
 app.use('/api/transportation-requests', transportationRequestRoutes);
 app.use('/api/work-order-categories', workOrderCategoryRoutes);
+app.use('/api/device-assignments', deviceAssignmentRoutes);
+app.use('/api/damage-incidents', damageIncidentRoutes);
+app.use('/api/repair-tickets', repairTicketRoutes);
+app.use('/api/invoices', invoiceRoutes);
+app.use('/api/checkout-reports', checkoutReportRoutes);
+app.use('/api/damage-component-prices', damageComponentPriceRouter);
 
 // API info endpoint
 app.get('/api', (req: Request, res: Response) => {

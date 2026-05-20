@@ -1,0 +1,101 @@
+import { Router } from 'express';
+import path from 'path';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import { mkdirSync } from 'fs';
+import { authenticate } from '../middleware/auth';
+import { validateCsrfToken } from '../middleware/csrf';
+import { validateRequest } from '../middleware/validation';
+import { requireDeviceManagementAccess } from '../utils/groupAuth';
+import * as controller from '../controllers/damageIncident.controller';
+import {
+  CreateDamageIncidentSchema,
+  UpdateDamageIncidentSchema,
+  UpdateIncidentStatusSchema,
+  ListIncidentsQuerySchema,
+} from '../validators/damageIncident.validators';
+
+const UPLOAD_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'damage-incidents');
+
+// Ensure upload directory exists at startup
+mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const photoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${uuidv4()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024, files: 5 },
+  fileFilter: (_req, file, cb) => {
+    if (['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only JPEG, PNG and WebP images are allowed'));
+    }
+  },
+});
+
+const router = Router();
+router.use(authenticate);
+
+// Read
+router.get(
+  '/',
+  requireDeviceManagementAccess(),
+  validateRequest(ListIncidentsQuerySchema, 'query'),
+  controller.list,
+);
+router.get(
+  '/:id',
+  requireDeviceManagementAccess(),
+  controller.getById,
+);
+
+// Write
+router.post(
+  '/',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  validateRequest(CreateDamageIncidentSchema),
+  controller.create,
+);
+router.put(
+  '/:id',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  validateRequest(UpdateDamageIncidentSchema),
+  controller.update,
+);
+router.patch(
+  '/:id/status',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  validateRequest(UpdateIncidentStatusSchema),
+  controller.updateStatus,
+);
+router.delete(
+  '/:id',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  controller.remove,
+);
+
+// Photos
+router.post(
+  '/:id/photos',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  photoUpload.array('photos', 5),
+  controller.uploadPhotos,
+);
+router.delete(
+  '/:id/photos/:photoId',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  controller.deletePhoto,
+);
+
+export default router;

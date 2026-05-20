@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore, selectCanAccessDeviceManagement } from '../store/authStore';
 import { useRoomAssignmentAccess } from '../hooks/useRoomAssignmentAccess';
 import AccessDenied from '../pages/AccessDenied';
 
@@ -7,6 +7,7 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
   requireTech?: boolean;
+  requireDeviceManagement?: boolean;
   requireRoomAssignment?: boolean;
 }
 
@@ -14,9 +15,11 @@ export const ProtectedRoute = ({
   children,
   requireAdmin = false,
   requireTech = false,
+  requireDeviceManagement = false,
   requireRoomAssignment = false,
 }: ProtectedRouteProps) => {
   const { isAuthenticated, user } = useAuthStore();
+  const canAccessDeviceManagement = useAuthStore(selectCanAccessDeviceManagement);
   const roomAssignmentAccess = useRoomAssignmentAccess();
 
   if (!isAuthenticated) {
@@ -42,6 +45,10 @@ export const ProtectedRoute = ({
     if (!hasTechAccess) {
       return <AccessDenied />;
     }
+  }
+
+  if (requireDeviceManagement && !canAccessDeviceManagement) {
+    return <AccessDenied />;
   }
 
   if (requireRoomAssignment) {
