@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardContent,
   CircularProgress,
   Divider,
   Typography,
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { deviceAssignmentService } from '../../services/deviceAssignment.service';
 import { ScannerModal } from '../../components/DeviceManagement/ScannerModal';
 import { CheckoutForm } from '../../components/DeviceManagement/CheckoutForm';
@@ -20,6 +22,7 @@ import type { ScanResult, DeviceAssignmentUser } from '../../types/deviceAssignm
 // Scan / checkout-or-checkin page — /device-management/checkouts/scan
 export default function CheckoutScanPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const code    = searchParams.get('code') ?? searchParams.get('barcode') ?? '';
   const qrCode  = searchParams.get('qrCode') ?? '';
@@ -102,6 +105,9 @@ export default function CheckoutScanPage() {
 
   return (
     <Box sx={{ maxWidth: 700, mx: 'auto', mt: 3, px: { xs: 2, sm: 0 } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management/checkouts')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       <Typography variant="h5" fontWeight={600} gutterBottom>
         Device Scan
       </Typography>

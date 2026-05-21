@@ -15,10 +15,11 @@ import {
   Checkbox,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import SendIcon from '@mui/icons-material/Send';
 import SearchIcon from '@mui/icons-material/Search';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { invoiceService } from '../../services/invoice.service';
 import { ResponsiveTable, MobileFilterBar } from '../../components/responsive';
@@ -56,6 +57,7 @@ function InvoiceStatusChip({ status }: { status: InvoiceStatus }) {
 // ---------------------------------------------------------------------------
 
 export default function InvoicesPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -190,6 +192,9 @@ export default function InvoicesPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 3 }}>
         <Typography variant="h5">Invoices</Typography>

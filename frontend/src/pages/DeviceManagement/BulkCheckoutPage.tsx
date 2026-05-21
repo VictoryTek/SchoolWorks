@@ -24,6 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ErrorIcon from '@mui/icons-material/Error';
 import { useQuery } from '@tanstack/react-query';
 import { locationService } from '../../services/location.service';
@@ -194,6 +195,9 @@ export default function BulkCheckoutPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 1400, mx: 'auto' }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>
         Bulk Device Checkout
       </Typography>

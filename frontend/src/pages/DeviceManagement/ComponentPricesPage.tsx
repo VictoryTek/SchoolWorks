@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -21,6 +22,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import EditIcon from '@mui/icons-material/Edit';
 import BlockIcon from '@mui/icons-material/Block';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
@@ -71,6 +73,7 @@ const emptyForm: PriceFormData = {
 // ---------------------------------------------------------------------------
 
 export default function ComponentPricesPage() {
+  const navigate    = useNavigate();
   const queryClient = useQueryClient();
   const canWrite    = useAuthStore(selectCanAccessDeviceManagement);
 
@@ -238,8 +241,11 @@ export default function ComponentPricesPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       {/* Page header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <LocalOfferIcon color="primary" />
           <Typography variant="h5" fontWeight="bold">

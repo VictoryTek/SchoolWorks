@@ -26,6 +26,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorIcon from '@mui/icons-material/Error';
 import QrCodeScannerIcon from '@mui/icons-material/QrCodeScanner';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deviceAssignmentService } from '../../services/deviceAssignment.service';
 import { DeviceStatusChip } from '../../components/DeviceManagement/DeviceStatusChip';
@@ -228,10 +229,15 @@ export default function BulkCheckinPage() {
   return (
     <Box sx={{ maxWidth: 700, mx: 'auto', mt: 3, px: { xs: 2, sm: 0 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-        <Typography variant="h5" fontWeight={600}>
-          Bulk Check-In
-        </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} size="small">
+            Back
+          </Button>
+          <Typography variant="h5" fontWeight={600}>
+            Bulk Check-In
+          </Typography>
+        </Box>
         <Button variant="outlined" onClick={handleDone}>
           Done
         </Button>

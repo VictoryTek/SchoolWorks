@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -23,6 +24,7 @@ import {
   Typography,
 } from '@mui/material';
 import { Download as DownloadIcon } from '@mui/icons-material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { checkoutReportService } from '../../services/checkoutReport.service';
 import { locationService } from '../../services/location.service';
 import { useAuthStore, selectCanSeeAllLocations } from '../../store/authStore';
@@ -32,6 +34,7 @@ import { gradeLevelLabel } from '../../constants/gradeLevel';
 type ReportType = 'active-checkouts' | 'damage-summary' | 'repair-costs' | 'invoice-aging' | 'grade-level-summary' | null;
 
 export default function ReportsPage() {
+  const navigate = useNavigate();
   const [selectedReport, setSelectedReport] = useState<ReportType>(null);
   const [startDate, setStartDate]           = useState('');
   const [endDate, setEndDate]               = useState('');
@@ -149,6 +152,9 @@ export default function ReportsPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       <Typography variant="h4" fontWeight={600} gutterBottom>
         Device Management Reports
       </Typography>

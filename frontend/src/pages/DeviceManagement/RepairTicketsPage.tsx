@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import Chip from '@mui/material/Chip';
 import { ResponsiveTable, MobileFilterBar } from '../../components/responsive';
@@ -165,6 +166,9 @@ export default function RepairTicketsPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1, mb: 3 }}>
         <Typography variant="h5" fontWeight={600}>Repair Tickets</Typography>

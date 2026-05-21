@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
@@ -16,6 +17,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SearchIcon from '@mui/icons-material/Search';
 import { ResponsiveTable, MobileFilterBar } from '../../components/responsive';
 import type { Column } from '../../components/responsive';
@@ -32,6 +34,7 @@ import type { DeviceAssignment, DeviceAssignmentUser } from '../../types/deviceA
 
 // Active checkouts page — /device-management/checkouts
 export default function CheckoutPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
@@ -174,6 +177,9 @@ export default function CheckoutPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 }, maxWidth: 1400, mx: 'auto' }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/device-management')} sx={{ mb: 2 }}>
+        Back
+      </Button>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Typography variant="h5" fontWeight={600}>
           Active Checkouts
