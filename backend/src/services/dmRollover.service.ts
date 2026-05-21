@@ -58,8 +58,9 @@ export class DmRolloverService {
 
     const suggestedNewYear = {
       label: `${nextStart}-${nextStart + 1}`,
-      start: new Date(`${nextStart}-07-01T00:00:00`).toISOString(),
-      end: new Date(`${nextStart + 1}-06-30T23:59:59`).toISOString(),
+      // Use Date.UTC to avoid local-timezone offset shifting the date
+      start: new Date(Date.UTC(nextStart, 6, 1, 0, 0, 0)).toISOString(),       // Jul 1
+      end: new Date(Date.UTC(nextStart + 1, 5, 30, 23, 59, 59)).toISOString(), // Jun 30
     };
 
     return {
