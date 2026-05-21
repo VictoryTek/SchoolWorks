@@ -27,6 +27,7 @@ import invoiceRoutes from './routes/invoice.routes';
 import checkoutReportRoutes from './routes/checkoutReport.routes';
 import damageComponentPriceRouter from './routes/damageComponentPrice.routes';
 import barcodePdfRoutes from './routes/barcodePdf.routes';
+import dmRolloverRoutes from './routes/dmRollover.routes';
 import { cronJobsService } from './services/cronJobs.service';
 import { schedulerService } from './services/scheduler.service';
 import { startEmailQueueWorker, stopEmailQueueWorker } from './services/emailQueue.service';
@@ -145,6 +146,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/checkout-reports', checkoutReportRoutes);
 app.use('/api/damage-component-prices', damageComponentPriceRouter);
 app.use('/api/device-barcodes', barcodePdfRoutes);
+app.use('/api/device-management/rollover', dmRolloverRoutes);
 
 // API info endpoint
 app.get('/api', (req: Request, res: Response) => {

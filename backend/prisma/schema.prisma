@@ -533,6 +533,7 @@ model User {
   damageInvoices                DamageInvoice[]       @relation("DamageInvoiceUser")
   damageInvoicesCreated         DamageInvoice[]       @relation("DamageInvoiceCreator")
   invoicePaymentsRecorded       InvoicePayment[]
+  dmYearRollovers               DmYearRolloverHistory[]
 
   @@index([employeeId])
   @@map("users")
@@ -817,6 +818,11 @@ model SystemSettings {
   supervisorApprovalLevel      Int  @default(3)
   financeDirectorApprovalLevel Int  @default(5)
   dosApprovalLevel             Int  @default(6)
+
+  // Device Management School Year
+  currentSchoolYear       String?
+  lastDmRolloverAt        DateTime?
+  lastDmRolloverBy        String?
 
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
@@ -1230,6 +1236,7 @@ model DamageIncident {
   resolvedAt      DateTime?
   resolvedBy      String?   // User.id
   resolutionNotes String?
+  schoolYear      String?   // "YYYY-YYYY" school year label, stamped at rollover
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -1248,6 +1255,7 @@ model DamageIncident {
   @@index([status])
   @@index([reportedAt])
   @@index([incidentNumber])
+  @@index([schoolYear])
   @@map("damage_incidents")
 }
 
@@ -1283,6 +1291,7 @@ model RepairTicket {
   trackingNumber     String?
   repairNotes        String?
   internalNotes      String?
+  schoolYear         String?   // "YYYY-YYYY" school year label, stamped at rollover
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
@@ -1296,6 +1305,7 @@ model RepairTicket {
   @@index([vendorId])
   @@index([status])
   @@index([sentForRepairAt])
+  @@index([schoolYear])
   @@map("repair_tickets")
 }
 
@@ -1315,6 +1325,7 @@ model DamageInvoice {
   paidAt           DateTime?
   notes            String?
   createdBy        String    // User.id
+  schoolYear       String?   // "YYYY-YYYY" school year label, stamped at rollover
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -1328,6 +1339,7 @@ model DamageInvoice {
   @@index([userId])
   @@index([status])
   @@index([dueDate])
+  @@index([schoolYear])
   @@map("damage_invoices")
 }
 
@@ -1384,4 +1396,26 @@ model DamageInvoiceLineItem {
 
   @@index([invoiceId])
   @@map("damage_invoice_line_items")
+}
+
+// ============================================
+// DEVICE MANAGEMENT YEAR ROLLOVER AUDIT
+// ============================================
+
+model DmYearRolloverHistory {
+  id               String   @id @default(uuid())
+  schoolYear       String   // Outgoing year archived, e.g. "2025-2026"
+  newSchoolYear    String   @unique  // Incoming year started — unique prevents double rollover
+  schoolYearStart  DateTime
+  schoolYearEnd    DateTime
+  incidentsStamped Int      @default(0)
+  ticketsStamped   Int      @default(0)
+  invoicesStamped  Int      @default(0)
+  performedById    String
+  performedAt      DateTime @default(now())
+
+  performedBy User @relation(fields: [performedById], references: [id])
+
+  @@map("dm_year_rollover_history")
+  @@index([schoolYear])
 }

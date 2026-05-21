@@ -66,6 +66,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Component Prices', icon: '🏷️', path: '/device-management/component-prices', requireDeviceManagement: true },
       { label: 'DM Reports',     icon: '📊', path: '/device-management/reports',        requireDeviceManagement: true },
       { label: 'Barcode Generator', icon: '🖨️', path: '/device-management/barcode-pdf', requireDeviceManagement: true },
+      { label: 'Year Rollover',      icon: '🔄', path: '/device-management/rollover',     adminOnly: true },
     ],
   },
   {
