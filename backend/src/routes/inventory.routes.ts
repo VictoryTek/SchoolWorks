@@ -19,6 +19,7 @@ import {
   CreateInventorySchema,
   UpdateInventorySchema,
   BulkUpdateInventorySchema,
+  BulkDeleteInventorySchema,
   ImportInventorySchema,
   ExportInventorySchema,
   ImportJobIdParamSchema,
@@ -141,6 +142,19 @@ router.put(
   validateRequest(UpdateInventorySchema, 'body'),
   requireModule('TECHNOLOGY', 2),
   inventoryController.updateInventoryItem
+);
+
+/**
+ * POST /api/inventory/bulk-delete
+ * Permanently delete multiple disposed inventory items
+ * Permission: TECHNOLOGY level 3 (admin access)
+ * NOTE: registered before DELETE /inventory/:id to prevent param capture
+ */
+router.post(
+  '/inventory/bulk-delete',
+  validateRequest(BulkDeleteInventorySchema, 'body'),
+  requireModule('TECHNOLOGY', 3),
+  inventoryController.bulkDeleteInventory
 );
 
 /**

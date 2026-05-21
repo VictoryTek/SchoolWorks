@@ -646,6 +646,25 @@ export class InventoryService {
   }
 
   /**
+   * Bulk permanently delete disposed inventory items
+   */
+  async bulkDelete(ids: string[]): Promise<{ deletedCount: number }> {
+    const result = await this.prisma.equipment.deleteMany({
+      where: {
+        id: { in: ids },
+        status: 'disposed',
+      },
+    });
+
+    logger.warn('Bulk inventory items permanently deleted', {
+      count: result.count,
+      ids,
+    });
+
+    return { deletedCount: result.count };
+  }
+
+  /**
    * Bulk update inventory items
    */
   async bulkUpdate(

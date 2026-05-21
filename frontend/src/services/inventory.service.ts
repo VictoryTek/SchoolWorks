@@ -138,6 +138,14 @@ class InventoryService {
   }
 
   /**
+   * Bulk permanently delete disposed inventory items
+   */
+  async bulkDeleteDisposed(ids: string[]): Promise<{ deletedCount: number }> {
+    const response = await api.post('/inventory/bulk-delete', { ids });
+    return response.data;
+  }
+
+  /**
    * Export inventory to file
    */
   async exportInventory(options: ExportOptions): Promise<void> {

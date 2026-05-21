@@ -249,6 +249,13 @@ export const ImportJobIdParamSchema = z.object({
 });
 
 /**
+ * Validation schema for bulk-deleting disposed inventory items
+ */
+export const BulkDeleteInventorySchema = z.object({
+  ids: z.array(z.string().uuid('Invalid item ID')).min(1, 'At least one item ID is required'),
+});
+
+/**
  * TypeScript type exports (inferred from schemas)
  */
 export type InventoryIdParam = z.infer<typeof InventoryIdParamSchema>;

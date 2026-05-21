@@ -12,7 +12,7 @@ import { MobileCard } from './MobileCard';
 
 export interface Column<T> {
   key: keyof T | string;
-  label: string;
+  label: string | ReactNode;
   render?: (row: T) => ReactNode;
   /** Hide this column in mobile card view */
   hideOnMobile?: boolean;

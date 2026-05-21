@@ -250,6 +250,36 @@ export const deleteInventoryItem = async (req: AuthRequest, res: Response) => {
 };
 
 /**
+ * Bulk permanently delete disposed inventory items
+ * POST /api/inventory/bulk-delete
+ */
+export const bulkDeleteInventory = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { ids } = req.body as { ids: string[] };
+
+    logger.warn('Bulk delete disposed inventory items requested', {
+      userId: req.user.id,
+      count: ids.length,
+    });
+
+    const result = await inventoryService.bulkDelete(ids);
+
+    logger.warn('Bulk inventory delete completed', {
+      userId: req.user.id,
+      deletedCount: result.deletedCount,
+    });
+
+    res.json({ success: true, deletedCount: result.deletedCount });
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+/**
  * Bulk update inventory items
  * POST /api/inventory/bulk-update
  */
