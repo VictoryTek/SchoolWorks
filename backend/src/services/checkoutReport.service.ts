@@ -94,7 +94,7 @@ export async function getDashboard(): Promise<DashboardData> {
   const outstandingInvoiceTotal = (outstanding._sum.amount ?? 0).toString();
 
   // Top damaged models — fetch equipment details
-  const equipmentIds = topModels.map(m => m.equipmentId);
+  const equipmentIds = topModels.map(m => m.equipmentId).filter((id): id is string => id !== null);
   const equipList = await prisma.equipment.findMany({
     where: { id: { in: equipmentIds } },
     include: {

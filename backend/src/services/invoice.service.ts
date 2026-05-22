@@ -74,6 +74,7 @@ export async function generateInvoiceNumber(tx: Prisma.TransactionClient): Promi
 function buildPdfData(invoice: Awaited<ReturnType<typeof getById>>): InvoicePdfData {
   const incident  = invoice.damageIncident;
   const equipment = incident.equipment;
+  if (!equipment) throw new Error('Invoice incident has no associated equipment');
 
   return {
     invoiceNumber:  invoice.invoiceNumber,
