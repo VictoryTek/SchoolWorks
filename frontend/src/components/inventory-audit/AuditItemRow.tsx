@@ -69,11 +69,6 @@ export function AuditItemRow({ item, sessionId }: AuditItemRowProps) {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Typography variant="body2" fontWeight={600} noWrap>
               {item.equipmentTag}
-              {item.equipmentSerial && (
-                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                  S/N: {item.equipmentSerial}
-                </Typography>
-              )}
             </Typography>
             {item.isAddition && (
               <Chip
@@ -86,6 +81,11 @@ export function AuditItemRow({ item, sessionId }: AuditItemRowProps) {
               />
             )}
           </Box>
+          {item.equipmentSerial && (
+            <Typography variant="caption" color="text.secondary" display="block" noWrap>
+              S/N: {item.equipmentSerial}
+            </Typography>
+          )}
           <Typography variant="caption" color="text.secondary" noWrap>
             {item.equipmentName}
           </Typography>

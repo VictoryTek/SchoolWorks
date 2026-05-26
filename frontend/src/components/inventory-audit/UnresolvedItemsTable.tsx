@@ -212,7 +212,9 @@ export function UnresolvedItemsTable({ filters = {} }: UnresolvedItemsTableProps
             {item.equipmentTag}
           </Link>
           {item.equipmentSerial && (
-            <Typography variant="caption" color="text.secondary">S/N: {item.equipmentSerial}</Typography>
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.25, wordBreak: 'break-word' }}>
+              S/N: {item.equipmentSerial}
+            </Typography>
           )}
         </Box>
       ),
