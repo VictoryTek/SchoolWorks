@@ -10,12 +10,16 @@ import { AuthRequest } from '../middleware/auth';
 import { InventoryAuditService } from '../services/inventoryAudit.service';
 import {
   GetAuditSessionsQueryDto,
+  NextRoomQueryDto,
+  ExportAuditHistoryPdfQueryDto,
   GetUnresolvedQueryDto,
   CheckRecentQueryDto,
+  EquipmentLookupQueryDto,
 } from '../validators/inventoryAudit.validators';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { generateInventoryAuditHistoryPdf } from '../services/inventoryAuditPdf.service';
 
 const auditService = new InventoryAuditService(prisma);
 
@@ -48,6 +52,66 @@ export const getSessions = async (req: AuthRequest, res: Response) => {
     });
 
     res.json(result);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/inventory-audit/next-room
+// ---------------------------------------------------------------------------
+
+export const getNextRoom = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = buildUserContext(req);
+    const result = await auditService.getNextRoomForLocation(
+      req.query as unknown as NextRoomQueryDto,
+      user
+    );
+
+    logger.info('Next audit room resolved', {
+      userId: user.id,
+      locationId: req.query.officeLocationId,
+      hasNextRoom: !!result.nextRoom,
+      remainingCount: result.remainingCount,
+    });
+
+    res.json(result);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// GET /api/inventory-audit/sessions/export/pdf
+// ---------------------------------------------------------------------------
+
+export const exportSessionsPdf = async (req: AuthRequest, res: Response) => {
+  try {
+    const user = buildUserContext(req);
+    const query = req.query as unknown as ExportAuditHistoryPdfQueryDto;
+    const exportData = await auditService.getSessionsForExport(query, user);
+    const pdfBuffer = await generateInventoryAuditHistoryPdf({
+      ...exportData,
+      generatedBy: user.name,
+    });
+
+    const safeSchool = exportData.schoolName.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const datePart = new Date().toISOString().slice(0, 10);
+    const filename = `inventory-audit-history-${safeSchool}-${datePart}.pdf`;
+
+    logger.info('Audit history PDF exported', {
+      userId: user.id,
+      locationId: exportData.officeLocationId,
+      sessionsCount: exportData.sessions.length,
+      fiscalYear: exportData.filters.fiscalYear ?? null,
+      status: exportData.filters.status ?? null,
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+    res.send(pdfBuffer);
   } catch (error) {
     handleControllerError(error, res);
   }
@@ -230,7 +294,14 @@ export const resolveItem = async (req: AuthRequest, res: Response) => {
 
 export const checkRecent = async (req: AuthRequest, res: Response) => {
   try {
+    const user = buildUserContext(req);
     const result = await auditService.checkRecent(req.query as unknown as CheckRecentQueryDto);
+
+    logger.info('Recent audit check', {
+      userId: user.id,
+      roomId: req.query.roomId,
+    });
+
     res.json(result);
   } catch (error) {
     handleControllerError(error, res);
@@ -246,7 +317,7 @@ export const lookupEquipment = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const result = await auditService.lookupEquipmentForAudit(
       req.params.sessionId as string,
-      req.query as any,
+      req.query as unknown as EquipmentLookupQueryDto,
       user
     );
     res.json(result);

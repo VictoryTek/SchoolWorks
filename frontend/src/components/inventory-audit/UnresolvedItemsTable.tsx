@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Link,
   Chip,
   CircularProgress,
   Dialog,
@@ -22,12 +23,15 @@ import { useIsMobile } from '@/hooks/useResponsive';
 import { useUnresolvedItems } from '@/hooks/queries/useInventoryAudit';
 import { useResolveAuditItem } from '@/hooks/mutations/useInventoryAuditMutations';
 import { AuditItem, ResolvedAction } from '@/types/inventoryAudit.types';
+import { UnresolvedItemDetailDialog } from './UnresolvedItemDetailDialog';
 
 const RESOLVED_ACTION_LABELS: Record<ResolvedAction, string> = {
   FOUND_IN_ROOM: 'Found in Room',
   FOUND_ELSEWHERE: 'Found Elsewhere',
   CONFIRMED_LOST: 'Confirmed Lost',
   EQUIPMENT_UPDATED: 'Equipment Record Updated',
+  // Marks equipment as disposed/inactive and excludes from future audits (requires level 3)
+  MARKED_DISPOSED: 'Dispose / Mark Inactive',
 };
 
 function daysAgo(dateStr: string | null): number | null {
@@ -118,8 +122,17 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
           </Select>
         </FormControl>
 
+        {/* Warning shown only when the destructive disposal action is selected */}
+        {resolvedAction === 'MARKED_DISPOSED' && (
+          <Alert severity="warning">
+            <strong>This action is irreversible.</strong> The equipment record will be marked
+            as <strong>Disposed / Inactive</strong> and excluded from all future inventory
+            audits. Confirm only if this item has been physically retired or decommissioned.
+          </Alert>
+        )}
+
         <TextField
-          label="Notes (optional)"
+          label={resolvedAction === 'MARKED_DISPOSED' ? 'Disposal Reason (optional)' : 'Notes (optional)'}
           multiline
           minRows={2}
           value={notes}
@@ -135,6 +148,7 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
         </Button>
         <Button
           variant="contained"
+          color={resolvedAction === 'MARKED_DISPOSED' ? 'error' : 'primary'}
           onClick={handleConfirm}
           disabled={!resolvedAction || resolveMutation.isPending}
           startIcon={
@@ -142,7 +156,11 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
           }
           sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
-          {resolveMutation.isPending ? 'Resolving…' : 'Resolve'}
+          {resolveMutation.isPending
+            ? 'Resolving…'
+            : resolvedAction === 'MARKED_DISPOSED'
+            ? 'Confirm Disposal'
+            : 'Resolve'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -155,6 +173,7 @@ interface UnresolvedItemsTableProps {
 
 export function UnresolvedItemsTable({ filters = {} }: UnresolvedItemsTableProps) {
   const [resolveItem, setResolveItem] = useState<AuditItem | null>(null);
+  const [detailItem, setDetailItem] = useState<AuditItem | null>(null);
 
   const { data, isLoading, error, refetch } = useUnresolvedItems(filters);
 
@@ -183,7 +202,15 @@ export function UnresolvedItemsTable({ filters = {} }: UnresolvedItemsTableProps
       isPrimary: true,
       render: (item) => (
         <Box>
-          <Typography variant="body2" fontWeight={600}>{item.equipmentTag}</Typography>
+          <Link
+            component="button"
+            type="button"
+            underline="hover"
+            onClick={() => setDetailItem(item)}
+            sx={{ fontSize: '0.875rem', fontWeight: 600, textAlign: 'left' }}
+          >
+            {item.equipmentTag}
+          </Link>
           {item.equipmentSerial && (
             <Typography variant="caption" color="text.secondary">S/N: {item.equipmentSerial}</Typography>
           )}
@@ -257,6 +284,12 @@ export function UnresolvedItemsTable({ filters = {} }: UnresolvedItemsTableProps
         open={!!resolveItem}
         onClose={() => setResolveItem(null)}
         onResolved={() => refetch()}
+      />
+
+      <UnresolvedItemDetailDialog
+        item={detailItem}
+        open={!!detailItem}
+        onClose={() => setDetailItem(null)}
       />
     </>
   );

@@ -14,7 +14,9 @@ export type ResolvedAction =
   | 'FOUND_IN_ROOM'
   | 'FOUND_ELSEWHERE'
   | 'CONFIRMED_LOST'
-  | 'EQUIPMENT_UPDATED';
+  | 'EQUIPMENT_UPDATED'
+  // Marks equipment as disposed/inactive; requires Technology Dept level 3
+  | 'MARKED_DISPOSED';
 
 // ---------------------------------------------------------------------------
 // Core models
@@ -173,6 +175,27 @@ export interface CheckRecentResponse {
   hasRecent: boolean;
   session: AuditSession | null;
   hoursAgo: number | null;
+}
+
+export interface NextRoomResponse {
+  nextRoom: {
+    roomId: string;
+    roomName: string;
+    sessionId?: string;
+    mode: 'RESUME' | 'START';
+  } | null;
+  remainingCount: number;
+  totalActiveRooms: number;
+  completedCount: number;
+  fiscalYear?: string;
+}
+
+export interface ExportAuditHistoryFilters {
+  officeLocationId: string;
+  fiscalYear?: string;
+  status?: AuditSessionStatus;
+  from?: string;
+  to?: string;
 }
 
 // ---------------------------------------------------------------------------

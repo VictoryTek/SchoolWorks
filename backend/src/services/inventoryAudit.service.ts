@@ -16,6 +16,8 @@ import {
   BulkUpdateAuditItemsDto,
   ResolveAuditItemDto,
   GetAuditSessionsQueryDto,
+  NextRoomQueryDto,
+  ExportAuditHistoryPdfQueryDto,
   GetUnresolvedQueryDto,
   CheckRecentQueryDto,
   EquipmentLookupQueryDto,
@@ -191,6 +193,212 @@ export class InventoryAuditService {
       page,
       limit,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Find the next room to audit in the selected school.
+   * Prioritizes resuming in-progress sessions before starting untouched rooms.
+   */
+  async getNextRoomForLocation(query: NextRoomQueryDto, user: UserContext) {
+    const scopedOfficeLocationId = await this._resolveScopedOfficeLocationId(
+      query.officeLocationId,
+      user
+    );
+
+    const fiscalYear = query.fiscalYear ?? (await this._getDefaultFiscalYear());
+
+    const rooms = await this.prisma.room.findMany({
+      where: {
+        locationId: scopedOfficeLocationId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    if (rooms.length === 0) {
+      return {
+        nextRoom: null,
+        remainingCount: 0,
+        totalActiveRooms: 0,
+        completedCount: 0,
+        fiscalYear,
+      };
+    }
+
+    const roomIds = rooms.map((room) => room.id);
+    const sessions = await this.prisma.inventoryAuditSession.findMany({
+      where: {
+        officeLocationId: scopedOfficeLocationId,
+        roomId: { in: roomIds },
+        ...(fiscalYear ? { fiscalYear } : {}),
+      },
+      select: {
+        id: true,
+        roomId: true,
+        status: true,
+        startedAt: true,
+        completedAt: true,
+      },
+      orderBy: [{ startedAt: 'desc' }],
+    });
+
+    const roomById = new Map(rooms.map((room) => [room.id, room]));
+    const sessionsByRoom = new Map<string, typeof sessions>();
+    for (const session of sessions) {
+      const existing = sessionsByRoom.get(session.roomId) ?? [];
+      existing.push(session);
+      sessionsByRoom.set(session.roomId, existing);
+    }
+
+    const roomHasCompleted = (roomId: string) => {
+      const roomSessions = sessionsByRoom.get(roomId) ?? [];
+      return roomSessions.some((session) => session.status === 'COMPLETED');
+    };
+
+    const completedCount = rooms.filter((room) => roomHasCompleted(room.id)).length;
+
+    // Priority 1: resume the oldest room (alphabetically) that has an in-progress session.
+    const resumeRoom = rooms.find((room) => {
+      const roomSessions = sessionsByRoom.get(room.id) ?? [];
+      return roomSessions.some((session) => session.status === 'IN_PROGRESS');
+    });
+
+    if (resumeRoom) {
+      const roomSessions = sessionsByRoom.get(resumeRoom.id) ?? [];
+      const inProgressSession = roomSessions.find((session) => session.status === 'IN_PROGRESS');
+      if (inProgressSession) {
+        return {
+          nextRoom: {
+            roomId: resumeRoom.id,
+            roomName: resumeRoom.name,
+            sessionId: inProgressSession.id,
+            mode: 'RESUME' as const,
+          },
+          remainingCount: rooms.length - completedCount,
+          totalActiveRooms: rooms.length,
+          completedCount,
+          fiscalYear,
+        };
+      }
+    }
+
+    // Priority 2: start the first room that does not have a completed session yet.
+    const nextRoomToStart = rooms.find((room) => !roomHasCompleted(room.id));
+    if (!nextRoomToStart) {
+      return {
+        nextRoom: null,
+        remainingCount: 0,
+        totalActiveRooms: rooms.length,
+        completedCount,
+        fiscalYear,
+      };
+    }
+
+    return {
+      nextRoom: {
+        roomId: nextRoomToStart.id,
+        roomName: nextRoomToStart.name,
+        mode: 'START' as const,
+      },
+      remainingCount: Math.max(rooms.length - completedCount, 0),
+      totalActiveRooms: rooms.length,
+      completedCount,
+      fiscalYear,
+    };
+  }
+
+  /**
+   * Return session rows and summary data for PDF export.
+   */
+  async getSessionsForExport(query: ExportAuditHistoryPdfQueryDto, user: UserContext) {
+    const scopedOfficeLocationId = await this._resolveScopedOfficeLocationId(
+      query.officeLocationId,
+      user
+    );
+
+    const officeLocation = await this.prisma.officeLocation.findUnique({
+      where: { id: scopedOfficeLocationId },
+      select: { id: true, name: true },
+    });
+    if (!officeLocation) {
+      throw new NotFoundError('OfficeLocation', scopedOfficeLocationId);
+    }
+
+    const where: Prisma.InventoryAuditSessionWhereInput = {
+      officeLocationId: scopedOfficeLocationId,
+    };
+
+    if (query.fiscalYear) where.fiscalYear = query.fiscalYear;
+    if (query.status) where.status = query.status;
+    if (query.from || query.to) {
+      where.startedAt = {};
+      if (query.from) where.startedAt.gte = new Date(query.from);
+      if (query.to) where.startedAt.lte = new Date(query.to);
+    }
+
+    const sessions = await this.prisma.inventoryAuditSession.findMany({
+      where,
+      orderBy: { startedAt: 'desc' },
+      select: {
+        id: true,
+        startedAt: true,
+        completedAt: true,
+        conductedByName: true,
+        status: true,
+        totalItems: true,
+        presentCount: true,
+        missingCount: true,
+        unresolvedCount: true,
+        room: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      take: 2000,
+    });
+
+    const summary = sessions.reduce(
+      (acc, session) => {
+        acc.totalSessions += 1;
+        if (session.status === 'COMPLETED') acc.completedSessions += 1;
+        if (session.status === 'IN_PROGRESS') acc.inProgressSessions += 1;
+        if (session.status === 'ABANDONED') acc.abandonedSessions += 1;
+        acc.totalItems += session.totalItems;
+        acc.presentItems += session.presentCount;
+        acc.missingItems += session.missingCount;
+        acc.unresolvedItems += session.unresolvedCount;
+        return acc;
+      },
+      {
+        totalSessions: 0,
+        completedSessions: 0,
+        inProgressSessions: 0,
+        abandonedSessions: 0,
+        totalItems: 0,
+        presentItems: 0,
+        missingItems: 0,
+        unresolvedItems: 0,
+      }
+    );
+
+    return {
+      officeLocationId: officeLocation.id,
+      schoolName: officeLocation.name,
+      sessions,
+      summary,
+      filters: {
+        fiscalYear: query.fiscalYear ?? null,
+        status: query.status ?? null,
+        from: query.from ?? null,
+        to: query.to ?? null,
+      },
     };
   }
 
@@ -540,46 +748,138 @@ export class InventoryAuditService {
     // Scope check
     await this._assertItemAccess(item, user);
 
-    // Update the audit item
-    const resolved = await this.prisma.inventoryAuditItem.update({
-      where: { id: itemId },
-      data: {
-        resolvedAt: new Date(),
-        resolvedById: user.id,
-        resolvedByName: user.name,
-        resolvedAction: dto.resolvedAction,
-        resolutionNotes: dto.resolutionNotes,
-      },
-    });
+    // Gate MARKED_DISPOSED to TECHNOLOGY level 3+ (destructive/irreversible operation)
+    if (dto.resolvedAction === 'MARKED_DISPOSED' && (user.permLevel ?? 0) < 3) {
+      throw new AppError(
+        'Disposing an item requires Technology Department level 3 access',
+        403,
+        'FORBIDDEN'
+      );
+    }
 
-    // If equipment updates are specified, apply them via InventoryService (preserves audit log)
-    if (dto.equipmentUpdates && Object.keys(dto.equipmentUpdates).length > 0) {
-      const updates: Record<string, any> = {};
-      if (dto.resolvedAction === 'CONFIRMED_LOST') {
-        updates.status = 'lost';
-      } else {
-        if (dto.equipmentUpdates.roomId !== undefined)
-          updates.roomId = dto.equipmentUpdates.roomId;
-        if (dto.equipmentUpdates.officeLocationId !== undefined)
-          updates.officeLocationId = dto.equipmentUpdates.officeLocationId;
-        if (dto.equipmentUpdates.status)
-          updates.status = dto.equipmentUpdates.status;
-      }
+    let resolved;
 
-      if (Object.keys(updates).length > 0) {
+    if (dto.resolvedAction === 'MARKED_DISPOSED') {
+      // Atomic transaction: resolve audit item + mark equipment disposed + write audit log.
+      // Using an inline transaction rather than inventoryService.update() because that method
+      // does not accept a transaction client — inlining guarantees atomicity.
+      const now = new Date();
+      const disposedReason =
+        dto.resolutionNotes ?? 'Marked disposed during inventory audit resolution';
+
+      [resolved] = await this.prisma.$transaction(async (tx) => {
+        // 1. Resolve the audit item
+        const resolvedItem = await tx.inventoryAuditItem.update({
+          where: { id: itemId },
+          data: {
+            resolvedAt: now,
+            resolvedById: user.id,
+            resolvedByName: user.name,
+            resolvedAction: dto.resolvedAction,
+            resolutionNotes: dto.resolutionNotes,
+          },
+        });
+
+        // 2. Fetch current equipment state for accurate audit diff
+        const currentEquipment = await tx.equipment.findUnique({
+          where: { id: item.equipment.id },
+          select: { status: true, isDisposed: true, disposedDate: true, disposedReason: true },
+        });
+
+        // 3. Mark equipment as disposed
+        await tx.equipment.update({
+          where: { id: item.equipment.id },
+          data: {
+            status: 'disposed',
+            isDisposed: true,
+            disposedDate: now,
+            disposedReason: disposedReason,
+          },
+        });
+
+        // 4. Write inventory_changes audit entries for all four changed fields
+        const auditEntries = [
+          {
+            fieldChanged: 'status',
+            oldValue: currentEquipment?.status ?? '',
+            newValue: 'disposed',
+          },
+          {
+            fieldChanged: 'isDisposed',
+            oldValue: String(currentEquipment?.isDisposed ?? false),
+            newValue: 'true',
+          },
+          {
+            fieldChanged: 'disposedDate',
+            oldValue: currentEquipment?.disposedDate ? String(currentEquipment.disposedDate) : '',
+            newValue: String(now),
+          },
+          {
+            fieldChanged: 'disposedReason',
+            oldValue: currentEquipment?.disposedReason ?? '',
+            newValue: disposedReason,
+          },
+        ];
+
+        await tx.inventory_changes.createMany({
+          data: auditEntries.map((entry) => ({
+            equipmentId: item.equipment.id,
+            changeType: 'DISPOSE',
+            fieldChanged: entry.fieldChanged,
+            oldValue: entry.oldValue,
+            newValue: entry.newValue,
+            changedBy: user.id,
+            changedByName: user.name,
+            notes: `Disposed via inventory audit resolution (auditItem: ${itemId})`,
+          })),
+        });
+
+        return [resolvedItem];
+      });
+    } else {
+      // All other resolution actions — existing logic unchanged
+
+      // Update the audit item
+      resolved = await this.prisma.inventoryAuditItem.update({
+        where: { id: itemId },
+        data: {
+          resolvedAt: new Date(),
+          resolvedById: user.id,
+          resolvedByName: user.name,
+          resolvedAction: dto.resolvedAction,
+          resolutionNotes: dto.resolutionNotes,
+        },
+      });
+
+      // If equipment updates are specified, apply them via InventoryService (preserves audit log)
+      if (dto.equipmentUpdates && Object.keys(dto.equipmentUpdates).length > 0) {
+        const updates: Record<string, any> = {};
+        if (dto.resolvedAction === 'CONFIRMED_LOST') {
+          updates.status = 'lost';
+        } else {
+          if (dto.equipmentUpdates.roomId !== undefined)
+            updates.roomId = dto.equipmentUpdates.roomId;
+          if (dto.equipmentUpdates.officeLocationId !== undefined)
+            updates.officeLocationId = dto.equipmentUpdates.officeLocationId;
+          if (dto.equipmentUpdates.status)
+            updates.status = dto.equipmentUpdates.status;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await this.inventoryService.update(
+            item.equipment.id,
+            updates,
+            { id: user.id, email: user.email, name: user.name }
+          );
+        }
+      } else if (dto.resolvedAction === 'CONFIRMED_LOST') {
+        // Auto-update status to lost even without explicit equipmentUpdates
         await this.inventoryService.update(
           item.equipment.id,
-          updates,
+          { status: 'lost' },
           { id: user.id, email: user.email, name: user.name }
         );
       }
-    } else if (dto.resolvedAction === 'CONFIRMED_LOST') {
-      // Auto-update status to lost even without explicit equipmentUpdates
-      await this.inventoryService.update(
-        item.equipment.id,
-        { status: 'lost' },
-        { id: user.id, email: user.email, name: user.name }
-      );
     }
 
     // Recalculate session unresolved count
@@ -591,6 +891,8 @@ export class InventoryAuditService {
       equipmentId: item.equipmentId,
       resolvedAction: dto.resolvedAction,
       userId: user.id,
+      // Include disposal context when relevant (no PII)
+      ...(dto.resolvedAction === 'MARKED_DISPOSED' && { disposalReason: dto.resolutionNotes }),
     });
 
     return resolved;
@@ -881,5 +1183,34 @@ export class InventoryAuditService {
     if (!officeLocation || item.session.officeLocationId !== officeLocation.id) {
       throw new AppError('Insufficient permissions to access this audit item', 403, 'FORBIDDEN');
     }
+  }
+
+  private async _resolveScopedOfficeLocationId(requestedLocationId: string, user: UserContext) {
+    if ((user.permLevel ?? 0) >= 3) {
+      return requestedLocationId;
+    }
+
+    if (!user.officeLocation) {
+      throw new AppError('Insufficient permissions to access this school', 403, 'FORBIDDEN');
+    }
+
+    const userOfficeLocation = await this.prisma.officeLocation.findFirst({
+      where: { name: user.officeLocation },
+      select: { id: true },
+    });
+
+    if (!userOfficeLocation) {
+      throw new AppError('Insufficient permissions to access this school', 403, 'FORBIDDEN');
+    }
+
+    // Ignore mismatched location input to avoid leaking object existence.
+    return userOfficeLocation.id;
+  }
+
+  private async _getDefaultFiscalYear() {
+    const settings = await this.prisma.systemSettings.findFirst({
+      select: { currentFiscalYear: true },
+    });
+    return settings?.currentFiscalYear ?? undefined;
   }
 }

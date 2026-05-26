@@ -18,7 +18,10 @@ import { useCheckRecent } from '@/hooks/queries/useInventoryAudit';
 import { useStartAuditSession } from '@/hooks/mutations/useInventoryAuditMutations';
 
 interface AuditRoomSelectorProps {
-  onSessionStarted: (sessionId: string) => void;
+  onSessionStarted: (
+    sessionId: string,
+    context?: { officeLocationId: string; fiscalYear: string | null }
+  ) => void;
 }
 
 export function AuditRoomSelector({ onSessionStarted }: AuditRoomSelectorProps) {
@@ -56,7 +59,10 @@ export function AuditRoomSelector({ onSessionStarted }: AuditRoomSelectorProps) 
       { officeLocationId: locationId, roomId, notes: notes.trim() || undefined },
       {
         onSuccess: (session) => {
-          onSessionStarted(session.id);
+          onSessionStarted(session.id, {
+            officeLocationId: session.officeLocationId,
+            fiscalYear: session.fiscalYear,
+          });
         },
         onError: (err: any) => {
           setErrorMsg(err?.response?.data?.message ?? 'Failed to start audit session.');

@@ -21,7 +21,11 @@ import { AuditEquipmentSearch } from './AuditEquipmentSearch';
 
 interface AuditItemListProps {
   sessionId: string;
-  onCompleted: (sessionId: string) => void;
+  onCompleted: (result: {
+    sessionId: string;
+    officeLocationId: string;
+    fiscalYear: string | null;
+  }) => void;
 }
 
 export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
@@ -65,7 +69,11 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
       {
         onSuccess: () => {
           setConfirmOpen(false);
-          onCompleted(sessionId);
+          onCompleted({
+            sessionId,
+            officeLocationId: session.officeLocationId,
+            fiscalYear: session.fiscalYear,
+          });
         },
         onError: (err: any) => {
           setErrorMsg(err?.response?.data?.message ?? 'Failed to complete session.');

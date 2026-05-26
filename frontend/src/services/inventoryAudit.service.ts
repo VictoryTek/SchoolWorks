@@ -12,6 +12,8 @@ import {
   UpdateItemResponse,
   BulkUpdateResponse,
   CheckRecentResponse,
+  NextRoomResponse,
+  ExportAuditHistoryFilters,
   StartAuditSessionRequest,
   CompleteSessionRequest,
   UpdateAuditItemRequest,
@@ -114,6 +116,31 @@ class InventoryAuditService {
       `/inventory-audit/check-recent?roomId=${roomId}&withinHours=${withinHours}`
     );
     return response.data;
+  }
+
+  async getNextRoom(
+    officeLocationId: string,
+    fiscalYear?: string
+  ): Promise<NextRoomResponse> {
+    const params = new URLSearchParams({ officeLocationId });
+    if (fiscalYear) params.append('fiscalYear', fiscalYear);
+    const response = await api.get(`/inventory-audit/next-room?${params.toString()}`);
+    return response.data;
+  }
+
+  async downloadHistoryPdf(filters: ExportAuditHistoryFilters): Promise<Blob> {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        params.append(key, String(value));
+      }
+    });
+
+    const response = await api.get(
+      `/inventory-audit/sessions/export/pdf?${params.toString()}`,
+      { responseType: 'blob' }
+    );
+    return response.data as Blob;
   }
 
   async lookupEquipment(

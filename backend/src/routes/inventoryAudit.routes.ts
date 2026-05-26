@@ -20,6 +20,8 @@ import {
   BulkUpdateAuditItemsSchema,
   ResolveAuditItemSchema,
   GetAuditSessionsQuerySchema,
+  NextRoomQuerySchema,
+  ExportAuditHistoryPdfQuerySchema,
   GetUnresolvedQuerySchema,
   CheckRecentQuerySchema,
   EquipmentLookupQuerySchema,
@@ -50,6 +52,26 @@ router.get(
   '/inventory-audit/sessions',
   validateRequest(GetAuditSessionsQuerySchema, 'query'),
   auditController.getSessions
+);
+
+/**
+ * GET /api/inventory-audit/next-room
+ * Get next room to continue auditing in a selected school.
+ */
+router.get(
+  '/inventory-audit/next-room',
+  validateRequest(NextRoomQuerySchema, 'query'),
+  auditController.getNextRoom
+);
+
+/**
+ * GET /api/inventory-audit/sessions/export/pdf
+ * Export filtered audit history to PDF (selected school required).
+ */
+router.get(
+  '/inventory-audit/sessions/export/pdf',
+  validateRequest(ExportAuditHistoryPdfQuerySchema, 'query'),
+  auditController.exportSessionsPdf
 );
 
 /**

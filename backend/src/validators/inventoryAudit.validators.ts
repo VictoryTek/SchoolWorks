@@ -20,7 +20,25 @@ const ResolvedAction = z.enum([
   'FOUND_ELSEWHERE',
   'CONFIRMED_LOST',
   'EQUIPMENT_UPDATED',
+  // Marks equipment as disposed/inactive and removes it from future audits (requires level 3)
+  'MARKED_DISPOSED',
 ]);
+
+const EquipmentStatus = z.enum([
+  'active',
+  'available',
+  'maintenance',
+  'storage',
+  'disposed',
+  'lost',
+  'damaged',
+  'reserved',
+]);
+
+const FiscalYearSchema = z
+  .string()
+  .max(10)
+  .regex(/^\d{4}-\d{4}$/, 'fiscalYear must be in YYYY-YYYY format');
 
 // ---------------------------------------------------------------------------
 // Route parameter schemas
@@ -50,7 +68,7 @@ export const StartAuditSessionSchema = z.object({
   officeLocationId: z.string().uuid('Invalid office location ID'),
   roomId: z.string().uuid('Invalid room ID'),
   notes: z.string().max(1000).optional(),
-  fiscalYear: z.string().max(10).optional(),
+  fiscalYear: FiscalYearSchema.optional(),
 });
 
 export type StartAuditSessionDto = z.infer<typeof StartAuditSessionSchema>;
@@ -100,7 +118,7 @@ export const ResolveAuditItemSchema = z.object({
     .object({
       roomId: z.string().uuid().optional().nullable(),
       officeLocationId: z.string().uuid().optional().nullable(),
-      status: z.string().max(50).optional(),
+      status: EquipmentStatus.optional(),
     })
     .optional(),
 });
@@ -138,7 +156,7 @@ export const GetAuditSessionsQuerySchema = z.object({
   officeLocationId: z.string().uuid().optional(),
   roomId: z.string().uuid().optional(),
   status: AuditSessionStatus.optional(),
-  fiscalYear: z.string().max(10).optional(),
+  fiscalYear: FiscalYearSchema.optional(),
   conductedById: z.string().uuid().optional(),
 });
 
@@ -166,7 +184,7 @@ export const GetUnresolvedQuerySchema = z.object({
   ).optional(),
   officeLocationId: z.string().uuid().optional(),
   roomId: z.string().uuid().optional(),
-  fiscalYear: z.string().max(10).optional(),
+  fiscalYear: FiscalYearSchema.optional(),
 });
 
 export type GetUnresolvedQueryDto = z.infer<typeof GetUnresolvedQuerySchema>;
@@ -187,6 +205,48 @@ export const CheckRecentQuerySchema = z.object({
 });
 
 export type CheckRecentQueryDto = z.infer<typeof CheckRecentQuerySchema>;
+
+/**
+ * GET /api/inventory-audit/next-room
+ * Get the next room to audit within a school/location.
+ */
+export const NextRoomQuerySchema = z.object({
+  officeLocationId: z.string().uuid('Invalid office location ID'),
+  fiscalYear: FiscalYearSchema.optional(),
+});
+
+export type NextRoomQueryDto = z.infer<typeof NextRoomQuerySchema>;
+
+/**
+ * GET /api/inventory-audit/sessions/export/pdf
+ * Export filtered audit history to PDF.
+ */
+export const ExportAuditHistoryPdfQuerySchema = z
+  .object({
+    officeLocationId: z.string().uuid('Invalid office location ID'),
+    fiscalYear: FiscalYearSchema.optional(),
+    status: AuditSessionStatus.optional(),
+    from: z
+      .string()
+      .refine((val) => !Number.isNaN(Date.parse(val)), 'from must be a valid ISO date')
+      .optional(),
+    to: z
+      .string()
+      .refine((val) => !Number.isNaN(Date.parse(val)), 'to must be a valid ISO date')
+      .optional(),
+  })
+  .refine(
+    (data) => {
+      if (!data.from || !data.to) return true;
+      return new Date(data.from).getTime() <= new Date(data.to).getTime();
+    },
+    {
+      message: 'from must be earlier than or equal to to',
+      path: ['from'],
+    }
+  );
+
+export type ExportAuditHistoryPdfQueryDto = z.infer<typeof ExportAuditHistoryPdfQuerySchema>;
 
 // ---------------------------------------------------------------------------
 // Equipment lookup and addition schemas
