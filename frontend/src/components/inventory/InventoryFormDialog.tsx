@@ -227,7 +227,7 @@ export const InventoryFormDialog = ({
     roomService
       .getRoomsByLocation(formData.officeLocationId, true)
       .then((data) => {
-        if (active) setRooms(data.rooms);
+        if (active) setRooms(data.rooms.slice().sort((a: any, b: any) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })));
       })
       .catch(() => {
         if (active) setRooms([]);

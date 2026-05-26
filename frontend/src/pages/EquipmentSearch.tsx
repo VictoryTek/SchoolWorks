@@ -127,7 +127,7 @@ const EquipmentSearch = () => {
     if (filters.officeLocationId) {
       roomService
         .getRoomsByLocation(filters.officeLocationId)
-        .then((res) => setRooms(res.rooms.map((r) => ({ id: r.id, name: r.name }))))
+        .then((res) => setRooms(res.rooms.map((r) => ({ id: r.id, name: r.name })).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))))
         .catch(() => setRooms([]));
     } else {
       setRooms([]);

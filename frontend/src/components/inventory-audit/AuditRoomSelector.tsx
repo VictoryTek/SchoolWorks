@@ -198,6 +198,7 @@ export function AuditRoomSelector({
         >
           {rooms
             .filter((r) => r.isActive && (!allowedRoomIds || allowedRoomIds.includes(r.id)))
+            .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
             .map((room) => (
               <MenuItem key={room.id} value={room.id} disabled={isRoomDisabled(room.id)}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>

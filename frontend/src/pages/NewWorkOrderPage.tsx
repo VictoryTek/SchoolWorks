@@ -307,7 +307,9 @@ export default function NewWorkOrderPage() {
                   disabled={createWorkOrder.isPending || rooms.length === 0}
                 >
                   <MenuItem value="">— None —</MenuItem>
-                  {rooms.map((r) => (
+                  {[...rooms]
+                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                    .map((r) => (
                     <MenuItem key={r.id} value={r.id}>
                       {r.name}
                     </MenuItem>

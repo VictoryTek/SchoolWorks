@@ -98,7 +98,7 @@ export const AssignmentDialog = ({
   const loadRooms = async () => {
     try {
       const response = await roomService.getRooms();
-      setRooms(response.rooms.filter((r: RoomWithLocation) => r.isActive));
+      setRooms(response.rooms.filter((r: RoomWithLocation) => r.isActive).sort((a: RoomWithLocation, b: RoomWithLocation) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })));
     } catch (err) {
       console.error('Failed to load rooms:', err);
     }
