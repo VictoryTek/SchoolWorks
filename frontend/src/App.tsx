@@ -6,7 +6,6 @@ import SupervisorManagement from './pages/SupervisorManagement'
 import { InventoryManagement } from './pages/InventoryManagement'
 import DisposedEquipment from './pages/DisposedEquipment'
 import BulkDeleteDisposedPage from './pages/BulkDeleteDisposedPage'
-import EquipmentSearch from './pages/EquipmentSearch'
 import MyEquipment from './pages/MyEquipment'
 import ReferenceDataManagement from './pages/ReferenceDataManagement'
 import {
@@ -149,16 +148,6 @@ function App() {
             <ProtectedRoute requireTech>
               <AppLayout>
                 <BulkDeleteDisposedPage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/equipment-search"
-          element={
-            <ProtectedRoute requireTech>
-              <AppLayout>
-                <EquipmentSearch />
               </AppLayout>
             </ProtectedRoute>
           }

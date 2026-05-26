@@ -1,9 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
-import inventoryService from '../services/inventory.service';
-import { queryKeys } from '../lib/queryKeys';
 import './Dashboard.css';
 
 export const Dashboard = () => {
@@ -13,50 +10,12 @@ export const Dashboard = () => {
   const hasTechAccess = isAdmin || (user?.permLevels?.TECHNOLOGY ?? 0) >= 2;
   const isStaff = isAdmin || (user?.permLevels?.REQUISITIONS ?? 0) >= 2;
 
-  const { data: stats } = useQuery({
-    queryKey: queryKeys.inventory.stats(),
-    queryFn: () => inventoryService.getStats(),
-    staleTime: 5 * 60 * 1000, // cache for 5 minutes
-    retry: false,              // don't retry on auth errors — avoids cascading 401 refresh loops
-    enabled: hasTechAccess,
-  });
-
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       <div className="page-header">
         <h2 className="page-title">Welcome, {user?.firstName || user?.name}</h2>
         <p className="page-description">School Operations Management Portal</p>
       </div>
-
-      {/* Inventory Stats Summary */}
-      {hasTechAccess && stats && (
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 3, mb: 4 }}>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <p className="form-label">Total Items</p>
-            <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--slate-900)' }}>
-              {stats.totalItems.toLocaleString()}
-            </p>
-          </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <p className="form-label">Active</p>
-            <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--emerald-800, #065f46)' }}>
-              {stats.activeItems.toLocaleString()}
-            </p>
-          </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <p className="form-label">Disposed</p>
-            <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--red-800, #991b1b)' }}>
-              {stats.disposedItems.toLocaleString()}
-            </p>
-          </div>
-          <div className="card" style={{ textAlign: 'center' }}>
-            <p className="form-label">Total Value</p>
-            <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--slate-900)' }}>
-              ${stats.totalValue.toLocaleString()}
-            </p>
-          </div>
-        </Box>
-      )}
 
       {/* Module Cards */}
       <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
@@ -117,14 +76,6 @@ export const Dashboard = () => {
           </>
         )}
 
-        {hasTechAccess && (
-          <div className="card">
-            <div className="feature-icon reports">RPT</div>
-            <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--slate-900)' }}>Reports</h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--slate-600)', marginBottom: '1.25rem', lineHeight: 1.5 }}>View and export reports</p>
-            <button className="btn btn-primary" style={{ width: '100%' }} disabled>Coming Soon</button>
-          </div>
-        )}
       </Box>
     </Box>
   );

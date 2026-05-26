@@ -328,7 +328,7 @@ export const InventoryManagement = () => {
 
           {/* Action Buttons */}
           <div className="card mb-6">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
               <button 
                 onClick={() => refetch()}
                 className="btn btn-ghost btn-sm"
@@ -336,7 +336,7 @@ export const InventoryManagement = () => {
               >
                 🔄 Refresh
               </button>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
                 <button 
                   onClick={() => setImportDialogOpen(true)}
                   className="btn btn-secondary"
@@ -365,25 +365,25 @@ export const InventoryManagement = () => {
             <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', sm: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
               <div className="card">
                 <p className="form-label">Total Items</p>
-                <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--slate-900)' }}>
+                <p style={{ fontSize: 'clamp(1.25rem, 4vw, 2rem)', fontWeight: 700, color: 'var(--slate-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {stats.totalItems.toLocaleString()}
                 </p>
               </div>
               <div className="card">
                 <p className="form-label">Active</p>
-                <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--emerald-800)' }}>
+                <p style={{ fontSize: 'clamp(1.25rem, 4vw, 2rem)', fontWeight: 700, color: 'var(--emerald-800)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {stats.activeItems.toLocaleString()}
                 </p>
               </div>
               <div className="card">
                 <p className="form-label">Disposed</p>
-                <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--red-800)' }}>
+                <p style={{ fontSize: 'clamp(1.25rem, 4vw, 2rem)', fontWeight: 700, color: 'var(--red-800)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {stats.disposedItems.toLocaleString()}
                 </p>
               </div>
               <div className="card">
                 <p className="form-label">Total Value</p>
-                <p style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--slate-900)' }}>
+                <p style={{ fontSize: 'clamp(1.25rem, 4vw, 2rem)', fontWeight: 700, color: 'var(--slate-900)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   ${stats.totalValue.toLocaleString()}
                 </p>
               </div>
