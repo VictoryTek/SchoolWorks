@@ -15,16 +15,10 @@ import {
   Select,
   SelectChangeEvent,
   TextField,
-  Tooltip,
   Typography,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from '@mui/material';
+import { ResponsiveTable, Column } from '@/components/responsive';
+import { useIsMobile } from '@/hooks/useResponsive';
 import { useUnresolvedItems } from '@/hooks/queries/useInventoryAudit';
 import { useResolveAuditItem } from '@/hooks/mutations/useInventoryAuditMutations';
 import { AuditItem, ResolvedAction } from '@/types/inventoryAudit.types';
@@ -54,6 +48,7 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const isMobile = useIsMobile();
   const resolveMutation = useResolveAuditItem();
 
   const handleClose = () => {
@@ -88,7 +83,7 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
       <DialogTitle>Resolve Missing Item</DialogTitle>
       <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
         {item && (
@@ -134,8 +129,8 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
 
         {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={resolveMutation.isPending}>
+      <DialogActions sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+        <Button onClick={handleClose} disabled={resolveMutation.isPending} sx={{ width: { xs: '100%', sm: 'auto' } }}>
           Cancel
         </Button>
         <Button
@@ -145,6 +140,7 @@ function ResolveDialog({ item, open, onClose, onResolved }: ResolveDialogProps) 
           startIcon={
             resolveMutation.isPending ? <CircularProgress size={16} color="inherit" /> : null
           }
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           {resolveMutation.isPending ? 'Resolving…' : 'Resolve'}
         </Button>
@@ -180,95 +176,75 @@ export function UnresolvedItemsTable({ filters = {} }: UnresolvedItemsTableProps
     );
   }
 
+  const columns: Column<AuditItem>[] = [
+    {
+      key: 'equipmentTag',
+      label: 'Asset Tag',
+      isPrimary: true,
+      render: (item) => (
+        <Box>
+          <Typography variant="body2" fontWeight={600}>{item.equipmentTag}</Typography>
+          {item.equipmentSerial && (
+            <Typography variant="caption" color="text.secondary">S/N: {item.equipmentSerial}</Typography>
+          )}
+        </Box>
+      ),
+    },
+    {
+      key: 'equipmentName',
+      label: 'Equipment',
+      isSecondary: true,
+      render: (item) => <Typography variant="body2">{item.equipmentName}</Typography>,
+    },
+    {
+      key: 'location',
+      label: 'Location',
+      hideOnMobile: true,
+      render: (item) => <Typography variant="body2">{item.session?.officeLocation?.name ?? '—'}</Typography>,
+    },
+    {
+      key: 'room',
+      label: 'Room',
+      hideOnMobile: true,
+      render: (item) => <Typography variant="body2">{item.session?.room?.name ?? '—'}</Typography>,
+    },
+    {
+      key: 'checkedAt',
+      label: 'Date Reported',
+      hideOnMobile: true,
+      render: (item) => (
+        <Typography variant="body2">
+          {item.checkedAt ? new Date(item.checkedAt).toLocaleDateString() : '—'}
+        </Typography>
+      ),
+    },
+    {
+      key: 'daysUnresolved',
+      label: 'Days',
+      render: (item) => {
+        const days = daysAgo(item.checkedAt);
+        return days !== null ? (
+          <Chip label={`${days}d`} size="small" color={days > 30 ? 'error' : days > 7 ? 'warning' : 'default'} />
+        ) : '—';
+      },
+    },
+  ];
+
+  const rowActions = (item: AuditItem) => (
+    <Button size="small" variant="outlined" color="primary" onClick={() => setResolveItem(item)}>
+      Resolve
+    </Button>
+  );
+
   return (
     <>
-      <TableContainer component={Paper} variant="outlined">
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ bgcolor: 'grey.50' }}>
-              <TableCell>Asset Tag</TableCell>
-              <TableCell>Equipment</TableCell>
-              <TableCell>Location</TableCell>
-              <TableCell>Room</TableCell>
-              <TableCell>Date Reported</TableCell>
-              <TableCell>Days Unresolved</TableCell>
-              <TableCell align="center">Action</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    No unresolved items found.
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              items.map((item) => {
-                const days = daysAgo(item.checkedAt);
-                return (
-                  <TableRow key={item.id} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontWeight={600}>
-                        {item.equipmentTag}
-                      </Typography>
-                      {item.equipmentSerial && (
-                        <Typography variant="caption" color="text.secondary">
-                          S/N: {item.equipmentSerial}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">{item.equipmentName}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {item.session?.officeLocation?.name ?? '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {item.session?.room?.name ?? '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {item.checkedAt
-                          ? new Date(item.checkedAt).toLocaleDateString()
-                          : '—'}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      {days !== null ? (
-                        <Chip
-                          label={`${days}d`}
-                          size="small"
-                          color={days > 30 ? 'error' : days > 7 ? 'warning' : 'default'}
-                        />
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Resolve this item">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          color="primary"
-                          onClick={() => setResolveItem(item)}
-                        >
-                          Resolve
-                        </Button>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+      <ResponsiveTable<AuditItem>
+        columns={columns}
+        rows={items}
+        getRowKey={(item) => item.id}
+        rowActions={rowActions}
+        emptyMessage="No unresolved items found."
+      />
 
       {data && data.totalPages > 1 && (
         <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>

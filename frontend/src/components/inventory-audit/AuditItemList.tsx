@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import { useAuditSession } from '@/hooks/queries/useInventoryAudit';
 import { useCompleteAuditSession } from '@/hooks/mutations/useInventoryAuditMutations';
+import { useIsMobile } from '@/hooks/useResponsive';
 import { AuditItemRow } from './AuditItemRow';
 import { AuditEquipmentSearch } from './AuditEquipmentSearch';
 
@@ -28,6 +29,7 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
   const [completionNotes, setCompletionNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
+  const isMobile = useIsMobile();
   const { data: session, isLoading, error } = useAuditSession(sessionId);
   const completeMutation = useCompleteAuditSession();
 
@@ -85,14 +87,21 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
               </Typography>
             )}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {verifiedCount} of {totalItems} items verified &nbsp;·&nbsp;
-            {presentCount} in room &nbsp;·&nbsp; {missingCount} missing &nbsp;·&nbsp;
-            {unverifiedCount} unverified
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">{verifiedCount} of {totalItems} verified</Typography>
+            <Typography variant="body2" color="text.secondary">·</Typography>
+            <Typography variant="body2" color="text.secondary">{presentCount} in room</Typography>
+            <Typography variant="body2" color="text.secondary">·</Typography>
+            <Typography variant="body2" color="text.secondary">{missingCount} missing</Typography>
+            <Typography variant="body2" color="text.secondary">·</Typography>
+            <Typography variant="body2" color="text.secondary">{unverifiedCount} unverified</Typography>
             {(session.additionCount ?? 0) > 0 && (
-              <> &nbsp;·&nbsp; <span style={{ color: '#1976d2' }}>{session.additionCount} added</span></>
+              <>
+                <Typography variant="body2" color="text.secondary">·</Typography>
+                <Typography variant="body2" sx={{ color: '#1976d2' }}>{session.additionCount} added</Typography>
+              </>
             )}
-          </Typography>
+          </Box>
         </Box>
         <Button
           variant="contained"
@@ -100,6 +109,7 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
           disabled={completeMutation.isPending}
           onClick={() => setConfirmOpen(true)}
           title={!allVerified ? `${unverifiedCount} item(s) still unverified — they will be marked Missing` : ''}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           Complete Audit
         </Button>
@@ -147,7 +157,7 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
       </Box>
 
       {/* Complete confirmation dialog */}
-      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>Complete Audit?</DialogTitle>
         <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           {unverifiedCount > 0 ? (
@@ -175,8 +185,8 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
           />
           {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)} disabled={completeMutation.isPending}>
+        <DialogActions sx={{ flexDirection: { xs: 'column-reverse', sm: 'row' }, gap: { xs: 1, sm: 0 } }}>
+          <Button onClick={() => setConfirmOpen(false)} disabled={completeMutation.isPending} sx={{ width: { xs: '100%', sm: 'auto' } }}>
             Cancel
           </Button>
           <Button
@@ -185,6 +195,7 @@ export function AuditItemList({ sessionId, onCompleted }: AuditItemListProps) {
             onClick={handleCompleteConfirm}
             disabled={completeMutation.isPending}
             startIcon={completeMutation.isPending ? <CircularProgress size={16} color="inherit" /> : null}
+            sx={{ width: { xs: '100%', sm: 'auto' } }}
           >
             {completeMutation.isPending ? 'Completing…' : 'Complete Audit'}
           </Button>

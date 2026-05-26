@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Alert, Box, Divider, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Divider, Paper, Typography } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useAuditSession } from '@/hooks/queries/useInventoryAudit';
 import { AuditRoomSelector } from '@/components/inventory-audit/AuditRoomSelector';
@@ -14,7 +14,7 @@ function CompletedSummary({ sessionId }: { sessionId: string }) {
   if (!session) return null;
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, maxWidth: 520 }}>
+    <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, maxWidth: 520, width: '100%' }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <CheckCircleIcon color="success" />
         <Typography variant="h6">Audit Complete</Typography>
@@ -89,16 +89,16 @@ export function InventoryAuditPage() {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <CompletedSummary sessionId={activeSessionId} />
           <Box>
-            <Typography
-              variant="body2"
-              sx={{ cursor: 'pointer', textDecoration: 'underline', color: 'primary.main' }}
+            <Button
+              variant="text"
+              size="small"
               onClick={() => {
                 setActiveSessionId(null);
                 setStep('select');
               }}
             >
               Start a new audit
-            </Typography>
+            </Button>
           </Box>
         </Box>
       )}

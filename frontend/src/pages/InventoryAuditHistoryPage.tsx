@@ -3,18 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Box,
+  Button,
   Chip,
-  CircularProgress,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Tooltip,
   Typography,
 } from '@mui/material';
+import { ResponsiveTable, Column } from '@/components/responsive';
 import { useAuditSessions } from '@/hooks/queries/useInventoryAudit';
 import { AuditSession, AuditSessionStatus } from '@/types/inventoryAudit.types';
 
@@ -44,17 +37,86 @@ export function InventoryAuditHistoryPage() {
     }
   };
 
+  const columns: Column<AuditSession>[] = [
+    {
+      key: 'officeLocation',
+      label: 'School / Office',
+      isPrimary: true,
+      render: (s) => s.officeLocation?.name ?? '—',
+    },
+    {
+      key: 'room',
+      label: 'Room',
+      isSecondary: true,
+      render: (s) => s.room?.name ?? '—',
+    },
+    {
+      key: 'conductedByName',
+      label: 'Conducted By',
+      hideOnMobile: true,
+      render: (s) => <Typography variant="body2">{s.conductedByName}</Typography>,
+    },
+    {
+      key: 'startedAt',
+      label: 'Started',
+      render: (s) => new Date(s.startedAt).toLocaleDateString(),
+    },
+    {
+      key: 'completedAt',
+      label: 'Completed',
+      hideOnMobile: true,
+      render: (s) => s.completedAt ? new Date(s.completedAt).toLocaleDateString() : '—',
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (s) => (
+        <Chip label={STATUS_LABELS[s.status]} size="small" color={STATUS_COLORS[s.status]} />
+      ),
+    },
+    {
+      key: 'totalItems',
+      label: 'Total',
+      align: 'right',
+    },
+    {
+      key: 'presentCount',
+      label: 'Present',
+      hideOnMobile: true,
+      align: 'right',
+      render: (s) => (
+        <Typography variant="body2" color={s.presentCount > 0 ? 'success.main' : 'text.secondary'}>
+          {s.presentCount}
+        </Typography>
+      ),
+    },
+    {
+      key: 'missingCount',
+      label: 'Missing',
+      hideOnMobile: true,
+      align: 'right',
+      render: (s) => (
+        <Typography variant="body2" color={s.missingCount > 0 ? 'error.main' : 'text.secondary'}>
+          {s.missingCount}
+        </Typography>
+      ),
+    },
+  ];
+
+  const rowActions = (session: AuditSession) => {
+    if (session.status !== 'IN_PROGRESS') return null;
+    return (
+      <Button size="small" variant="outlined" color="warning" onClick={() => handleRowClick(session)}>
+        Resume →
+      </Button>
+    );
+  };
+
   return (
     <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Typography variant="h5" gutterBottom>
         Audit History
       </Typography>
-
-      {isLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
 
       {error && (
         <Alert severity="error">
@@ -62,93 +124,17 @@ export function InventoryAuditHistoryPage() {
         </Alert>
       )}
 
-      {!isLoading && !error && (
+      {!error && (
         <>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
-                  <TableCell>School / Office</TableCell>
-                  <TableCell>Room</TableCell>
-                  <TableCell>Conducted By</TableCell>
-                  <TableCell>Started</TableCell>
-                  <TableCell>Completed</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Total</TableCell>
-                  <TableCell align="right">Present</TableCell>
-                  <TableCell align="right">Missing</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {sessions.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        No audit sessions found.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sessions.map((session) => (
-                    <Tooltip
-                      key={session.id}
-                      title={
-                        session.status === 'IN_PROGRESS' ? 'Click to resume this audit' : ''
-                      }
-                    >
-                      <TableRow
-                        hover
-                        onClick={() => handleRowClick(session)}
-                        sx={{
-                          cursor: session.status === 'IN_PROGRESS' ? 'pointer' : 'default',
-                        }}
-                      >
-                        <TableCell>
-                          {session.officeLocation?.name ?? '—'}
-                        </TableCell>
-                        <TableCell>{session.room?.name ?? '—'}</TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{session.conductedByName}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          {new Date(session.startedAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          {session.completedAt
-                            ? new Date(session.completedAt).toLocaleDateString()
-                            : '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={STATUS_LABELS[session.status]}
-                            size="small"
-                            color={STATUS_COLORS[session.status]}
-                          />
-                        </TableCell>
-                        <TableCell align="right">{session.totalItems}</TableCell>
-                        <TableCell align="right">
-                          <Typography
-                            variant="body2"
-                            color={session.presentCount > 0 ? 'success.main' : 'text.secondary'}
-                          >
-                            {session.presentCount}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography
-                            variant="body2"
-                            color={session.missingCount > 0 ? 'error.main' : 'text.secondary'}
-                          >
-                            {session.missingCount}
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    </Tooltip>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <ResponsiveTable<AuditSession>
+            columns={columns}
+            rows={sessions}
+            getRowKey={(s) => s.id}
+            onRowClick={handleRowClick}
+            rowActions={rowActions}
+            emptyMessage="No audit sessions found."
+            loading={isLoading}
+          />
 
           {data && data.total > 0 && (
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>

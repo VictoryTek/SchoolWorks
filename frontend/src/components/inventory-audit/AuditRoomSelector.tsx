@@ -66,7 +66,7 @@ export function AuditRoomSelector({ onSessionStarted }: AuditRoomSelectorProps) 
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 520 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 520, width: '100%' }}>
       <Typography variant="h6">Select Location to Audit</Typography>
 
       <FormControl fullWidth disabled={locationsLoading}>
@@ -127,6 +127,7 @@ export function AuditRoomSelector({ onSessionStarted }: AuditRoomSelectorProps) 
       <Button
         variant="contained"
         size="large"
+        fullWidth
         disabled={!locationId || !roomId || startMutation.isPending}
         onClick={handleStartAudit}
         startIcon={startMutation.isPending ? <CircularProgress size={18} color="inherit" /> : null}

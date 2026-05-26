@@ -38,8 +38,9 @@ export function AuditItemRow({ item, sessionId }: AuditItemRowProps) {
     <Box
       sx={{
         display: 'flex',
-        alignItems: 'center',
-        gap: 2,
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'stretch', sm: 'center' },
+        gap: { xs: 1, sm: 2 },
         p: 1.5,
         borderRadius: 1,
         border: '1px solid',
@@ -48,76 +49,79 @@ export function AuditItemRow({ item, sessionId }: AuditItemRowProps) {
         transition: 'background-color 0.2s',
       }}
     >
-      {/* Status icon */}
-      <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-        {item.status === 'PRESENT' && (
-          <CheckCircleOutlineIcon sx={{ color: 'success.main' }} />
-        )}
-        {item.status === 'MISSING' && (
-          <CancelOutlinedIcon sx={{ color: 'error.main' }} />
-        )}
-        {item.status === 'UNVERIFIED' && (
-          <HelpOutlineIcon sx={{ color: 'text.disabled' }} />
-        )}
-      </Box>
-
-      {/* Equipment info */}
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Typography variant="body2" fontWeight={600} noWrap>
-            {item.equipmentTag}
-            {item.equipmentSerial && (
-              <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
-                S/N: {item.equipmentSerial}
-              </Typography>
-            )}
-          </Typography>
-          {item.isAddition && (
-            <Chip
-              label="Added"
-              size="small"
-              color="info"
-              variant="outlined"
-              title="This item was found in the room and added during the audit"
-              sx={{ height: 18, fontSize: '0.65rem' }}
-            />
+      {/* Row 1: icon + equipment info + status chip (chip hidden on mobile) */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+        {/* Status icon */}
+        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+          {item.status === 'PRESENT' && (
+            <CheckCircleOutlineIcon sx={{ color: 'success.main' }} />
+          )}
+          {item.status === 'MISSING' && (
+            <CancelOutlinedIcon sx={{ color: 'error.main' }} />
+          )}
+          {item.status === 'UNVERIFIED' && (
+            <HelpOutlineIcon sx={{ color: 'text.disabled' }} />
           )}
         </Box>
-        <Typography variant="caption" color="text.secondary" noWrap>
-          {item.equipmentName}
-        </Typography>
+
+        {/* Equipment info */}
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {item.equipmentTag}
+              {item.equipmentSerial && (
+                <Typography component="span" variant="caption" sx={{ ml: 1, color: 'text.secondary' }}>
+                  S/N: {item.equipmentSerial}
+                </Typography>
+              )}
+            </Typography>
+            {item.isAddition && (
+              <Chip
+                label="Added"
+                size="small"
+                color="info"
+                variant="outlined"
+                title="This item was found in the room and added during the audit"
+                sx={{ height: 18, fontSize: '0.65rem' }}
+              />
+            )}
+          </Box>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {item.equipmentName}
+          </Typography>
+        </Box>
+
+        {/* Status chip — hidden on mobile (button state conveys this info) */}
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexShrink: 0 }}>
+          {item.status === 'UNVERIFIED' ? (
+            <Chip label="Unverified" size="small" variant="outlined" />
+          ) : item.status === 'PRESENT' ? (
+            <Chip label="In Room" size="small" color="success" />
+          ) : (
+            <Chip label="Not In Room" size="small" color="error" />
+          )}
+        </Box>
       </Box>
 
-      {/* Status chip */}
-      <Box sx={{ flexShrink: 0 }}>
-        {item.status === 'UNVERIFIED' ? (
-          <Chip label="Unverified" size="small" variant="outlined" />
-        ) : item.status === 'PRESENT' ? (
-          <Chip label="In Room" size="small" color="success" />
-        ) : (
-          <Chip label="Not In Room" size="small" color="error" />
-        )}
-      </Box>
-
-      {/* Action buttons */}
+      {/* Row 2 (mobile) / end of row (desktop): action buttons — full-width on mobile */}
       <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
         <Button
-          size="small"
+          size="medium"
           variant={item.status === 'PRESENT' ? 'contained' : 'outlined'}
           color="success"
           disabled={updateMutation.isPending}
           onClick={() => handleMark('PRESENT')}
-          sx={{ minWidth: 90 }}
+          sx={{ flex: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 90 }, minHeight: 44 }}
         >
           In Room
         </Button>
         <Button
-          size="small"
+          size="medium"
           variant={item.status === 'MISSING' ? 'contained' : 'outlined'}
           color="error"
           disabled={updateMutation.isPending}
           onClick={() => handleMark('MISSING')}
-          sx={{ minWidth: 110 }}
+          sx={{ flex: { xs: 1, sm: 0 }, minWidth: { xs: 'auto', sm: 110 }, minHeight: 44 }}
         >
           Not In Room
         </Button>

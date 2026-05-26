@@ -78,7 +78,7 @@ export function AuditEquipmentSearch({ sessionId, onAdded }: AuditEquipmentSearc
       </Typography>
 
       {/* Search input */}
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 1, alignItems: { xs: 'stretch', sm: 'flex-start' } }}>
         <TextField
           size="small"
           label="Asset Tag"
@@ -96,13 +96,14 @@ export function AuditEquipmentSearch({ sessionId, onAdded }: AuditEquipmentSearc
               </InputAdornment>
             ),
           }}
-          sx={{ flex: 1, maxWidth: 320 }}
+          sx={{ flex: 1 }}
         />
         <Button
           variant="outlined"
           onClick={handleSearch}
           disabled={!inputValue.trim() || isFetching}
           startIcon={isFetching ? <CircularProgress size={16} color="inherit" /> : null}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           {isFetching ? 'Searching…' : 'Search'}
         </Button>
@@ -138,7 +139,7 @@ export function AuditEquipmentSearch({ sessionId, onAdded }: AuditEquipmentSearc
 
       {/* Result card */}
       {lookupResult && !notFound && (
-        <Card variant="outlined" sx={{ maxWidth: 480 }}>
+        <Card variant="outlined" sx={{ maxWidth: 480, width: '100%' }}>
           <CardContent sx={{ pb: '12px !important' }}>
             <Box
               sx={{
@@ -146,9 +147,10 @@ export function AuditEquipmentSearch({ sessionId, onAdded }: AuditEquipmentSearc
                 justifyContent: 'space-between',
                 alignItems: 'flex-start',
                 gap: 1,
+                flexWrap: 'wrap',
               }}
             >
-              <Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="subtitle1" fontWeight={600}>
                   {lookupResult.equipment.assetTag}
                 </Typography>
@@ -201,6 +203,7 @@ export function AuditEquipmentSearch({ sessionId, onAdded }: AuditEquipmentSearc
                   variant="contained"
                   color="primary"
                   size="small"
+                  fullWidth
                   startIcon={
                     addMutation.isPending ? (
                       <CircularProgress size={14} color="inherit" />
