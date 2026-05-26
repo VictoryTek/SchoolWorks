@@ -7,10 +7,19 @@ import { useState, useEffect } from 'react';
 import inventoryService from '../services/inventory.service';
 import { locationService } from '../services/location.service';
 import { modelsService, EquipmentModel } from '../services/referenceDataService';
-import { InventoryItem, InventoryFilters } from '../types/inventory.types';
-import { ResponsiveTable, Column } from '../components/responsive';
+import { InventoryItem } from '../types/inventory.types';
+import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
@@ -41,6 +50,10 @@ const BulkDeleteDisposedPage = () => {
     message: '',
     severity: 'success' as 'success' | 'error',
   });
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [disposeReason, setDisposeReason] = useState('');
 
   // Fetch reference data on mount
   useEffect(() => {
@@ -59,6 +72,11 @@ const BulkDeleteDisposedPage = () => {
       });
   }, []);
 
+  // Reset page when items list changes
+  useEffect(() => {
+    setPage(0);
+  }, [items]);
+
   // Fetch items when model or secondary filters change
   useEffect(() => {
     if (!selectedModelId) {
@@ -72,16 +90,26 @@ const BulkDeleteDisposedPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const query: InventoryFilters = {
-          isDisposed: false,
-          modelId: selectedModelId,
-          limit: 500,
-          page: 1,
-          officeLocationId: filters.officeLocationId || undefined,
-        };
-        const response = await inventoryService.getInventory(query);
+        const PAGE_SIZE = 500;
+        let allItems: InventoryItem[] = [];
+        let currentPage = 1;
+        let totalPages = 1;
+
+        do {
+          const response = await inventoryService.getInventory({
+            isDisposed: false,
+            modelId: selectedModelId,
+            limit: PAGE_SIZE,
+            page: currentPage,
+            officeLocationId: filters.officeLocationId || undefined,
+          });
+          allItems = allItems.concat(response.items);
+          totalPages = response.totalPages ?? 1;
+          currentPage++;
+        } while (currentPage <= totalPages && !cancelled);
+
         if (!cancelled) {
-          setItems(response.items);
+          setItems(allItems);
         }
       } catch (err: unknown) {
         if (!cancelled) {
@@ -108,18 +136,21 @@ const BulkDeleteDisposedPage = () => {
     const model = models.find((m) => m.id === modelId);
     setSelectedModelId(modelId);
     setSelectedModelName(model ? model.name : '');
-    // Reset secondary filters when model changes
+    // Reset secondary filters and selection when model changes
     setFilters({ officeLocationId: '' });
+    setSelectedIds(new Set());
+    setDisposeReason('');
   };
 
   const handleBulkDispose = async () => {
-    const allIds = items.map((i) => i.id);
+    const idsToDispose = selectedIds.size > 0 ? [...selectedIds] : items.map((i) => i.id);
     setDeleting(true);
     try {
-      const result = await inventoryService.bulkUpdate(allIds, {
+      const result = await inventoryService.bulkUpdate(idsToDispose, {
         isDisposed: true,
         status: 'disposed',
         disposedDate: new Date().toISOString(),
+        disposedReason: disposeReason || undefined,
       });
       setSnackbar({
         open: true,
@@ -131,6 +162,8 @@ const BulkDeleteDisposedPage = () => {
       setSelectedModelName('');
       setItems([]);
       setFilters({ officeLocationId: '' });
+      setSelectedIds(new Set());
+      setDisposeReason('');
     } catch (err: unknown) {
       const e = err as { response?: { data?: { message?: string } }; message?: string };
       setSnackbar({
@@ -154,52 +187,41 @@ const BulkDeleteDisposedPage = () => {
   };
 
   const allIds = items.map((i) => i.id);
-  const canDispose = Boolean(selectedModelId) && allIds.length > 0 && !deleting;
+  const idsToDispose = selectedIds.size > 0 ? [...selectedIds] : allIds;
+  const canDispose = Boolean(selectedModelId) && idsToDispose.length > 0 && !deleting;
 
-  const columns: Column<InventoryItem>[] = [
-    {
-      key: 'assetTag',
-      label: 'Asset Tag',
-      isPrimary: true,
-      render: (item) => <strong style={{ fontWeight: 600 }}>{item.assetTag}</strong>,
-    },
-    {
-      key: 'name',
-      label: 'Name',
-      isSecondary: true,
-    },
-    {
-      key: 'serialNumber',
-      label: 'Serial #',
-      hideOnMobile: true,
-      render: (item) => item.serialNumber || '\u2014',
-    },
-    {
-      key: 'officeLocation',
-      label: 'Location',
-      render: (item) => item.officeLocation?.name || '\u2014',
-    },
-    {
-      key: 'disposedDate',
-      label: 'Disposal Date',
-      render: (item) => formatDate(item.disposedDate || item.disposalDate),
-    },
-    {
-      key: 'disposedReason',
-      label: 'Reason',
-      hideOnMobile: true,
-      render: (item) =>
-        item.disposedReason ? (
-          <span title={item.disposedReason}>
-            {item.disposedReason.length > 40
-              ? `${item.disposedReason.slice(0, 40)}\u2026`
-              : item.disposedReason}
-          </span>
-        ) : (
-          <span style={{ color: 'var(--slate-400)' }}>\u2014</span>
-        ),
-    },
-  ];
+  const pagedItems = items.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
+  const pageItemIds = pagedItems.map((i) => i.id);
+  const allPageSelected =
+    pagedItems.length > 0 && pageItemIds.every((id) => selectedIds.has(id));
+  const somePageSelected =
+    pageItemIds.some((id) => selectedIds.has(id)) && !allPageSelected;
+
+  const handleToggleAll = () => {
+    if (allPageSelected) {
+      const next = new Set(selectedIds);
+      pageItemIds.forEach((id) => next.delete(id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      pageItemIds.forEach((id) => next.add(id));
+      setSelectedIds(next);
+    }
+  };
+
+  const handleToggleRow = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
+
+  const handleSelectAll = () => {
+    setSelectedIds(new Set(allIds));
+  };
 
   return (
     <>
@@ -207,9 +229,9 @@ const BulkDeleteDisposedPage = () => {
         <div className="container">
           {/* Page Header */}
           <div className="page-header">
-            <h2 className="page-title">Purge Disposed Equipment</h2>
+            <h2 className="page-title">Bulk Dispose Equipment</h2>
             <p className="page-description">
-          Permanently delete disposed equipment records. This action cannot be undone.
+              Mark active equipment records as disposed, removing them from active inventory.
             </p>
           </div>
 
@@ -255,17 +277,23 @@ const BulkDeleteDisposedPage = () => {
                 Select Model to Dispose{' '}
                 <span style={{ color: 'var(--red-500, #ef4444)' }}>*</span>
               </label>
-              <select
-                value={selectedModelId}
-                onChange={(e) => handleModelChange(e.target.value)}
-                className="form-select"
+              <Autocomplete<EquipmentModel>
+                options={models}
+                getOptionLabel={(m) => m.name}
+                getOptionKey={(m) => m.id}
+                value={models.find((m) => m.id === selectedModelId) ?? null}
+                onChange={(_e, m) => handleModelChange(m ? m.id : '')}
+                isOptionEqualToValue={(a, b) => a.id === b.id}
                 style={{ maxWidth: '32rem' }}
-              >
-                <option value="">\u2014 Select a model \u2014</option>
-                {models.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    placeholder="Search or select a model…"
+                    size="small"
+                    variant="outlined"
+                  />
+                )}
+              />
             </div>
           </div>
 
@@ -314,7 +342,7 @@ const BulkDeleteDisposedPage = () => {
                 'Loading\u2026'
               ) : (
                 <>
-                  <strong>{items.length.toLocaleString()}</strong> disposed{' '}
+                  <strong>{items.length.toLocaleString()}</strong> active{' '}
                   <strong>{selectedModelName}</strong> device
                   {items.length !== 1 ? 's' : ''} found
                 </>
@@ -328,7 +356,9 @@ const BulkDeleteDisposedPage = () => {
                 onClick={() => setConfirmOpen(true)}
                 disabled={deleting}
               >
-                Dispose All {items.length} {selectedModelName} Device{items.length !== 1 ? 's' : ''}
+                {selectedIds.size > 0
+                  ? `Dispose ${selectedIds.size} Selected`
+                  : `Dispose All ${items.length} ${selectedModelName} Device${items.length !== 1 ? 's' : ''}`}
               </Button>
             )}
           </div>
@@ -356,15 +386,144 @@ const BulkDeleteDisposedPage = () => {
               Select an equipment model above to view its active devices.
             </div>
           ) : (
-            <div className="card" style={{ padding: 0 }}>
-              <ResponsiveTable<InventoryItem>
-                columns={columns}
-                rows={items}
-                getRowKey={(item) => item.id}
-                loading={loading}
-                emptyMessage={`No active ${selectedModelName} devices found matching the current filters.`}
-              />
-            </div>
+            <>
+              {allPageSelected && items.length > rowsPerPage && (
+                <div
+                  style={{
+                    textAlign: 'center',
+                    marginBottom: '0.5rem',
+                    fontSize: '0.875rem',
+                    color: 'var(--slate-600)',
+                  }}
+                >
+                  {selectedIds.size === items.length ? (
+                    <>
+                      All <strong>{items.length}</strong> devices are selected.{' '}
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={() => setSelectedIds(new Set())}
+                        sx={{ p: 0, minWidth: 0, fontSize: 'inherit', verticalAlign: 'baseline' }}
+                      >
+                        Clear selection
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      All <strong>{pagedItems.length}</strong> devices on this page are selected.{' '}
+                      <Button
+                        variant="text"
+                        size="small"
+                        onClick={handleSelectAll}
+                        sx={{ p: 0, minWidth: 0, fontSize: 'inherit', verticalAlign: 'baseline' }}
+                      >
+                        Select all {items.length} devices (all pages)
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
+              <div className="card" style={{ padding: 0 }}>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            indeterminate={somePageSelected}
+                            checked={allPageSelected}
+                            onChange={handleToggleAll}
+                            disabled={loading || pagedItems.length === 0}
+                          />
+                        </TableCell>
+                        <TableCell>Asset Tag</TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          Serial #
+                        </TableCell>
+                        <TableCell>Location</TableCell>
+                        <TableCell>Disposal Date</TableCell>
+                        <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                          Reason
+                        </TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center" sx={{ py: 4 }}>
+                            Loading…
+                          </TableCell>
+                        </TableRow>
+                      ) : pagedItems.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={7}
+                            align="center"
+                            sx={{ py: 4, color: 'text.secondary' }}
+                          >
+                            No active {selectedModelName} devices found matching the current
+                            filters.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        pagedItems.map((item) => (
+                          <TableRow
+                            key={item.id}
+                            hover
+                            selected={selectedIds.has(item.id)}
+                            onClick={() => handleToggleRow(item.id)}
+                            sx={{ cursor: 'pointer' }}
+                          >
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                checked={selectedIds.has(item.id)}
+                                onChange={() => handleToggleRow(item.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <strong style={{ fontWeight: 600 }}>{item.assetTag}</strong>
+                            </TableCell>
+                            <TableCell>{item.name}</TableCell>
+                            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                              {item.serialNumber || '\u2014'}
+                            </TableCell>
+                            <TableCell>{item.officeLocation?.name || '\u2014'}</TableCell>
+                            <TableCell>
+                              {formatDate(item.disposedDate || item.disposalDate)}
+                            </TableCell>
+                            <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                              {item.disposedReason ? (
+                                <span title={item.disposedReason}>
+                                  {item.disposedReason.length > 40
+                                    ? `${item.disposedReason.slice(0, 40)}\u2026`
+                                    : item.disposedReason}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--slate-400)' }}>{'\u2014'}</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination
+                  component="div"
+                  count={items.length}
+                  page={page}
+                  onPageChange={(_e, newPage) => setPage(newPage)}
+                  rowsPerPage={rowsPerPage}
+                  onRowsPerPageChange={(e) => {
+                    setRowsPerPage(parseInt(e.target.value, 10));
+                    setPage(0);
+                  }}
+                  rowsPerPageOptions={[25, 50, 100]}
+                />
+              </div>
+            </>
           )}
         </div>
       </main>
@@ -377,17 +536,30 @@ const BulkDeleteDisposedPage = () => {
         fullWidth
       >
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {'⚠️'} Confirm Permanent Deletion
+          {'⚠️'} Confirm Bulk Disposal
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            You are about to permanently delete{' '}
+            You are about to mark{' '}
             <strong>
-              {allIds.length} {selectedModelName} device(s)
-            </strong>
-            . This action <strong>cannot be undone</strong> and records cannot be recovered.
+              {idsToDispose.length} {selectedModelName} device(s)
+            </strong>{' '}
+            as <strong>disposed</strong>. They will be removed from active inventory and cannot
+            be checked out or assigned. Records are retained and viewable on the Disposed
+            Equipment page.
           </DialogContentText>
           <DialogContentText sx={{ mt: 2 }}>Are you sure you want to proceed?</DialogContentText>
+          <TextField
+            label="Disposal Reason (optional)"
+            placeholder="e.g. End of life, damaged beyond repair\u2026"
+            multiline
+            rows={2}
+            fullWidth
+            inputProps={{ maxLength: 500 }}
+            value={disposeReason}
+            onChange={(e) => setDisposeReason(e.target.value)}
+            sx={{ mt: 2 }}
+          />
         </DialogContent>
         <DialogActions>
           <Button
@@ -403,7 +575,7 @@ const BulkDeleteDisposedPage = () => {
             variant="contained"
             disabled={deleting}
           >
-            {deleting ? 'Deleting\u2026' : `Yes, Delete ${allIds.length} Devices`}
+            {deleting ? 'Processing\u2026' : `Yes, Mark ${idsToDispose.length} as Disposed`}
           </Button>
         </DialogActions>
       </Dialog>
