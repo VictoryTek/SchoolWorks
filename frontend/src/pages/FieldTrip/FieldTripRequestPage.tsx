@@ -627,7 +627,7 @@ export function FieldTripRequestPage() {
 
         {/* ===== Step 0: Trip Information ===== */}
         {activeStep === 0 && (
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
 
             {/* Teacher / Sponsor Name */}
             <Grid size={{ xs: 12, sm: 6 }}>
@@ -934,7 +934,7 @@ export function FieldTripRequestPage() {
 
         {/* ===== Step 1: Transportation ===== */}
         {activeStep === 1 && (
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
 
             {/* Auto-calculated bus count — read only */}
             <Grid size={12}>
@@ -1192,7 +1192,7 @@ export function FieldTripRequestPage() {
 
         {/* ===== Step 2: Costs & Additional Details ===== */}
         {activeStep === 2 && (
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
 
             {/* 1. Rain / Alternate Date */}
             <Grid size={{ xs: 12, sm: 6 }}>

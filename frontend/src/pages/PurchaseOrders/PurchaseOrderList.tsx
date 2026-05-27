@@ -437,7 +437,7 @@ export default function PurchaseOrderList() {
         </Box>
       ) : (
         <Paper sx={{ p: 2, mb: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', '& > *': { flex: { xs: '1 1 100%', sm: '0 0 auto' } } }}>
             <TextField
               size="small"
               placeholder="Search PO#, title, program…"
@@ -450,14 +450,14 @@ export default function PurchaseOrderList() {
                   ),
                 },
               }}
-              sx={{ minWidth: 240 }}
+              sx={{ minWidth: { xs: 'unset', sm: 240 } }}
             />
             <Select
               size="small"
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value as POStatus | ''); setPage(0); }}
               displayEmpty
-              sx={{ minWidth: 180 }}
+              sx={{ minWidth: { xs: 'unset', sm: 180 } }}
             >
               <MenuItem value="">All Statuses</MenuItem>
               {PO_STATUSES.map((s) => (
@@ -471,7 +471,7 @@ export default function PurchaseOrderList() {
               value={dateFrom}
               onChange={(e) => { setDateFrom(e.target.value); setPage(0); }}
               slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ width: 150 }}
+              sx={{ width: { xs: 'unset', sm: 150 } }}
             />
             <TextField
               size="small"
@@ -480,14 +480,14 @@ export default function PurchaseOrderList() {
               value={dateTo}
               onChange={(e) => { setDateTo(e.target.value); setPage(0); }}
               slotProps={{ inputLabel: { shrink: true } }}
-              sx={{ width: 150 }}
+              sx={{ width: { xs: 'unset', sm: 150 } }}
             />
             <Select
               size="small"
               value={fiscalYearFilter || settings?.currentFiscalYear || ''}
               onChange={(e) => { setFiscalYearFilter(e.target.value); setPage(0); }}
               displayEmpty
-              sx={{ minWidth: 160 }}
+              sx={{ minWidth: { xs: 'unset', sm: 160 } }}
             >
               <MenuItem value="">All Years</MenuItem>
               {fiscalYears.map((fy) => (
@@ -499,7 +499,7 @@ export default function PurchaseOrderList() {
               value={workflowTypeFilter}
               onChange={(e) => { setWorkflowTypeFilter(e.target.value as WorkflowType | ''); setPage(0); }}
               displayEmpty
-              sx={{ minWidth: 160 }}
+              sx={{ minWidth: { xs: 'unset', sm: 160 } }}
             >
               <MenuItem value="">All Types</MenuItem>
               <MenuItem value="standard">Standard</MenuItem>

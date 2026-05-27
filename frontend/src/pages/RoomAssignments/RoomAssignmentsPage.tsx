@@ -128,7 +128,7 @@ export function RoomAssignmentsPage() {
 
       {/* Location selector — admins and principals/VPs without a primary supervised location */}
       {showLocationSelector && (
-        <FormControl size="small" sx={{ minWidth: 300, mb: 3 }}>
+        <FormControl size="small" sx={{ minWidth: { xs: '100%', sm: 300 }, mb: 3 }}>
           <InputLabel>Select Location</InputLabel>
           <Select
             value={selectedLocationId}

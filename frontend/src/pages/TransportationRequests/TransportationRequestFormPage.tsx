@@ -203,7 +203,7 @@ export function TransportationRequestFormPage() {
         <Paper sx={{ p: { xs: 1.5, sm: 3 }, mb: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Part A — Trip Information</Typography>
           <Divider sx={{ mb: 3 }} />
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth required error={!!errors.school}>
                 <InputLabel id="school-label">School</InputLabel>
@@ -309,7 +309,7 @@ export function TransportationRequestFormPage() {
         <Paper sx={{ p: { xs: 1.5, sm: 3 }, mb: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Part B — Logistics & Times</Typography>
           <Divider sx={{ mb: 3 }} />
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
             <Grid size={12}>
               <TextField
                 fullWidth required label="Loading Location"
@@ -405,7 +405,7 @@ export function TransportationRequestFormPage() {
         <Paper sx={{ p: { xs: 1.5, sm: 3 }, mb: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Part C — Destinations</Typography>
           <Divider sx={{ mb: 3 }} />
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1, sm: 2 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth required label="Primary Destination Name"
