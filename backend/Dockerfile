@@ -35,8 +35,8 @@ RUN npx prisma generate
 COPY backend/tsconfig.json ./
 COPY backend/src ./src/
 
-# Build TypeScript
-RUN npm run build
+# Build TypeScript — increase heap for tsc in memory-constrained Docker environments
+RUN NODE_OPTIONS=--max-old-space-size=4096 npm run build
 
 # Production stage
 FROM node:20-alpine AS production
