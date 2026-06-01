@@ -593,11 +593,12 @@ export default function PurchaseOrderDetail() {
                   const historyEntry = po.statusHistory?.find(
                     (h) => h.toStatus === stage.status,
                   );
-                  const completed = idx <= activeStageIndex;
+                  const completed = idx < activeStageIndex || (idx === activeStageIndex && po.status === 'po_issued');
+                  const isBoldLabel = idx <= activeStageIndex;
                   return (
                     <Step key={stage.status} completed={completed}>
                       <StepLabel>
-                        <Typography variant="body2" fontWeight={completed ? 600 : 400}>
+                        <Typography variant="body2" fontWeight={isBoldLabel ? 600 : 400}>
                           {stage.label}
                         </Typography>
                       </StepLabel>

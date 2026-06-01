@@ -97,12 +97,13 @@ export function FieldTripApprovalStepper({
             const approval     = approvals.find(
               (a) => a.stage === stage.stage && a.action === 'APPROVED',
             );
-            const completed    = idx <= activeStageIndex;
+            const completed    = idx < activeStageIndex || (idx === activeStageIndex && status === 'APPROVED');
+            const isBoldLabel  = idx <= activeStageIndex;
 
             return (
               <Step key={stage.status} completed={completed}>
                 <StepLabel>
-                  <Typography variant="body2" fontWeight={completed ? 600 : 400}>
+                  <Typography variant="body2" fontWeight={isBoldLabel ? 600 : 400}>
                     {stage.label}
                   </Typography>
                 </StepLabel>
