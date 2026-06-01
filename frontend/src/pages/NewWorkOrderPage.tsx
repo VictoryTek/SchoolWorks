@@ -354,11 +354,12 @@ export default function NewWorkOrderPage() {
             )}
 
             {/* Actions */}
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 1 }}>
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 1, flexWrap: 'wrap' }}>
               <Button
                 variant="outlined"
                 onClick={() => navigate('/work-orders')}
                 disabled={createWorkOrder.isPending}
+                sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' }, minWidth: 0 }}
               >
                 Cancel
               </Button>
@@ -367,6 +368,7 @@ export default function NewWorkOrderPage() {
                 onClick={handleSubmit}
                 disabled={createWorkOrder.isPending}
                 startIcon={createWorkOrder.isPending ? <CircularProgress size={16} /> : undefined}
+                sx={{ flex: { xs: '1 1 auto', sm: '0 0 auto' }, minWidth: 0 }}
               >
                 {createWorkOrder.isPending ? 'Submitting…' : 'Submit Work Order'}
               </Button>

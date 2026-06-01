@@ -165,8 +165,9 @@ const FieldTripBodyShape = {
     .max(500, 'Emergency contact must be 500 characters or less'),
   additionalNotes: z
     .string()
-    .min(1, 'Additional notes are required')
-    .max(2000, 'Additional notes must be 2000 characters or less'),
+    .max(2000, 'Additional notes must be 2000 characters or less')
+    .nullable()
+    .optional(),
   subjectArea: z
     .string()
     .max(100, 'Subject area must be 100 characters or less')

@@ -375,8 +375,6 @@ function validateStep(step: number, form: FormState, isRevision = false): FieldE
     // Overnight safety precautions
     if (form.isOvernightTrip && !form.overnightSafetyPrecautions.trim())
       errors.overnightSafetyPrecautions = 'Safety precautions are required for overnight trips';
-    // Additional notes
-    if (!form.additionalNotes.trim()) errors.additionalNotes = 'Additional notes are required';
   }
 
   return errors;
@@ -1463,7 +1461,6 @@ export function FieldTripRequestPage() {
                 error={!!errors.additionalNotes}
                 helperText={errors.additionalNotes}
                 disabled={isReadOnly}
-                required
               />
             </Grid>
 

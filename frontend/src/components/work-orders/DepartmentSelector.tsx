@@ -38,7 +38,7 @@ export function DepartmentSelector({ value, onChange, disabled = false, allowedD
     : DEPARTMENTS;
 
   return (
-    <Box sx={{ display: 'flex', gap: 2 }}>
+    <Box sx={{ display: 'flex', gap: 2, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
       {visible.map(({ value: deptValue, label, subtitle, Icon }) => {
         const isSelected = value === deptValue;
         return (
