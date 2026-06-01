@@ -69,6 +69,7 @@ export const SearchUsersQuerySchema = z.object({
   q: z.string().max(200, 'Search term must be 200 characters or fewer').optional().default(''),
   limit: z.coerce.number().int().positive().max(50).default(20).optional(),
   locationId: z.string().uuid().optional(),
+  staffOnly: z.coerce.boolean().optional(),
 });
 
 /**

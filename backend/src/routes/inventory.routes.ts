@@ -23,6 +23,7 @@ import {
   ImportInventorySchema,
   ExportInventorySchema,
   ImportJobIdParamSchema,
+  InventorySearchQuerySchema,
 } from '../validators/inventory.validators';
 import * as inventoryController from '../controllers/inventory.controller';
 
@@ -93,6 +94,18 @@ router.get(
   '/inventory/stats',
   requireModule('TECHNOLOGY', 1),
   inventoryController.getInventoryStats
+);
+
+/**
+ * GET /api/inventory/search
+ * Lightweight typeahead search by asset tag, name, or serial number
+ * Permission: TECHNOLOGY level 1+ (view access)
+ */
+router.get(
+  '/inventory/search',
+  validateRequest(InventorySearchQuerySchema, 'query'),
+  requireModule('TECHNOLOGY', 1),
+  inventoryController.searchInventory
 );
 
 /**

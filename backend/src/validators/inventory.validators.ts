@@ -256,12 +256,23 @@ export const BulkDeleteInventorySchema = z.object({
 });
 
 /**
+ * Validation schema for lightweight inventory typeahead search
+ */
+export const InventorySearchQuerySchema = z.object({
+  q:              z.string().min(1, 'Search query is required').max(100, 'Search query too long'),
+  limit:          z.coerce.number().int().min(1).max(25).default(10),
+  excludeDisposed: z.coerce.boolean().default(true),
+  status:         z.string().max(50).optional(),
+});
+
+/**
  * TypeScript type exports (inferred from schemas)
  */
 export type InventoryIdParam = z.infer<typeof InventoryIdParamSchema>;
 export type LocationIdParam = z.infer<typeof LocationIdParamSchema>;
 export type RoomIdParam = z.infer<typeof RoomIdParamSchema>;
 export type GetInventoryQuery = z.infer<typeof GetInventoryQuerySchema>;
+export type InventorySearchQuery = z.infer<typeof InventorySearchQuerySchema>;
 export type CreateInventory = z.infer<typeof CreateInventorySchema>;
 export type UpdateInventory = z.infer<typeof UpdateInventorySchema>;
 export type BulkUpdateInventory = z.infer<typeof BulkUpdateInventorySchema>;

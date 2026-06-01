@@ -108,6 +108,21 @@ export interface InventoryItem {
 }
 
 /**
+ * Lightweight search result for typeahead autocomplete components.
+ * Returned by GET /api/inventory/search
+ */
+export interface InventorySearchResult {
+  id: string;
+  assetTag: string;
+  name: string;
+  serialNumber: string | null;
+  status: string;
+  isDisposed: boolean;
+  location: { id: string; name: string } | null;
+  assignedToUser: { id: string; displayName: string | null; email: string } | null;
+}
+
+/**
  * Inventory list response with pagination
  */
 export interface InventoryListResponse {

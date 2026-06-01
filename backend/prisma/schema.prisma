@@ -100,6 +100,7 @@ model equipment {
   damageIncidents   DamageIncident[]
   repairTickets     RepairTicket[]
   auditItems        InventoryAuditItem[]
+  cartItems         DeviceCartItem[]
 
   @@index([assetTag])
   @@index([locationId])
@@ -291,6 +292,7 @@ model OfficeLocation {
   tickets                 Ticket[]
   transportationRequests  TransportationRequest[]
   deviceAssignments       DeviceAssignment[]
+  deviceCarts             DeviceCart[]
   auditSessions           InventoryAuditSession[]
   fiscalYearLocationStatuses FiscalYearLocationStatus[]
 
@@ -542,6 +544,11 @@ model User {
   resolvedAuditItems            InventoryAuditItem[]    @relation("AuditItemResolver")
   fiscalYearAuditsStarted       FiscalYearAudit[]       @relation("FiscalYearAuditStartedBy")
   locationAuditsCompleted       FiscalYearLocationStatus[] @relation("LocationAuditCompleter")
+  // Device Cart relations
+  cartsAssignedTo              DeviceCart[]   @relation("CartAssignedToUser")
+  cartsCreatedBy               DeviceCart[]   @relation("CartCreatedBy")
+  cartsCommittedBy             DeviceCart[]   @relation("CartCommittedBy")
+  deviceCartUsers              DeviceCartUser[] @relation("DeviceCartUsers")
 
   @@index([employeeId])
   @@map("users")
@@ -1208,6 +1215,9 @@ model DeviceAssignment {
   notes             String?
   returnNotes       String?
   locationId        String?   // FK → OfficeLocation — user's location at checkout time
+  /// FK → DeviceCart — set when this assignment was created through a cart checkout.
+  /// NULL for single-device checkouts.
+  cartId            String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -1216,7 +1226,9 @@ model DeviceAssignment {
   checkedOutByUser User             @relation("DeviceAssignmentCheckedOutBy", fields: [checkoutBy], references: [id])
   returnedByUser   User?            @relation("DeviceAssignmentReturnedBy", fields: [returnedBy], references: [id])
   location         OfficeLocation?  @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  cart             DeviceCart?      @relation(fields: [cartId], references: [id], onDelete: SetNull)
   damageIncidents  DamageIncident[]
+  cartItem         DeviceCartItem?
 
   @@index([equipmentId])
   @@index([userId])
@@ -1225,6 +1237,7 @@ model DeviceAssignment {
   @@index([returnedAt])
   @@index([equipmentId, returnedAt])
   @@index([locationId])
+  @@index([cartId])
   @@map("device_assignments")
 }
 
@@ -1599,4 +1612,96 @@ model FiscalYearLocationStatus {
   @@index([fiscalYearAuditId])
   @@index([officeLocationId])
   @@map("fiscal_year_location_statuses")
+}
+
+// ============================================
+// DEVICE CART (BATCH CHECKOUT)
+// ============================================
+
+/// A staging cart that collects multiple devices before committing them as
+/// individual DeviceAssignment records in a single atomic transaction.
+model DeviceCart {
+  id               String    @id @default(uuid())
+  /// Asset tag of the physical cart from inventory (set by staff when creating/editing the cart).
+  tagNumber        String?   @unique @db.VarChar(100)
+  /// Optional human-friendly label (e.g. "Room 204 – Sept checkout")
+  name             String?   @db.VarChar(200)
+  /// draft | checked_out | partially_returned | returned
+  status           String    @default("draft")
+  /// DEPRECATED: kept for backward compat — use DeviceCartUser join table instead
+  assignedToUserId String?
+  /// DEPRECATED: kept for backward compat — always 'staff' for new carts
+  assigneeType     String?
+  /// Location at checkout time (used for all assignments)
+  locationId       String?
+  dueDate          DateTime?
+  checkoutCondition String?
+  notes            String?   @db.Text
+  createdById      String
+  committedAt      DateTime?
+  committedById    String?
+  fullyReturnedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  assignedToUser   User?          @relation("CartAssignedToUser",  fields: [assignedToUserId], references: [id])
+  location         OfficeLocation? @relation(fields: [locationId],  references: [id], onDelete: SetNull)
+  createdBy        User           @relation("CartCreatedBy",        fields: [createdById],      references: [id])
+  committedBy      User?          @relation("CartCommittedBy",      fields: [committedById],    references: [id])
+  items            DeviceCartItem[]
+  assignments      DeviceAssignment[]
+  users            DeviceCartUser[]
+
+  @@index([tagNumber])
+  @@index([status])
+  @@index([assignedToUserId])
+  @@index([locationId])
+  @@index([createdById])
+  @@index([committedAt])
+  @@map("device_carts")
+}
+
+/// One device staged inside a DeviceCart.
+/// After commitCart() the assignmentId FK is populated and the cart item becomes
+/// a permanent audit trail linking the assignment back to the cart.
+model DeviceCartItem {
+  id           String    @id @default(uuid())
+  cartId       String
+  equipmentId  String
+  /// Set after commitCart() — links to the DeviceAssignment created for this item
+  assignmentId String?   @unique
+  condition    String?
+  notes        String?   @db.Text
+  sortOrder    Int       @default(0)
+  addedAt      DateTime  @default(now())
+
+  cart         DeviceCart        @relation(fields: [cartId],       references: [id], onDelete: Cascade)
+  equipment    equipment         @relation(fields: [equipmentId],  references: [id])
+  assignment   DeviceAssignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@unique([cartId, equipmentId])
+  @@index([cartId])
+  @@index([equipmentId])
+  @@index([assignmentId])
+  @@map("device_cart_items")
+}
+
+/// Staff users assigned to a DeviceCart (many-to-many join with role).
+/// Replaces the former DeviceCart.assignedToUserId single-FK.
+model DeviceCartUser {
+  id        String   @id @default(uuid())
+  cartId    String
+  userId    String
+  /// "primary" = receives DeviceAssignment records at commit time.
+  /// "secondary" = co-holder; shown in UI but no individual assignments.
+  role      String   @default("primary")
+  addedAt   DateTime @default(now())
+
+  cart      DeviceCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  user      User       @relation("DeviceCartUsers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, userId])
+  @@index([cartId])
+  @@index([userId])
+  @@map("device_cart_users")
 }

@@ -550,7 +550,7 @@ export class UserService {
    * @param limit - Max results to return (capped at 50)
    * @returns Slim user list suitable for autocomplete
    */
-  async searchForAutocomplete(query: string, limit = 20, locationId?: string): Promise<UserSearchResult[]> {
+  async searchForAutocomplete(query: string, limit = 20, locationId?: string, staffOnly = false): Promise<UserSearchResult[]> {
     const orConditions: Prisma.UserWhereInput[] = [];
 
     if (query.length >= 2) {
@@ -572,6 +572,8 @@ export class UserService {
     const where: Prisma.UserWhereInput = {
       isActive: true,
       ...(orConditions.length > 0 && { OR: orConditions }),
+      // Staff users have no gradeLevel; students always have one
+      ...(staffOnly && { gradeLevel: null }),
     };
 
     // Filter by location if provided

@@ -19,6 +19,7 @@ import {
   InventoryItemWithRelations,
   InventoryHistoryEntry,
 } from '../types/inventory.types';
+import type { InventorySearchQuery } from '../validators/inventory.validators';
 
 /**
  * User context for audit logging
@@ -295,6 +296,53 @@ export class InventoryService {
       limit,
       totalPages,
     };
+  }
+
+  /**
+   * Lightweight typeahead search for inventory items.
+   * Returns minimal fields suitable for autocomplete dropdowns.
+   */
+  async search(query: InventorySearchQuery) {
+    const { q, limit, excludeDisposed, status } = query;
+
+    const where: Prisma.equipmentWhereInput = {
+      OR: [
+        { assetTag:     { startsWith: q, mode: 'insensitive' } },
+        { assetTag:     { contains:   q, mode: 'insensitive' } },
+        { name:         { contains:   q, mode: 'insensitive' } },
+        { serialNumber: { contains:   q, mode: 'insensitive' } },
+      ],
+    };
+
+    if (excludeDisposed) where.isDisposed = false;
+    if (status) where.status = status;
+
+    const results = await this.prisma.equipment.findMany({
+      where,
+      select: {
+        id:           true,
+        assetTag:     true,
+        name:         true,
+        serialNumber: true,
+        status:       true,
+        isDisposed:   true,
+        officeLocation: { select: { id: true, name: true } },
+        assignedToUser: { select: { id: true, displayName: true, email: true } },
+      },
+      orderBy: { assetTag: 'asc' },
+      take: limit,
+    });
+
+    return results.map((r) => ({
+      id:             r.id,
+      assetTag:       r.assetTag,
+      name:           r.name,
+      serialNumber:   r.serialNumber,
+      status:         r.status,
+      isDisposed:     r.isDisposed,
+      location:       r.officeLocation ?? null,
+      assignedToUser: r.assignedToUser ?? null,
+    }));
   }
 
   /**

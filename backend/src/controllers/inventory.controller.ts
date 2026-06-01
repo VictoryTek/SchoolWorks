@@ -88,6 +88,38 @@ export const getInventory = async (req: AuthRequest, res: Response) => {
 };
 
 /**
+ * Lightweight typeahead search for inventory items
+ * GET /api/inventory/search
+ */
+export const searchInventory = async (req: AuthRequest, res: Response) => {
+  try {
+    const { q, limit, excludeDisposed, status } = req.query as {
+      q: string;
+      limit?: string;
+      excludeDisposed?: string;
+      status?: string;
+    };
+
+    const results = await inventoryService.search({
+      q,
+      limit: limit ? parseInt(limit, 10) : 10,
+      excludeDisposed: excludeDisposed !== 'false',
+      status: status as string | undefined,
+    });
+
+    logger.info('Inventory search completed', {
+      userId: req.user?.id,
+      q,
+      resultCount: results.length,
+    });
+
+    res.json(results);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+/**
  * Get inventory statistics for dashboard
  * GET /api/inventory/stats
  */

@@ -14,6 +14,7 @@ import {
   InventoryHistoryEntry,
   ImportJobStatus,
   ExportOptions,
+  InventorySearchResult,
 } from '../types/inventory.types';
 
 /**
@@ -134,6 +135,22 @@ class InventoryService {
    */
   async getImportJobStatus(jobId: string): Promise<ImportJobStatus> {
     const response = await api.get(`/inventory/import/${jobId}`);
+    return response.data;
+  }
+
+  /**
+   * Lightweight typeahead search for inventory items by asset tag, name, or serial number.
+   * Returns up to `limit` results (default 10). Used by Autocomplete components.
+   */
+  async searchItems(
+    q: string,
+    options: { limit?: number; excludeDisposed?: boolean; status?: string } = {}
+  ): Promise<InventorySearchResult[]> {
+    const params = new URLSearchParams({ q });
+    if (options.limit !== undefined)          params.set('limit', String(options.limit));
+    if (options.excludeDisposed !== undefined) params.set('excludeDisposed', String(options.excludeDisposed));
+    if (options.status)                        params.set('status', options.status);
+    const response = await api.get(`/inventory/search?${params.toString()}`);
     return response.data;
   }
 

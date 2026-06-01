@@ -33,8 +33,7 @@ function toOption(u: UserSearchResult): UserOption {
 export function DeviceManagementUserSearch({
   value,
   onChange,
-  // filterType is stored for future backend support; currently passed as param
-  filterType: _filterType = 'all',
+  filterType = 'all' as 'student' | 'staff' | 'all',
   locationId,
   gradeLevel,
   label = 'Assignee',
@@ -66,7 +65,7 @@ export function DeviceManagementUserSearch({
               }))
             )
         : userService
-            .searchUsers(q, 20, locationId)
+            .searchUsers(q, 20, locationId, filterType === 'staff')
             .then((results) => results.map(toOption));
 
       promise
@@ -76,7 +75,7 @@ export function DeviceManagementUserSearch({
 
       return () => { active = false; };
     },
-    [locationId, gradeLevel]
+    [locationId, gradeLevel, filterType]
   );
 
   // Fetch on open (empty query)

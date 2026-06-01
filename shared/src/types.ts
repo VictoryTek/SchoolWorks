@@ -221,3 +221,132 @@ export type IncidentWorkflowStep =
   | 'DEVICE_EXCHANGE'   // Device exchange in progress (check-in broken / check-out replacement)
   | 'CLOSED';           // Invoice paid/waived OR manually closed
 
+// ============================================
+// DEVICE CART (BATCH CHECKOUT)
+// ============================================
+
+export type CartStatus = 'draft' | 'checked_out' | 'partially_returned' | 'returned';
+
+export interface DeviceCartAssignedUser {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  jobTitle: string | null;
+  officeLocation: string | null;
+  gradeLevel: string | null;
+}
+
+export interface DeviceCartUser {
+  id: string;
+  role: 'primary' | 'secondary';
+  addedAt: string;
+  user: DeviceCartAssignedUser;
+}
+
+export interface DeviceCartEquipmentSummary {
+  id: string;
+  assetTag: string;
+  name: string;
+  serialNumber: string | null;
+  barcode: string | null;
+  qrCode: string | null;
+  status: string;
+  condition: string | null;
+  brand: string | null;
+  model: string | null;
+}
+
+export interface DeviceCartItemSummary {
+  id: string;
+  cartId: string;
+  equipmentId: string;
+  assignmentId: string | null;
+  condition: string | null;
+  notes: string | null;
+  sortOrder: number;
+  addedAt: string;
+  equipment: DeviceCartEquipmentSummary;
+}
+
+export interface DeviceCartSummary {
+  id: string;
+  tagNumber: string | null;
+  name: string | null;
+  status: CartStatus;
+  assignedToUserId: string | null;
+  assigneeType: AssigneeType | null;
+  locationId: string | null;
+  dueDate: string | null;
+  checkoutCondition: CheckoutCondition | null;
+  notes: string | null;
+  createdById: string;
+  committedAt: string | null;
+  committedById: string | null;
+  fullyReturnedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
+  users: DeviceCartUser[];
+  assignedToUser: DeviceCartAssignedUser | null;
+  location: { id: string; name: string } | null;
+  createdBy: { id: string; firstName: string | null; lastName: string | null; email: string };
+}
+
+export interface DeviceCartDetail extends DeviceCartSummary {
+  items: DeviceCartItemSummary[];
+}
+
+// ─── Request / Response types ───────────────────────────────────────────────
+
+export interface CreateCartRequest {
+  name?: string;
+  tagNumber?: string;
+  assignedUserIds?: string[];
+  assignedToUserId?: string;
+  assigneeType?: AssigneeType;
+  locationId?: string;
+  dueDate?: string;
+  checkoutCondition?: CheckoutCondition;
+  notes?: string;
+}
+
+export interface UpdateCartRequest {
+  name?: string;
+  tagNumber?: string;
+  assignedUserIds?: string[];
+  assignedToUserId?: string;
+  assigneeType?: AssigneeType;
+  locationId?: string;
+  dueDate?: string;
+  checkoutCondition?: CheckoutCondition;
+  notes?: string;
+}
+
+export interface AddCartItemRequest {
+  equipmentId: string;
+  condition?: CheckoutCondition;
+  notes?: string;
+}
+
+export interface ScanToCartRequest {
+  /** barcode, qrCode, assetTag, or UUID */
+  identifier: string;
+}
+
+export interface CommitCartRequest {
+  /** Override checkout condition for entire cart (if not already set on cart) */
+  checkoutCondition?: CheckoutCondition;
+  notes?: string;
+}
+
+export interface ReturnCartItemRequest {
+  returnCondition: CheckoutCondition;
+  returnNotes?: string;
+}
+
+export interface ReturnAllCartItemsRequest {
+  returnCondition: CheckoutCondition;
+  returnNotes?: string;
+}
+

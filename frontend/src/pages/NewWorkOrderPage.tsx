@@ -14,6 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   CircularProgress,
@@ -27,6 +28,8 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import inventoryService from '@/services/inventory.service';
+import type { InventorySearchResult } from '@/types/inventory.types';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import { useLocations } from '@/hooks/queries/useLocations';
 import { useRoomsByLocation } from '@/hooks/queries/useRooms';
@@ -54,7 +57,8 @@ interface FormState {
   officeLocationId: string;
   roomId: string;
   // TECHNOLOGY
-  inventoryId: string;
+  inventoryId: string;       // equipment.id (resolved UUID) — used in DTO
+  inventoryTagInput: string; // raw text the user typed — for display
 }
 
 const INITIAL: FormState = {
@@ -66,6 +70,7 @@ const INITIAL: FormState = {
   officeLocationId: '',
   roomId: '',
   inventoryId: '',
+  inventoryTagInput: '',
 };
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -84,7 +89,7 @@ function validate(form: FormState): FormErrors {
     errors.description = 'Description must be at least 10 characters.';
   }
   if (form.department === 'TECHNOLOGY' && !form.inventoryId.trim()) {
-    errors.inventoryId = 'Asset Tag / Inventory ID is required for Technology work orders.';
+    errors.inventoryId = 'Select an equipment item from the search results.';
   }
   return errors;
 }
@@ -98,6 +103,8 @@ export default function NewWorkOrderPage() {
   const [touched, setTouched] = useState<Partial<Record<keyof FormState, boolean>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [locationOverridden, setLocationOverridden] = useState(false);
+  const [inventorySearch, setInventorySearch] = useState('');
+  const [selectedEquipment, setSelectedEquipment] = useState<InventorySearchResult | null>(null);
   const defaultsApplied = useRef(false);
 
   // Staff have REQUISITIONS >= 2; students do not — use that to gate MAINTENANCE
@@ -124,6 +131,16 @@ export default function NewWorkOrderPage() {
   }, [userDefaults]);
 
   const errors = validate(form);
+
+  const { data: inventoryOptions = [], isFetching: inventoryFetching } = useQuery({
+    queryKey: ['inventory-search', inventorySearch],
+    queryFn:  () => inventoryService.searchItems(inventorySearch, {
+      limit: 10,
+      excludeDisposed: true,
+    }),
+    enabled:   inventorySearch.length >= 2,
+    staleTime: 30_000,
+  });
 
   // Fetch categories from the database; fall back to hardcoded arrays if not yet loaded
   const { data: categoriesData, isLoading: categoriesLoading } = useQuery({
@@ -164,7 +181,7 @@ export default function NewWorkOrderPage() {
       ...(form.officeLocationId && { officeLocationId: form.officeLocationId }),
       ...(form.roomId && { roomId: form.roomId }),
       ...(form.department === 'TECHNOLOGY' && {
-        assetTag: form.inventoryId || null,
+        equipmentId: form.inventoryId || null,
       }),
 
     };
@@ -333,16 +350,69 @@ export default function NewWorkOrderPage() {
                 <Typography variant="subtitle2" color="text.secondary">
                   Equipment Details
                 </Typography>
-                <TextField
-                  label="Asset Tag / Inventory ID"
-                  size="small"
-                  fullWidth
-                  value={form.inventoryId}
-                  onChange={(e) => set('inventoryId', e.target.value)}
+                <Autocomplete<InventorySearchResult>
+                  options={inventoryOptions}
+                  loading={inventoryFetching}
+                  value={selectedEquipment}
+                  inputValue={inventorySearch}
+                  onInputChange={(_, value) => {
+                    setInventorySearch(value);
+                    if (!value) {
+                      setSelectedEquipment(null);
+                      set('inventoryId', '');
+                    }
+                  }}
+                  onChange={(_, newValue) => {
+                    setSelectedEquipment(newValue);
+                    set('inventoryId', newValue?.id ?? '');
+                    touch('inventoryId');
+                  }}
+                  getOptionLabel={(opt) => opt.assetTag}
+                  renderOption={(props, opt) => (
+                    <li {...props} key={opt.id}>
+                      <Box>
+                        <Typography variant="body2" fontWeight={600}>{opt.assetTag}</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {opt.name}
+                          {opt.serialNumber ? ` · SN: ${opt.serialNumber}` : ''}
+                          {opt.location ? ` · ${opt.location.name}` : ''}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      label="Asset Tag / Inventory ID"
+                      size="small"
+                      required={form.department === 'TECHNOLOGY'}
+                      error={touched.inventoryId && !!errors.inventoryId}
+                      helperText={
+                        touched.inventoryId && errors.inventoryId
+                          ? errors.inventoryId
+                          : inventorySearch.length < 2
+                            ? 'Type at least 2 characters to search'
+                            : undefined
+                      }
+                      disabled={createWorkOrder.isPending}
+                    />
+                  )}
+                  noOptionsText={
+                    inventorySearch.length < 2
+                      ? 'Type to search…'
+                      : inventoryFetching
+                        ? 'Searching…'
+                        : 'No matching equipment found'
+                  }
+                  isOptionEqualToValue={(opt, val) => opt.id === val.id}
+                  filterOptions={(x) => x}
                   disabled={createWorkOrder.isPending}
-                  error={touched.inventoryId && !!errors.inventoryId}
-                  helperText={touched.inventoryId ? errors.inventoryId : undefined}
                 />
+                {selectedEquipment && (
+                  <Typography variant="caption" color="success.main">
+                    ✓ Linked to: {selectedEquipment.name} ({selectedEquipment.status})
+                  </Typography>
+                )}
               </>
             )}
 

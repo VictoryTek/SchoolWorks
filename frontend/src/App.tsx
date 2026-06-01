@@ -39,6 +39,7 @@ import UserCheckoutHistoryPage from './pages/DeviceManagement/UserCheckoutHistor
 import CheckoutScanPage from './pages/DeviceManagement/CheckoutScanPage'
 import BulkCheckoutPage from './pages/DeviceManagement/BulkCheckoutPage'
 import BulkCheckinPage from './pages/DeviceManagement/BulkCheckinPage'
+import CartAssignmentWizardPage from './pages/DeviceManagement/CartAssignmentWizardPage'
 import QuickCheckPage from './pages/DeviceManagement/QuickCheckPage'
 import DamageIncidentsPage from './pages/DeviceManagement/DamageIncidentsPage'
 import DamageIncidentDetailPage from './pages/DeviceManagement/DamageIncidentDetailPage'
@@ -389,6 +390,16 @@ function App() {
             <ProtectedRoute requireDeviceManagement>
               <AppLayout>
                 <CheckoutScanPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/carts/assign"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <CartAssignmentWizardPage />
               </AppLayout>
             </ProtectedRoute>
           }
