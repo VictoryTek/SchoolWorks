@@ -27,6 +27,8 @@ export type RefreshTokenRequest = z.infer<typeof RefreshTokenRequestSchema>;
  */
 export const LoginQuerySchema = z.object({
   origin: z.string().url().optional(),
+  // silent=true triggers a prompt:none Entra auth URL for seamless SSO on Entra-joined devices
+  silent: z.enum(['true', 'false']).optional(),
 });
 
 export type LoginQuery = z.infer<typeof LoginQuerySchema>;

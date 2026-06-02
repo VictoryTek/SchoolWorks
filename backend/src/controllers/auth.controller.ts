@@ -34,12 +34,19 @@ export const login = async (
   res: Response<LoginResponse>
 ) => {
   try {
+    const isSilent = (req.query as { silent?: string }).silent === 'true';
+
+    // When silent=true: prompt:'none' lets Entra silently authenticate using the
+    // device's Primary Refresh Token (Entra-joined/hybrid-joined devices).
+    // On failure Entra redirects to REDIRECT_URI with ?error=login_required.
+    // When silent=false/unset: no prompt override — Entra uses session cookie naturally.
     const authCodeUrlParameters = {
       scopes: loginScopes.scopes,
       redirectUri: process.env.REDIRECT_URI!,
-      prompt: 'select_account',
+      ...(isSilent ? { prompt: 'none' } : {}),
     };
 
+    loggers.auth.debug('Login URL requested', { isSilent });
     const authUrl = await msalClient.getAuthCodeUrl(authCodeUrlParameters);
     res.json({ authUrl });
   } catch (error) {
@@ -530,9 +537,21 @@ export const logout = async (
     path: '/api/auth/refresh-token',
   });
 
+  // Build Entra end-session URL so the client can terminate the Entra SSO session.
+  // Without this, prompt:none on the next /login visit re-authenticates the user silently.
+  const tenantId = process.env.ENTRA_TENANT_ID;
+  const appUrl = (process.env.APP_URL ?? '').replace(/\/$/, '');
+  const postLogoutRedirectUri = appUrl ? `${appUrl}/login` : undefined;
+  const logoutUrl = tenantId && postLogoutRedirectUri
+    ? `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${encodeURIComponent(postLogoutRedirectUri)}`
+    : undefined;
+
+  loggers.auth.info('User logged out', { entraLogoutInitiated: Boolean(logoutUrl) });
+
   res.json({
     success: true,
     message: 'Logged out successfully',
+    logoutUrl,
   });
 };
 

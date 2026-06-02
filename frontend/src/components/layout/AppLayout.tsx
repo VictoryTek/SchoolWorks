@@ -116,14 +116,14 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
+    sessionStorage.setItem('explicit_logout', 'true');
     try {
       await authApi.logout();
     } catch {
-      // ignore
-    } finally {
-      clearAuth();
-      navigate('/login');
+      // Ignore — cookies are cleared server-side; we still need to clear local state.
     }
+    clearAuth();
+    navigate('/login');
   };
 
   const handleNavClick = (path: string) => {

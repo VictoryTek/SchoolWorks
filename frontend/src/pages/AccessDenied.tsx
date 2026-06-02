@@ -29,6 +29,7 @@ export default function AccessDenied() {
   const [loading, setLoading] = useState(true);
 
   const handleLogout = () => {
+    sessionStorage.setItem('explicit_logout', 'true');
     clearAuth();
     window.location.href = '/login';
   };

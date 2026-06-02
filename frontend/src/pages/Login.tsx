@@ -9,6 +9,18 @@ export const Login = () => {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  // Initialise silentPending synchronously from the URL so there is no flash of the
+  // login button before the first useEffect fires. If there is no code/error/fallback
+  // in the URL the user has just arrived and we should attempt silent SSO first.
+  const [silentPending, setSilentPending] = useState(() => {
+    // If the user explicitly logged out, skip silent SSO immediately (before first render)
+    if (sessionStorage.getItem('explicit_logout') === 'true') {
+      sessionStorage.removeItem('explicit_logout');
+      return false;
+    }
+    const params = new URLSearchParams(window.location.search);
+    return !params.get('code') && !params.get('error') && params.get('fallback') !== 'true';
+  });
   const callbackProcessed = useRef(false);
   const { setUser, isAuthenticated } = useAuthStore();
 
@@ -31,6 +43,42 @@ export const Login = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const handleSilentLogin = async () => {
+    try {
+      const response = await authApi.getSilentLoginUrl();
+      if (response.data.authUrl) {
+        window.location.href = response.data.authUrl;
+      } else {
+        // Backend returned a response but no URL — fall back to button
+        setSilentPending(false);
+      }
+    } catch {
+      // Network or server error — fall back to showing the login button
+      setSilentPending(false);
+    }
+  };
+
+  // Auto-trigger silent SSO redirect on first mount (Path A: redirect-based).
+  // Fires only when there is no code/error/fallback in the URL.
+  // After 500 ms the browser is redirected to Entra with prompt:none.
+  // On Entra-joined / hybrid-joined devices this completes with zero interaction.
+  // On failure Entra redirects back with ?error=login_required and silentPending
+  // is false on re-mount, so the normal login button is shown.
+  //
+  // NOTE: No silentTriggered guard here — the timer is the gate. React StrictMode
+  // double-invocation cancels the first timer via cleanup and the second invocation
+  // starts a fresh one, which is the correct behaviour.
+  useEffect(() => {
+    if (!silentPending) return;
+
+    const timer = setTimeout(() => {
+      handleSilentLogin();
+    }, 500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleCallback = async (code: string, state?: string) => {
     setLoading(true);
     setError('');
@@ -46,9 +94,8 @@ export const Login = () => {
         navigate('/dashboard');
       }
     } catch (err: any) {
-      console.error('Callback error:', err);
       setError(err.response?.data?.message || 'Authentication failed. Please try again.');
-      
+
       // Clear code from URL
       navigate('/login', { replace: true });
     } finally {
@@ -68,19 +115,18 @@ export const Login = () => {
         window.location.href = response.data.authUrl;
       }
     } catch (err: any) {
-      console.error('Login error:', err);
       setError(err.response?.data?.message || 'Failed to initiate login. Please try again.');
       setLoading(false);
     }
   };
 
-  if (loading) {
+  if (loading || silentPending) {
     return (
       <div className="login-container">
         <div className="login-card">
           <div className="login-spinner">
             <div className="spinner"></div>
-            <p>Authenticating...</p>
+            <p>{silentPending ? 'Signing you in...' : 'Authenticating...'}</p>
           </div>
         </div>
       </div>

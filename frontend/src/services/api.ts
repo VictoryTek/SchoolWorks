@@ -28,6 +28,7 @@ function doRefresh(): Promise<void> {
     })
     .catch((err) => {
       // Refresh failed — force logout
+      sessionStorage.setItem('explicit_logout', 'true');
       useAuthStore.getState().clearAuth();
       window.location.href = '/login';
       throw err;

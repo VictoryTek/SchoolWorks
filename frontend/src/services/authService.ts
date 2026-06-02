@@ -30,6 +30,13 @@ export interface RefreshTokenResponse {
   // Token is now in HttpOnly cookie, not in response body
 }
 
+export interface LogoutApiResponse {
+  success: boolean;
+  message: string;
+  /** Entra end-session URL — redirect here to terminate the Entra SSO session. */
+  logoutUrl?: string;
+}
+
 export interface MeResponse {
   success: boolean;
   user: User;
@@ -40,6 +47,9 @@ export const authApi = {
   // Get login URL - pass current origin so the redirect URI works for tunnels/remote URLs
   getLoginUrl: () => api.get<LoginResponse>(`/auth/login?origin=${encodeURIComponent(window.location.origin)}`),
 
+  // Get silent login URL - Entra will use prompt:none (succeeds on Entra-joined/hybrid devices)
+  getSilentLoginUrl: () => api.get<LoginResponse>(`/auth/login?origin=${encodeURIComponent(window.location.origin)}&silent=true`),
+
   // Handle OAuth callback - relay state so backend can resolve the correct redirect URI
   handleCallback: (code: string, state?: string) =>
     api.get<CallbackResponse>(`/auth/callback?code=${encodeURIComponent(code)}${state ? `&state=${encodeURIComponent(state)}` : ''}`),
@@ -49,7 +59,7 @@ export const authApi = {
     api.post<RefreshTokenResponse>('/auth/refresh-token', {}),
 
   // Logout
-  logout: () => api.post('/auth/logout'),
+  logout: () => api.post<LogoutApiResponse>('/auth/logout'),
 
   // Get current user
   getMe: () => api.get<MeResponse>('/auth/me'),

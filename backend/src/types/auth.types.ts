@@ -116,6 +116,8 @@ export interface GetMeResponse {
 export interface LogoutResponse {
   success: boolean;
   message: string;
+  /** Entra end-session URL. Client should redirect here to terminate the Entra SSO session. */
+  logoutUrl?: string;
 }
 
 /**
