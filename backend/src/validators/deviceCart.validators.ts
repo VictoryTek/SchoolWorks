@@ -43,12 +43,15 @@ export const ReturnAllCartItemsSchema = z.object({
 
 export const ListCartsQuerySchema = z.object({
   status:           z.enum(['draft', 'checked_out', 'partially_returned', 'returned']).optional(),
+  statusIn:         z.string().max(200).optional(),
   tagNumber:        z.string().max(50).optional(),
   userSearch:       z.string().max(200).optional(),
   assignedToUserId: z.string().uuid().optional(),
   locationId:       z.string().uuid().optional(),
   createdById:      z.string().uuid().optional(),
   search:           z.string().max(200).optional(),
+  // When true, each cart in the response includes its items array
+  includeItems:     z.coerce.boolean().default(false),
   page:             z.coerce.number().int().min(1).default(1),
   pageSize:         z.coerce.number().int().min(1).max(100).default(20),
 });

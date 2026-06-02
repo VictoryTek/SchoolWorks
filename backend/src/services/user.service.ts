@@ -572,9 +572,12 @@ export class UserService {
     const where: Prisma.UserWhereInput = {
       isActive: true,
       ...(orConditions.length > 0 && { OR: orConditions }),
-      // Staff users have no gradeLevel; students always have one
-      ...(staffOnly && { gradeLevel: null }),
     };
+
+    if (staffOnly) {
+      where.email = { endsWith: '@ocboe.com', mode: 'insensitive' };
+      where.NOT = { email: { endsWith: '@students.ocboe.com', mode: 'insensitive' } };
+    }
 
     // Filter by location if provided
     if (locationId) {

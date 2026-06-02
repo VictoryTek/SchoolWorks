@@ -20,6 +20,7 @@ interface User {
     MAINTENANCE: number;
     REQUISITIONS: number;
     FIELD_TRIPS: number;
+    CHECKOUT: number;
     isFinanceDirectorApprover: boolean;
     isStrictFinanceDirector: boolean;
     isDosApprover: boolean;

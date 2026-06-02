@@ -37,6 +37,7 @@ const GROUP_MODULE_MAP: Record<PermissionModuleType, Array<[string, number]>> = 
     ['ENTRA_PRINCIPALS_GROUP_ID', 2],
     ['ENTRA_VICE_PRINCIPALS_GROUP_ID', 2],
     ['ENTRA_MAINTENANCE_DIRECTOR_GROUP_ID', 2],
+    ['ENTRA_OCBOE_LIBRARIANS_GROUP_ID', 1],
     ['ENTRA_ALL_STAFF_GROUP_ID', 1],
   ],
   MAINTENANCE: [

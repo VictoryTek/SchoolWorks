@@ -73,6 +73,7 @@ export interface AuthUserInfo {
     MAINTENANCE: number;
     REQUISITIONS: number;
     FIELD_TRIPS: number;
+    CHECKOUT: number;
     /** True if user is in the Finance Director group — can approve supervisor_approved POs */
     isFinanceDirectorApprover: boolean;
     /** True if user is strictly in the Finance Director group — can assign account codes */

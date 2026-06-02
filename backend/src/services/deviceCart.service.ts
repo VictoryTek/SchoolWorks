@@ -105,12 +105,24 @@ function mapCart(raw: any) {
   return { ...rest, itemCount: _count?.items ?? 0 };
 }
 
+function mapEquipment(raw: any) {
+  const { brands, models, ...rest } = raw;
+  return {
+    ...rest,
+    brand: brands?.name ?? null,
+    model: models?.name ?? null,
+  };
+}
+
 function mapCartDetail(raw: any) {
   const { _count, ...rest } = raw;
   return {
     ...rest,
     itemCount: _count?.items ?? 0,
-    items: raw.items ?? [],
+    items: (raw.items ?? []).map((item: any) => ({
+      ...item,
+      equipment: mapEquipment(item.equipment),
+    })),
   };
 }
 
@@ -122,12 +134,17 @@ function mapCartDetail(raw: any) {
  * List carts with optional filters and pagination.
  */
 export async function listCarts(query: ListCartsQuery) {
-  const { status, tagNumber, userSearch, locationId, createdById, search, assignedToUserId, page, pageSize } = query;
+  const { status, statusIn, tagNumber, userSearch, locationId, createdById, search, assignedToUserId, includeItems, page, pageSize } = query;
   const skip = (page - 1) * pageSize;
 
   const where: Prisma.DeviceCartWhereInput = {};
 
-  if (status)          where.status = status;
+  if (statusIn) {
+    const statuses = statusIn.split(',').map((s) => s.trim()).filter(Boolean) as Array<'draft' | 'checked_out' | 'partially_returned' | 'returned'>;
+    where.status = { in: statuses };
+  } else if (status) {
+    where.status = status;
+  }
   if (locationId)      where.locationId = locationId;
   if (createdById)     where.createdById = createdById;
   if (assignedToUserId) where.assignedToUserId = assignedToUserId;
@@ -157,19 +174,29 @@ export async function listCarts(query: ListCartsQuery) {
     };
   }
 
+  const select = includeItems
+    ? {
+        ...cartBaseSelect,
+        items: {
+          select: itemSelect,
+          orderBy: [{ sortOrder: Prisma.SortOrder.asc }, { addedAt: Prisma.SortOrder.asc }],
+        },
+      }
+    : cartBaseSelect;
+
   const [carts, total] = await Promise.all([
     prisma.deviceCart.findMany({
       where,
       orderBy: { createdAt: 'desc' },
       skip,
       take: pageSize,
-      select: cartBaseSelect,
+      select,
     }),
     prisma.deviceCart.count({ where }),
   ]);
 
   return {
-    data: carts.map(mapCart),
+    data: carts.map(includeItems ? mapCartDetail : mapCart),
     total,
     page,
     pageSize,

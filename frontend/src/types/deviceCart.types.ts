@@ -45,8 +45,17 @@ export interface ListCartsResponse {
   totalPages: number;
 }
 
+export interface ListCartsWithItemsResponse {
+  data: DeviceCartDetail[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface ListCartsParams {
   status?: CartStatus;
+  statusIn?: string;
   page?: number;
   pageSize?: number;
   tagNumber?: string;
@@ -54,4 +63,5 @@ export interface ListCartsParams {
   search?: string;
   locationId?: string;
   createdById?: string;
+  includeItems?: boolean;
 }

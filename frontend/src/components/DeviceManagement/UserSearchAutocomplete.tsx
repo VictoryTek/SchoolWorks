@@ -65,12 +65,12 @@ export function DeviceManagementUserSearch({
               }))
             )
         : userService
-            .searchUsers(q, 20, locationId, filterType === 'staff')
+            .searchUsers(q, 50, locationId, filterType === 'staff')
             .then((results) => results.map(toOption));
 
       promise
         .then((opts) => { if (active) setOptions(opts); })
-        .catch(() => { if (active) setOptions([]); })
+        .catch((err) => { console.error('UserSearchAutocomplete fetch failed:', err); if (active) setOptions([]); })
         .finally(() => { if (active) setLoading(false); });
 
       return () => { active = false; };
