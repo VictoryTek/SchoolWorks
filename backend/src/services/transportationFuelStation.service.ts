@@ -24,7 +24,7 @@ export class TransportationFuelStationService {
     return this.prisma.transportationFuelStation.findMany({
       where,
       include: {
-        officeLocation: { select: { id: true, name: true, code: true, type: true } },
+        officeLocation: { select: { id: true, name: true, code: true, type: true, address: true, city: true } },
         addedBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
       },
       orderBy: { officeLocation: { name: 'asc' } },
