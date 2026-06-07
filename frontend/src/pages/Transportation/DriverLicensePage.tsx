@@ -5,7 +5,7 @@
  * Upload dialog, inline edit, deactivate, view image.
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -75,6 +75,13 @@ export default function DriverLicensePage() {
   const [editForm,     setEditForm]     = useState<EditForm>(defaultEdit);
   const [editError,    setEditError]    = useState('');
 
+  // Image preview
+  const [previewRecord,      setPreviewRecord]      = useState<DriverLicense | null>(null);
+  const [previewUrl,         setPreviewUrl]         = useState<string | null>(null);
+  const [previewContentType, setPreviewContentType] = useState<string>('image/jpeg');
+  const [previewLoading,     setPreviewLoading]     = useState(false);
+  const [previewError,       setPreviewError]       = useState('');
+
   // Redirect if insufficient permission
   if (permLevel < 2) {
     return (
@@ -129,6 +136,29 @@ export default function DriverLicensePage() {
     setEditRecord(null);
     setEditForm(defaultEdit);
     setEditError('');
+  }
+
+  const handleViewDocument = useCallback(async (record: DriverLicense) => {
+    setPreviewRecord(record);
+    setPreviewUrl(null);
+    setPreviewError('');
+    setPreviewLoading(true);
+    try {
+      const { url, contentType } = await driverLicenseApi.fetchImageBlob(record.id);
+      setPreviewUrl(url);
+      setPreviewContentType(contentType);
+    } catch {
+      setPreviewError('Failed to load document. Please try again.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  }, []);
+
+  function closePreviewDialog() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPreviewRecord(null);
+    setPreviewUrl(null);
+    setPreviewError('');
   }
 
   function handleEditSubmit() {
@@ -271,7 +301,7 @@ export default function DriverLicensePage() {
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.open(driverLicenseApi.getImageUrl(r.id), '_blank', 'noopener,noreferrer');
+                        void handleViewDocument(r);
                       }}
                     >
                       <VisibilityIcon fontSize="small" />
@@ -331,6 +361,46 @@ export default function DriverLicensePage() {
         onClose={() => setUploadOpen(false)}
         onSuccess={() => setUploadOpen(false)}
       />
+
+      {/* Document preview dialog */}
+      <Dialog
+        open={!!previewRecord}
+        onClose={closePreviewDialog}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{ sx: { minHeight: 400 } }}
+      >
+        <DialogTitle>
+          {previewRecord?.driver
+            ? `License — ${previewRecord.driver.displayName ?? `${previewRecord.driver.firstName} ${previewRecord.driver.lastName}`}`
+            : 'Driver License'}
+        </DialogTitle>
+        <DialogContent
+          sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}
+        >
+          {previewLoading && <CircularProgress />}
+          {previewError && <Alert severity="error">{previewError}</Alert>}
+          {previewUrl && !previewLoading && (
+            previewContentType === 'application/pdf'
+              ? (
+                <iframe
+                  src={previewUrl}
+                  title="Driver License PDF"
+                  style={{ width: '100%', height: 500, border: 'none' }}
+                />
+              ) : (
+                <img
+                  src={previewUrl}
+                  alt="Driver License"
+                  style={{ maxWidth: '100%', maxHeight: 500, objectFit: 'contain', borderRadius: 4 }}
+                />
+              )
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closePreviewDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Edit dialog */}
       <Dialog open={!!editRecord} onClose={closeEditDialog} maxWidth="sm" fullWidth>

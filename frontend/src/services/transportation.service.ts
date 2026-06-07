@@ -420,4 +420,11 @@ export const driverLicenseApi = {
   },
 
   getImageUrl: (id: string): string => `/api/driver-licenses/${id}/image`,
+
+  fetchImageBlob: async (id: string): Promise<{ url: string; contentType: string }> => {
+    const res = await api.get<Blob>(`/driver-licenses/${id}/image`, { responseType: 'blob' });
+    const contentType = (res.headers['content-type'] as string | undefined) ?? 'image/jpeg';
+    const url = URL.createObjectURL(res.data);
+    return { url, contentType };
+  },
 };
