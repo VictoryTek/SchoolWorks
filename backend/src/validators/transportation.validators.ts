@@ -203,16 +203,55 @@ export const ListDotPhysicalsQuerySchema = z.object({
 // ---------------------------------------------------------------------------
 
 export const UpdateTransportationSettingsSchema = z.object({
-  financeDirectorEmail:          z.string().email().max(255).optional().nullable(),
-  directorOfSchoolsEmail:        z.string().email().max(255).optional().nullable(),
-  transportationSecretaryEmails: z.array(z.string().email().max(255)).max(20).optional(),
-  dotPhysicalReminderDays:       z.array(z.number().int().min(1).max(365)).max(10).optional(),
-  dotNotificationsEnabled:       z.boolean().optional(),
-  monthlyFuelReportEnabled:      z.boolean().optional(),
-  monthlyFuelReportDay:          z.number().int().min(1).max(28).optional(),
-  gasFuelThresholdEnabled:       z.boolean().optional(),
-  gasFuelThresholdGallons:       z.number().positive().max(99999.99).optional().nullable(),
+  financeDirectorEmail:               z.string().email().max(255).optional().nullable(),
+  directorOfSchoolsEmail:             z.string().email().max(255).optional().nullable(),
+  transportationSecretaryEmails:      z.array(z.string().email().max(255)).max(20).optional(),
+  dotPhysicalReminderDays:            z.array(z.number().int().min(1).max(365)).max(10).optional(),
+  dotNotificationsEnabled:            z.boolean().optional(),
+  monthlyFuelReportEnabled:           z.boolean().optional(),
+  monthlyFuelReportDay:               z.number().int().min(1).max(28).optional(),
+  gasFuelThresholdEnabled:            z.boolean().optional(),
+  gasFuelThresholdGallons:            z.number().positive().max(99999.99).optional().nullable(),
+  driverLicenseReminderDays:          z.array(z.number().int().min(1).max(365)).max(10).optional(),
+  driverLicenseNotificationsEnabled:  z.boolean().optional(),
 });
+
+// ---------------------------------------------------------------------------
+// Driver Licenses
+// ---------------------------------------------------------------------------
+
+const DATE_STRING = z.string().datetime({ offset: true }).or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
+
+export const CreateDriverLicenseSchema = z.object({
+  userId:        z.string().uuid('Invalid user ID'),
+  expirationDate: DATE_STRING,
+  licenseNumber:  z.string().max(50).optional().nullable(),
+  licenseState:   z.string().max(50).optional().nullable(),
+  notes:          z.string().max(5000).optional().nullable(),
+});
+
+export type CreateDriverLicenseDto = z.infer<typeof CreateDriverLicenseSchema>;
+
+export const UpdateDriverLicenseSchema = z.object({
+  expirationDate: DATE_STRING.optional(),
+  licenseNumber:  z.string().max(50).optional().nullable(),
+  licenseState:   z.string().max(50).optional().nullable(),
+  isActive:       z.boolean().optional(),
+  notes:          z.string().max(5000).optional().nullable(),
+});
+
+export type UpdateDriverLicenseDto = z.infer<typeof UpdateDriverLicenseSchema>;
+
+export const ListDriverLicensesQuerySchema = z.object({
+  userId:             z.string().uuid().optional(),
+  isActive:           z.string().optional().transform(v => v === undefined ? undefined : v === 'true'),
+  status:             z.enum(['active', 'expiring_soon', 'expired']).optional(),
+  expiringWithinDays: z.coerce.number().int().positive().optional(),
+  page:               z.string().optional().transform(v => (v ? parseInt(v, 10) : 1)),
+  limit:              z.string().optional().transform(v => (v ? Math.min(parseInt(v, 10), 100) : 25)),
+});
+
+export type ListDriverLicensesQueryDto = z.infer<typeof ListDriverLicensesQuerySchema>;
 
 export type UpdateTransportationSettingsDto = z.infer<typeof UpdateTransportationSettingsSchema>;
 

@@ -66,6 +66,7 @@ import FuelStationsPage from './pages/Transportation/FuelStationsPage'
 import FuelEntryPage from './pages/Transportation/FuelEntryPage'
 import MyFuelHistoryPage from './pages/Transportation/MyFuelHistoryPage'
 import DotPhysicalsPage from './pages/Transportation/DotPhysicalsPage'
+import DriverLicensePage from './pages/Transportation/DriverLicensePage'
 import TransportationReportsPage from './pages/Transportation/TransportationReportsPage'
 import TransportationSettingsPage from './pages/Transportation/TransportationSettingsPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
@@ -692,6 +693,16 @@ function App() {
             <ProtectedRoute requireTransportationLevel={2}>
               <AppLayout>
                 <DotPhysicalsPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/transportation/driver-licenses"
+          element={
+            <ProtectedRoute requireTransportationLevel={2}>
+              <AppLayout>
+                <DriverLicensePage />
               </AppLayout>
             </ProtectedRoute>
           }

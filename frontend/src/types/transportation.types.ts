@@ -256,3 +256,54 @@ export interface OfficeLocationSlim {
   address?: string | null;
   city?:    string | null;
 }
+
+// ---------------------------------------------------------------------------
+// Driver License
+// ---------------------------------------------------------------------------
+
+export type DriverLicenseStatus = 'active' | 'expiring_soon' | 'expired';
+
+export const DRIVER_LICENSE_STATUS_LABELS: Record<DriverLicenseStatus, string> = {
+  active:        'Active',
+  expiring_soon: 'Expiring Soon',
+  expired:       'Expired',
+};
+
+export const DRIVER_LICENSE_STATUS_COLORS: Record<DriverLicenseStatus, 'success' | 'warning' | 'error'> = {
+  active:        'success',
+  expiring_soon: 'warning',
+  expired:       'error',
+};
+
+export interface DriverLicense {
+  id:             string;
+  userId:         string;
+  licenseNumber?: string | null;
+  licenseState?:  string | null;
+  expirationDate: string;
+  documentUrl?:   string | null;
+  isActive:       boolean;
+  remindersSent:  number[];
+  notes?:         string | null;
+  uploadedById:   string;
+  createdAt:      string;
+  updatedAt:      string;
+  driver?:        { id: string; firstName: string; lastName: string; email: string; displayName?: string | null };
+  uploadedBy?:    { id: string; firstName: string; lastName: string; displayName?: string | null };
+  status?:        DriverLicenseStatus;
+}
+
+export interface CreateDriverLicensePayload {
+  userId:         string;
+  expirationDate: string;
+  licenseNumber?: string;
+  licenseState?:  string;
+  notes?:         string;
+}
+
+export interface UpdateDriverLicensePayload {
+  expirationDate?: string;
+  licenseNumber?:  string | null;
+  licenseState?:   string | null;
+  notes?:          string | null;
+}

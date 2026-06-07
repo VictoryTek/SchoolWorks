@@ -317,6 +317,11 @@ export default function TransportationDashboardPage() {
           <Button variant="outlined" onClick={() => navigate('/transportation/dot-physicals')}>
             DOT Physicals
           </Button>
+          {permLevel >= 2 && (
+            <Button variant="outlined" onClick={() => navigate('/transportation/driver-licenses')}>
+              Driver&apos;s Licenses
+            </Button>
+          )}
           <Button variant="outlined" onClick={() => navigate('/transportation/reports')}>
             Reports
           </Button>

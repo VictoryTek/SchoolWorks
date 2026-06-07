@@ -9,8 +9,9 @@ import { LocationSyncService } from './locationSync.service';
 import { UserSyncService } from './userSync.service';
 import { TransportationReportService } from './transportationReport.service';
 import { DotPhysicalService } from './dotPhysical.service';
+import { DriverLicenseService } from './driverLicense.service';
 
-type JobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'transportation-dot-reminders' | 'transportation-monthly-report';
+type JobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'transportation-dot-reminders' | 'transportation-monthly-report' | 'transportation-license-reminders';
 
 const VALID_JOB_KEYS: JobKey[] = [
   'sync-staff',
@@ -19,6 +20,7 @@ const VALID_JOB_KEYS: JobKey[] = [
   'sync-supervisors',
   'transportation-dot-reminders',
   'transportation-monthly-report',
+  'transportation-license-reminders',
 ];
 
 const TIMEZONE = process.env.TZ || 'America/Chicago';
@@ -239,6 +241,10 @@ class SchedulerService {
       case 'transportation-monthly-report': {
         const svc = new TransportationReportService(prisma);
         return (await svc.runMonthlyReportJob()) as unknown as Record<string, unknown>;
+      }
+      case 'transportation-license-reminders': {
+        const svc = new DriverLicenseService(prisma);
+        return (await svc.runLicenseReminderJob()) as unknown as Record<string, unknown>;
       }
     }
   }

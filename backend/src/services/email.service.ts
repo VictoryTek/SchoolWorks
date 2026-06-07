@@ -1286,6 +1286,80 @@ export async function sendDotPhysicalExpiredEmail(params: {
 }
 
 /**
+ * Send a driver's license expiration reminder to the driver (and CC secretary).
+ */
+export async function sendDriverLicenseReminderEmail(params: {
+  driver: { email: string; displayName: string };
+  daysRemaining: number;
+  expirationDate: Date;
+  license: { id: string; licenseNumber?: string | null; licenseState?: string | null };
+  secretaryEmails: string[];
+}): Promise<void> {
+  const { driver, daysRemaining, expirationDate, license, secretaryEmails } = params;
+  const expStr = expirationDate.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const urgencyColor = daysRemaining <= 7 ? '#C62828' : daysRemaining <= 14 ? '#E65100' : '#F57F17';
+
+  const html = `
+    <h2 style="color:${urgencyColor};">Driver's License Expiration Reminder</h2>
+    <p>Hello <strong>${escapeHtml(driver.displayName)}</strong>,</p>
+    <p>Your driver's license is expiring soon and must be renewed before the expiration date.</p>
+    <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+      <tr><td style="padding:4px 8px;font-weight:bold;">Expiration Date:</td>
+          <td style="padding:4px 8px;color:${urgencyColor};font-weight:bold;">${expStr}</td></tr>
+      <tr><td style="padding:4px 8px;font-weight:bold;">Days Remaining:</td>
+          <td style="padding:4px 8px;color:${urgencyColor};font-weight:bold;">${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}</td></tr>
+      ${license.licenseState ? `<tr><td style="padding:4px 8px;font-weight:bold;">Issuing State:</td>
+          <td style="padding:4px 8px;">${escapeHtml(license.licenseState)}</td></tr>` : ''}
+    </table>
+    <p style="margin-top:16px;">Please renew your driver's license and provide an updated copy to Transportation as soon as possible.</p>
+    <p style="color:#666;font-size:12px;margin-top:24px;">This is an automated reminder from the Transportation Management System.</p>
+  `;
+
+  const recipients = [driver.email, ...secretaryEmails].filter(Boolean);
+  await sendMail({
+    to: recipients,
+    subject: `Driver's License Expiring in ${daysRemaining} Day${daysRemaining !== 1 ? 's' : ''} — ${driver.displayName}`,
+    html,
+    context: 'driver_license_reminder',
+    relatedEntityId: license.id,
+  });
+}
+
+/**
+ * Send a driver's license expiration notice to the driver (and CC secretary).
+ */
+export async function sendDriverLicenseExpiredEmail(params: {
+  driver: { email: string; displayName: string };
+  license: { id: string; expirationDate?: Date; licenseState?: string | null };
+  secretaryEmails: string[];
+}): Promise<void> {
+  const { driver, license, secretaryEmails } = params;
+
+  const html = `
+    <h2 style="color:#C62828;">Driver's License Expired</h2>
+    <p>Hello <strong>${escapeHtml(driver.displayName)}</strong>,</p>
+    <p>Your driver's license has <strong>expired</strong>. You may not legally operate a vehicle until a renewed license is obtained.</p>
+    ${license.licenseState ? `<table style="border-collapse:collapse;width:100%;margin-top:16px;">
+      <tr><td style="padding:4px 8px;font-weight:bold;">Issuing State:</td>
+          <td style="padding:4px 8px;">${escapeHtml(license.licenseState)}</td></tr>
+    </table>` : ''}
+    <p style="margin-top:16px;color:#C62828;font-weight:bold;">Please renew your driver's license immediately and provide an updated copy to Transportation.</p>
+    <p style="color:#666;font-size:12px;margin-top:24px;">This is an automated notice from the Transportation Management System.</p>
+  `;
+
+  const recipients = [driver.email, ...secretaryEmails].filter(Boolean);
+  await sendMail({
+    to: recipients,
+    subject: `URGENT: Driver's License Expired — ${driver.displayName}`,
+    html,
+    context: 'driver_license_expired',
+    relatedEntityId: license.id,
+  });
+}
+
+/**
  * Send the monthly fuel consumption report to Finance Director.
  */
 export async function sendMonthlyFuelReportEmail(params: {

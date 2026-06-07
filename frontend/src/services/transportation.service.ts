@@ -20,6 +20,8 @@ import type {
   OfficeLocationSlim,
   TransportationUnitType,
   FuelType,
+  DriverLicense,
+  UpdateDriverLicensePayload,
 } from '../types/transportation.types';
 
 // ---------------------------------------------------------------------------
@@ -371,4 +373,49 @@ export const transportationDashboardApi = {
     const res = await api.get<TransportationDashboard>('/transportation/dashboard');
     return res.data;
   },
+};
+
+// ---------------------------------------------------------------------------
+// Driver Licenses
+// ---------------------------------------------------------------------------
+
+export const driverLicenseApi = {
+  upload: async (formData: FormData): Promise<DriverLicense> => {
+    const res = await api.post<DriverLicense>('/driver-licenses/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data;
+  },
+
+  getAll: async (params?: {
+    userId?: string;
+    isActive?: boolean;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{ items: DriverLicense[]; total: number; page: number; limit: number }> => {
+    const res = await api.get('/driver-licenses', { params });
+    return res.data;
+  },
+
+  getByUserId: async (userId: string): Promise<DriverLicense[]> => {
+    const res = await api.get<DriverLicense[]>(`/driver-licenses/user/${userId}`);
+    return res.data;
+  },
+
+  getById: async (id: string): Promise<DriverLicense> => {
+    const res = await api.get<DriverLicense>(`/driver-licenses/${id}`);
+    return res.data;
+  },
+
+  update: async (id: string, payload: UpdateDriverLicensePayload): Promise<DriverLicense> => {
+    const res = await api.put<DriverLicense>(`/driver-licenses/${id}`, payload);
+    return res.data;
+  },
+
+  deactivate: async (id: string): Promise<void> => {
+    await api.delete(`/driver-licenses/${id}`);
+  },
+
+  getImageUrl: (id: string): string => `/api/driver-licenses/${id}/image`,
 };

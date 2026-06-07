@@ -23,6 +23,7 @@ import transportationUnitRoutes from './routes/transportationUnit.routes';
 import transportationFuelStationRoutes from './routes/transportationFuelStation.routes';
 import fuelConsumptionRoutes from './routes/fuelConsumption.routes';
 import dotPhysicalRoutes from './routes/dotPhysical.routes';
+import driverLicenseRoutes from './routes/driverLicense.routes';
 import transportationReportRoutes from './routes/transportationReport.routes';
 import transportationSettingsRoutes from './routes/transportationSettings.routes';
 import transportationDashboardRoutes from './routes/transportationDashboard.routes';
@@ -109,7 +110,12 @@ app.use(cookieParser());
 app.use(requestId);
 app.use(httpLogger);
 
-// Serve uploaded damage-incident photos
+// Block direct static access to driver's license images — they must go through the authenticated endpoint
+app.use('/uploads/driver-licenses', (_req: Request, res: Response) => {
+  res.status(403).json({ error: 'Forbidden' });
+});
+
+// Serve other uploaded files statically (damage-incident photos, etc.)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 // CSRF token provider - applies to all routes
@@ -151,6 +157,7 @@ app.use('/api/transportation-units', transportationUnitRoutes);
 app.use('/api/transportation/fuel-stations', transportationFuelStationRoutes);
 app.use('/api/fuel-entries', fuelConsumptionRoutes);
 app.use('/api/dot-physicals', dotPhysicalRoutes);
+app.use('/api/driver-licenses', driverLicenseRoutes);
 app.use('/api/transportation/reports', transportationReportRoutes);
 app.use('/api/transportation/settings', transportationSettingsRoutes);
 app.use('/api/transportation/dashboard', transportationDashboardRoutes);

@@ -62,6 +62,8 @@ export default function TransportationSettingsPage() {
   const [secretaryEmails, setSecretaryEmails]     = useState('');
   const [dotEnabled, setDotEnabled]               = useState(true);
   const [reminderDays, setReminderDays]           = useState('60,30,14,7');
+  const [licenseEnabled, setLicenseEnabled]       = useState(true);
+  const [licenseReminderDays, setLicenseReminderDays] = useState('60,30,14,7');
   const [monthlyEnabled, setMonthlyEnabled]       = useState(true);
   const [monthlyDay, setMonthlyDay]               = useState('1');
   const [thresholdEnabled, setThresholdEnabled]   = useState(false);
@@ -76,6 +78,8 @@ export default function TransportationSettingsPage() {
       setSecretaryEmails((settings.transportationSecretaryEmails ?? []).join(', '));
       setDotEnabled(settings.dotNotificationsEnabled);
       setReminderDays((settings.dotPhysicalReminderDays ?? []).join(', '));
+      setLicenseEnabled(settings.driverLicenseNotificationsEnabled);
+      setLicenseReminderDays((settings.driverLicenseReminderDays ?? []).join(', '));
       setMonthlyEnabled(settings.monthlyFuelReportEnabled);
       setMonthlyDay(settings.monthlyFuelReportDay?.toString() ?? '1');
       setThresholdEnabled(settings.gasFuelThresholdEnabled);
@@ -106,8 +110,14 @@ export default function TransportationSettingsPage() {
       .map((e) => e.trim())
       .filter(Boolean);
 
-    // Parse reminder days
+    // Parse DOT reminder days
     const days = reminderDays
+      .split(/[,\s]/)
+      .map((d) => parseInt(d.trim(), 10))
+      .filter((d) => !isNaN(d) && d > 0);
+
+    // Parse driver license reminder days
+    const licenseDays = licenseReminderDays
       .split(/[,\s]/)
       .map((d) => parseInt(d.trim(), 10))
       .filter((d) => !isNaN(d) && d > 0);
@@ -122,9 +132,11 @@ export default function TransportationSettingsPage() {
       financeDirectorEmail:          financeEmail.trim() || null,
       directorOfSchoolsEmail:        dosEmail.trim() || null,
       transportationSecretaryEmails: emails,
-      dotNotificationsEnabled:       dotEnabled,
-      dotPhysicalReminderDays:       days,
-      monthlyFuelReportEnabled:      monthlyEnabled,
+      dotNotificationsEnabled:            dotEnabled,
+      dotPhysicalReminderDays:            days,
+      driverLicenseNotificationsEnabled:  licenseEnabled,
+      driverLicenseReminderDays:          licenseDays,
+      monthlyFuelReportEnabled:           monthlyEnabled,
       monthlyFuelReportDay:          day,
       gasFuelThresholdEnabled:       thresholdEnabled,
       gasFuelThresholdGallons:       thresholdEnabled && thresholdGallons
@@ -215,7 +227,7 @@ export default function TransportationSettingsPage() {
                     rows={2}
                     value={secretaryEmails}
                     onChange={(e) => setSecretaryEmails(e.target.value)}
-                    helperText="Comma-separated email addresses. Receives DOT physical alerts."
+                    helperText="Comma-separated email addresses. Receives DOT physical and driver license expiry alerts."
                   />
                 </Grid>
               </Grid>
@@ -247,6 +259,35 @@ export default function TransportationSettingsPage() {
                 onChange={(e) => setReminderDays(e.target.value)}
                 helperText="Comma-separated days (e.g., 60, 30, 14, 7)"
                 disabled={!dotEnabled}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Driver License Reminders */}
+        <Grid size={{ xs: 12 }}>
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" fontWeight="bold">Driver License Reminders</Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={licenseEnabled}
+                      onChange={(e) => setLicenseEnabled(e.target.checked)}
+                    />
+                  }
+                  label={licenseEnabled ? 'Enabled' : 'Disabled'}
+                />
+              </Box>
+              <TextField
+                label="Reminder Days Before Expiration"
+                fullWidth
+                size="small"
+                value={licenseReminderDays}
+                onChange={(e) => setLicenseReminderDays(e.target.value)}
+                helperText="Comma-separated days (e.g., 60, 30, 14, 7). Notifies both the driver and transportation secretary."
+                disabled={!licenseEnabled}
               />
             </CardContent>
           </Card>

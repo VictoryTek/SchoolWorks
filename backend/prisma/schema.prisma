@@ -560,6 +560,9 @@ model User {
   dotPhysicals                 DotPhysical[] @relation("DotPhysicalDriver")
   dotPhysicalsCreated          DotPhysical[] @relation("DotPhysicalCreator")
   transportationFuelStationsAdded TransportationFuelStation[]
+  // Driver License relations
+  driverLicenses               DriverLicense[] @relation("DriverLicenseHolder")
+  driverLicensesUploaded       DriverLicense[] @relation("DriverLicenseUploader")
 
   @@index([employeeId])
   @@map("users")
@@ -1859,8 +1862,35 @@ model TransportationSettings {
   monthlyFuelReportDay         Int      @default(1)
   gasFuelThresholdEnabled      Boolean  @default(false)
   gasFuelThresholdGallons      Decimal? @db.Decimal(10, 2)
+  driverLicenseReminderDays         Json     @default("[60,30,14,7]")
+  driverLicenseNotificationsEnabled Boolean  @default(true)
   createdAt                    DateTime @default(now())
   updatedAt                    DateTime @updatedAt
 
   @@map("transportation_settings")
+}
+
+model DriverLicense {
+  id             String    @id @default(uuid())
+  userId         String
+  licenseNumber  String?   @db.VarChar(50)
+  licenseState   String?   @db.VarChar(50)
+  expirationDate DateTime
+  documentUrl    String?
+  isActive       Boolean   @default(true)
+  remindersSent  Json      @default("[]")
+  notes          String?   @db.Text
+  uploadedById   String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  driver     User @relation("DriverLicenseHolder",   fields: [userId],       references: [id])
+  uploadedBy User @relation("DriverLicenseUploader", fields: [uploadedById], references: [id])
+
+  @@index([userId])
+  @@index([expirationDate])
+  @@index([isActive])
+  @@index([userId, isActive])
+  @@index([expirationDate, isActive])
+  @@map("driver_licenses")
 }
