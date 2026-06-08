@@ -166,7 +166,6 @@ export default function WorkOrderListPage() {
     {
       key: 'reportedBy',
       label: 'Submitted By',
-      hideOnMobile: true,
       render: (wo) => wo.reportedBy?.displayName ?? wo.reportedBy?.email ?? '—',
     },
     {
