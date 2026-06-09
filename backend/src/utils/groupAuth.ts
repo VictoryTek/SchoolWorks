@@ -134,6 +134,7 @@ const GROUP_MODULE_MAP: Record<PermissionModuleType, Array<[string, number]>> = 
     ['ENTRA_TRANSPORTATION_DIRECTOR_GROUP_ID',        3],
     ['ENTRA_TRANSPORTATION_SECRETARY_GROUP_ID',       2],
     ['ENTRA_BUS_DRIVERS_GROUP_ID',                   1],
+    ['ENTRA_ALL_STAFF_GROUP_ID',                     1],
   ],
 };
 
