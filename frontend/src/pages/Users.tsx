@@ -3,8 +3,6 @@ import { User } from '../services/userService';
 import { Supervisor } from '../services/supervisorService';
 import { SyncResultDetail } from '../services/adminService';
 import SyncResultDialog from '../components/admin/SyncResultDialog';
-import { useAuthStore } from '../store/authStore';
-import { useNavigate } from 'react-router-dom';
 import { Box, Paper } from '@mui/material';
 import { ResponsiveTable, MobileFilterBar, Column } from '../components/responsive';
 import { useIsMobile } from '../hooks/useResponsive';
@@ -64,8 +62,6 @@ const Users: React.FC = () => {
   const [itemsPerPage, setItemsPerPage] = useState(50);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   
-  const { user: currentUser } = useAuthStore();
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
 
   // Debounce search term
@@ -76,13 +72,6 @@ const Users: React.FC = () => {
     }, 500);
     return () => clearTimeout(timer);
   }, [searchTerm]);
-
-  // Redirect if not admin
-  useEffect(() => {
-    if (!currentUser?.roles?.includes('ADMIN')) {
-      navigate('/dashboard');
-    }
-  }, [currentUser, navigate]);
 
   // ========== TANSTACK QUERY HOOKS ==========
   

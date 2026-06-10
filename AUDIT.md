@@ -357,7 +357,7 @@ Cleanup runs every 100 poll cycles. With a very short `POLL_INTERVAL_MS`, this c
 
 ## 6. Architecture Improvements
 
-### ARCH-1 ⚪ — Frontend Authorization Logic Duplicated Between ProtectedRoute and Page Components
+### ARCH-1 ✅ — Frontend Authorization Logic Duplicated Between ProtectedRoute and Page Components
 **Files:** `frontend/src/components/ProtectedRoute.tsx`, various page components
 
 `ProtectedRoute` checks `requireAdmin`, `requireTech`, etc., but many page components also inline their own `user?.roles?.includes('ADMIN')` checks. These duplicate checks can drift out of sync — resulting in a page that appears gated but whose components still render for unauthorized users if the route guard is misconfigured.
