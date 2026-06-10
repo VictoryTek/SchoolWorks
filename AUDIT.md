@@ -337,7 +337,7 @@ Some controllers import the default `logger` export while others use `loggers.mo
 
 ---
 
-### QA-6 ⚪ — Email Queue Cleanup Uses Poll Counter Instead of Time
+### QA-6 ✅ — Email Queue Cleanup Uses Poll Counter Instead of Time
 **File:** `backend/src/services/emailQueue.service.ts` (lines 187–200)
 
 Cleanup runs every 100 poll cycles. With a very short `POLL_INTERVAL_MS`, this causes cleanup to run extremely frequently. With a very long interval, the table grows unchecked.

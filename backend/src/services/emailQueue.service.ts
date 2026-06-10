@@ -15,9 +15,9 @@
 import nodemailer from 'nodemailer';
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
-import { createLogger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 
-const log = createLogger('EmailQueueService');
+const log = loggers.email;
 
 // ---------------------------------------------------------------------------
 // Configuration (override via env vars, sensible defaults hardcoded)
@@ -184,18 +184,18 @@ async function cleanupOldSentEmails(): Promise<void> {
   }
 }
 
-let cleanupCycleCounter = 0;
-const CLEANUP_EVERY_N_CYCLES = 100; // Run cleanup every ~100 poll cycles (~8 min at 5s poll)
+const CLEANUP_INTERVAL_MS = parseInt(process.env.EMAIL_QUEUE_CLEANUP_INTERVAL_MS ?? String(6 * 60 * 60 * 1000), 10);
+let lastCleanupAt: Date | null = null;
 
 /**
  * Process a batch of pending emails.
  */
 async function processBatch(): Promise<void> {
   try {
-    // Periodic cleanup of old sent emails
-    cleanupCycleCounter++;
-    if (cleanupCycleCounter >= CLEANUP_EVERY_N_CYCLES) {
-      cleanupCycleCounter = 0;
+    // Periodic cleanup of old sent emails — time-based, not poll-count-based
+    const now = new Date();
+    if (!lastCleanupAt || now.getTime() - lastCleanupAt.getTime() >= CLEANUP_INTERVAL_MS) {
+      lastCleanupAt = now;
       await cleanupOldSentEmails();
     }
 
