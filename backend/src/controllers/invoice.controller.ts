@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { handleControllerError } from '../utils/errorHandler';
+import { handleControllerError, sanitizeFilename } from '../utils/errorHandler';
 import * as service from '../services/invoice.service';
 import type { z } from 'zod';
 import type {
@@ -122,7 +122,7 @@ export const getPdf = async (req: AuthRequest, res: Response): Promise<void> => 
     // Fetch the invoice number for the filename
     const invoice = await service.getById(id);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${invoice.invoiceNumber}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${sanitizeFilename(invoice.invoiceNumber)}.pdf"`);
     res.send(buffer);
   } catch (error) {
     handleControllerError(error, res);

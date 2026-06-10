@@ -253,7 +253,7 @@ export const ImportJobIdParamSchema = z.object({
  * Validation schema for bulk-deleting disposed inventory items
  */
 export const BulkDeleteInventorySchema = z.object({
-  ids: z.array(z.string().uuid('Invalid item ID')).min(1, 'At least one item ID is required'),
+  ids: z.array(z.string().uuid('Invalid item ID')).min(1, 'At least one item ID is required').max(500, 'Cannot delete more than 500 items at once'),
 });
 
 /**

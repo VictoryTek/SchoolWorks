@@ -7,6 +7,7 @@ import { authenticate } from '../middleware/auth';
 import { validateCsrfToken } from '../middleware/csrf';
 import { validateRequest } from '../middleware/validation';
 import { requireDeviceManagementAccess } from '../utils/groupAuth';
+import { validateFileContentType } from '../utils/fileMagic';
 import * as controller from '../controllers/damageIncident.controller';
 import {
   CreateDamageIncidentSchema,
@@ -115,6 +116,7 @@ router.post(
   validateCsrfToken,
   requireDeviceManagementAccess(),
   photoUpload.array('photos', 5),
+  validateFileContentType(['image/jpeg', 'image/png', 'image/webp']),
   controller.uploadPhotos,
 );
 router.delete(

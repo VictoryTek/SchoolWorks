@@ -10,7 +10,7 @@ import { AuthRequest } from '../middleware/auth';
 import { InventoryService } from '../services/inventory.service';
 import { InventoryImportService } from '../services/inventoryImport.service';
 import { handleControllerError } from '../utils/errorHandler';
-import { GetInventoryQuerySchema, InventorySearchQuerySchema, ExportInventory, ImportOptionsSchema } from '../validators/inventory.validators';
+import { GetInventoryQuerySchema, InventorySearchQuerySchema, ExportInventory, ImportOptionsSchema, BulkDeleteInventorySchema } from '../validators/inventory.validators';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import ExcelJS from 'exceljs';
@@ -243,7 +243,11 @@ export const bulkDeleteInventory = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { ids } = req.body as { ids: string[] };
+    const parsed = BulkDeleteInventorySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+    }
+    const { ids } = parsed.data;
 
     logger.warn('Bulk delete disposed inventory items requested', {
       userId: req.user.id,

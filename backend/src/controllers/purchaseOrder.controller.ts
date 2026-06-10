@@ -12,7 +12,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { PurchaseOrderService } from '../services/purchaseOrder.service';
-import { handleControllerError } from '../utils/errorHandler';
+import { handleControllerError, sanitizeFilename } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
 import {
@@ -409,7 +409,7 @@ export const getPurchaseOrderPdf = async (req: AuthRequest, res: Response): Prom
   try {
     const id = req.params.id as string;
     const { buffer, poNumber } = await service.generatePOPdf(id);
-    const filename = poNumber ? `po-${poNumber}.pdf` : `po-${id}.pdf`;
+    const filename = `po-${sanitizeFilename(poNumber ?? id)}.pdf`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

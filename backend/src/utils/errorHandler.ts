@@ -93,3 +93,11 @@ export const handleControllerError = (error: unknown, res: Response): void => {
   
   res.status(500).json(response);
 };
+
+/**
+ * Sanitize a string for safe use in a Content-Disposition filename parameter.
+ * Strips characters that could break the header or enable injection
+ * (quotes, semicolons, CRLF, and any non-printable bytes).
+ */
+export const sanitizeFilename = (name: string): string =>
+  name.replace(/[^a-zA-Z0-9._-]/g, '_');

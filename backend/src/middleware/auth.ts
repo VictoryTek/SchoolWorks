@@ -60,16 +60,7 @@ export const authenticate = (
   res: Response,
   next: NextFunction
 ) => {
-  // Try cookie first (preferred method)
-  let token = req.cookies?.access_token;
-  
-  // Fallback to Authorization header for backward compatibility
-  if (!token) {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    }
-  }
+  const token = req.cookies?.access_token;
 
   if (!token) {
     return res.status(401).json({ 

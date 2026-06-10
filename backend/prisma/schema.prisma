@@ -488,6 +488,7 @@ model User {
   isActive                                                  Boolean               @default(true)
   lastSync                                                  DateTime              @default(now())
   lastLogin                                                 DateTime?
+  lastAdminNotifyAt                                         DateTime?             @map("last_admin_notify_at")
   createdAt                                                 DateTime              @default(now())
   updatedAt                                                 DateTime              @updatedAt
   role                                                      String                @default("USER")

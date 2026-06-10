@@ -11,6 +11,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { mkdirSync } from 'fs';
 import { authenticate } from '../middleware/auth';
+import { validateFileContentType } from '../utils/fileMagic';
 import { validateCsrfToken } from '../middleware/csrf';
 import { requireModule } from '../utils/groupAuth';
 import * as controller from '../controllers/driverLicense.controller';
@@ -59,6 +60,7 @@ router.post(
   validateCsrfToken,
   requireModule('TRANSPORTATION', 2),
   licenseUpload.single('licenseImage'),
+  validateFileContentType(['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf']),
   controller.uploadLicense,
 );
 

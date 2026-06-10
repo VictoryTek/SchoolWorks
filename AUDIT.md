@@ -134,7 +134,7 @@ The `optionalAuth` middleware catches all JWT errors and silently proceeds witho
 
 ---
 
-### HIGH-5 🟠 — Content-Disposition Header Contains Unsanitized User-Controlled Data
+### ~~HIGH-5~~ ✅ — ~~Content-Disposition Header Contains Unsanitized User-Controlled Data~~
 **Files:** `backend/src/controllers/invoice.controller.ts` (line 125), `backend/src/controllers/purchaseOrder.controller.ts` (line 415), `backend/src/controllers/inventoryAudit.controller.ts` (line 112)
 
 `res.setHeader('Content-Disposition', \`attachment; filename="${invoice.invoiceNumber}.pdf"\`)` embeds a database value directly in an HTTP header without sanitization. Characters like `"`, `;`, newlines, or CRLF sequences can break the header and enable header injection.
@@ -143,7 +143,7 @@ The `optionalAuth` middleware catches all JWT errors and silently proceeds witho
 
 ---
 
-### HIGH-6 🟠 — Bearer Token Auth Path Bypasses CSRF Entirely
+### ~~HIGH-6~~ ✅ — ~~Bearer Token Auth Path Bypasses CSRF Entirely~~
 **File:** `backend/src/middleware/auth.ts` (lines 66–70)
 
 The `authenticate` middleware falls back to `Authorization: Bearer` when no cookie is present (described as "backward compatibility"). Clients using Bearer tokens bypass CSRF middleware entirely. It is unclear which clients still use this path; if none do, the surface area should be removed.
@@ -163,7 +163,7 @@ The `authenticate` middleware falls back to `Authorization: Bearer` when no cook
 
 ---
 
-### MED-2 🟡 — Bulk Delete `ids` Array Has No Validation or Size Cap
+### ~~MED-2~~ ✅ — ~~Bulk Delete `ids` Array Has No Validation or Size Cap~~
 **File:** `backend/src/controllers/inventory.controller.ts` (lines 290–313)
 
 `const { ids } = req.body as { ids: string[] }` has no Zod validation. No check that `ids` is an array, that each element is a valid UUID, or that the array length has a maximum. An attacker could submit `ids: [null, null, ...]` or an array of thousands of entries.
@@ -172,7 +172,7 @@ The `authenticate` middleware falls back to `Authorization: Bearer` when no cook
 
 ---
 
-### MED-3 🟡 — In-Memory Admin Notification Rate Limiter Is Not Multi-Instance Safe
+### ~~MED-3~~ ✅ — ~~In-Memory Admin Notification Rate Limiter Is Not Multi-Instance Safe~~
 **File:** `backend/src/controllers/damageIncident.controller.ts` (lines 172–173)
 
 `const recentAdminNotifications = new Map<string, number>()` is a module-level in-memory store. Across multiple container replicas or Node.js cluster workers, each instance has its own map — the 5-minute notification cooldown is ineffective in multi-instance deployments.
@@ -181,7 +181,7 @@ The `authenticate` middleware falls back to `Authorization: Bearer` when no cook
 
 ---
 
-### MED-4 🟡 — File Upload MIME Type Validation Is Client-Controlled
+### ~~MED-4~~ ✅ — ~~File Upload MIME Type Validation Is Client-Controlled~~
 **Files:** `backend/src/routes/damageIncident.routes.ts` (lines 35–41), `backend/src/routes/driverLicense.routes.ts` (lines 40–47)
 
 Multer's `fileFilter` trusts `file.mimetype` which is sent by the client. A malicious file can be uploaded with a spoofed `Content-Type: image/jpeg` header. This is especially concerning for driver license images (sensitive PII documents).

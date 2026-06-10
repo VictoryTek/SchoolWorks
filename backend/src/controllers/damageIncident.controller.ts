@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { handleControllerError } from '../utils/errorHandler';
 import * as service from '../services/damageIncident.service';
+import { prisma } from '../lib/prisma';
 import { sendBuildingAdminIncidentAlert } from '../services/email.service';
 import { logger } from '../lib/logger';
 import type { z } from 'zod';
@@ -170,15 +171,17 @@ export const deviceExchange = async (req: AuthRequest, res: Response): Promise<v
 // ---------------------------------------------------------------------------
 
 const ADMIN_NOTIFY_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
-const recentAdminNotifications = new Map<string, number>(); // userId → lastSentTimestamp
 
 export const notifyBuildingAdmin = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { userId, techNote } = req.body as z.infer<typeof NotifyBuildingAdminSchema>;
 
-    const now      = Date.now();
-    const lastSent = recentAdminNotifications.get(userId);
-    if (lastSent && now - lastSent < ADMIN_NOTIFY_COOLDOWN_MS) {
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { lastAdminNotifyAt: true },
+    });
+    const now = Date.now();
+    if (targetUser?.lastAdminNotifyAt && now - targetUser.lastAdminNotifyAt.getTime() < ADMIN_NOTIFY_COOLDOWN_MS) {
       res.status(429).json({ error: 'TOO_MANY_REQUESTS', message: 'Email already sent recently. Please wait before sending again.' });
       return;
     }
@@ -208,11 +211,10 @@ export const notifyBuildingAdmin = async (req: AuthRequest, res: Response): Prom
       schoolName:      adminInfo.schoolName,
     });
 
-    recentAdminNotifications.set(userId, now);
-    // Prune stale entries
-    for (const [key, ts] of recentAdminNotifications.entries()) {
-      if (now - ts > ADMIN_NOTIFY_COOLDOWN_MS) recentAdminNotifications.delete(key);
-    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { lastAdminNotifyAt: new Date(now) },
+    });
 
     // Mask the recipient email for the response (show domain only)
     const [localPart, domain] = adminInfo.adminEmail.split('@');
