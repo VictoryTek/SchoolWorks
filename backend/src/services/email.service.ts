@@ -14,7 +14,7 @@
  *   SMTP_FROM     — From address (e.g., noreply@district.org)
  */
 
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 import { graphClient } from '../config/entraId';
 import { ExternalAPIError } from '../utils/errors';
@@ -60,7 +60,7 @@ async function sendMail(options: {
       relatedEntityId: options.relatedEntityId,
     });
   } catch (error) {
-    logger.error('Failed to enqueue email', {
+    loggers.email.error('Failed to enqueue email', {
       subject: options.subject,
       error: error instanceof Error ? error.message : String(error),
     });
@@ -174,7 +174,7 @@ export async function buildApproverEmailSnapshot(requestorId: string): Promise<{
 
     return { supervisor: supervisorEmails, finance, dos, poEntry, fsPoEntry, fsSupervisor };
   } catch (error) {
-    logger.error('Failed to fetch approver emails from Microsoft Graph', {
+    loggers.email.error('Failed to fetch approver emails from Microsoft Graph', {
       error: error instanceof Error ? error.message : String(error),
     });
     throw new ExternalAPIError(
@@ -406,7 +406,7 @@ export async function buildFieldTripApproverSnapshot(
 
     return { supervisorEmails, asstDirectorEmails, directorEmails, financeDirectorEmails };
   } catch (error) {
-    logger.error('Failed to fetch field trip approver emails from Microsoft Graph', {
+    loggers.email.error('Failed to fetch field trip approver emails from Microsoft Graph', {
       error: error instanceof Error ? error.message : String(error),
     });
     throw new ExternalAPIError(

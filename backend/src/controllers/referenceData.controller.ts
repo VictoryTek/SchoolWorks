@@ -8,6 +8,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../utils/errors';
 import {
   GetBrandsQuerySchema, CreateBrandSchema, UpdateBrandSchema,
@@ -148,8 +149,8 @@ export const deleteVendor = async (req: AuthRequest, res: Response): Promise<voi
     if (!existing) throw new NotFoundError('Vendor not found');
     await prisma.vendors.delete({ where: { id } });
     res.json({ message: 'Vendor deleted' });
-  } catch (error: any) {
-    if (error?.code === 'P2003') {
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
       res.status(409).json({ message: 'Cannot delete vendor — it is referenced by existing equipment or purchase orders.' });
       return;
     }
@@ -165,7 +166,7 @@ export const getCategories = async (req: AuthRequest, res: Response): Promise<vo
   try {
     const { page, limit, search, parentId, sortBy, sortOrder } = GetCategoriesQuerySchema.parse(req.query);
     const skip = (page - 1) * limit;
-    const where: any = {
+    const where: Prisma.categoriesWhereInput = {
       ...(search && { name: { contains: search, mode: 'insensitive' as const } }),
       ...(parentId !== undefined && { parentId: parentId ?? null }),
     };

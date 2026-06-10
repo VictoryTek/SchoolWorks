@@ -7,7 +7,7 @@
 
 import { PrismaClient, FundingSource, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import {
   CreateFundingSourceDto,
   UpdateFundingSourceDto,
@@ -106,7 +106,7 @@ export class FundingSourceService {
 
     const record = await this.prisma.fundingSource.create({ data });
 
-    logger.info('Funding source created', { id: record.id, name: record.name });
+    loggers.fundingSource.info('Funding source created', { id: record.id, name: record.name });
     return record;
   }
 
@@ -127,7 +127,7 @@ export class FundingSourceService {
 
     const record = await this.prisma.fundingSource.update({ where: { id }, data });
 
-    logger.info('Funding source updated', { id: record.id, name: record.name });
+    loggers.fundingSource.info('Funding source updated', { id: record.id, name: record.name });
     return record;
   }
 
@@ -142,7 +142,7 @@ export class FundingSourceService {
       data: { isActive: false },
     });
 
-    logger.info('Funding source deactivated', { id: record.id, name: record.name });
+    loggers.fundingSource.info('Funding source deactivated', { id: record.id, name: record.name });
     return record;
   }
 
@@ -164,6 +164,6 @@ export class FundingSourceService {
 
     await this.prisma.fundingSource.delete({ where: { id } });
 
-    logger.info('Funding source permanently deleted', { id });
+    loggers.fundingSource.info('Funding source permanently deleted', { id });
   }
 }

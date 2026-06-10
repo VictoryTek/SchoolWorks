@@ -3,7 +3,7 @@ import { AuthRequest } from '../middleware/auth';
 import { UserRoomAssignmentService } from '../services/userRoomAssignment.service';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
-import { createLogger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { AuthorizationError, NotFoundError } from '../utils/errors';
 import {
   LocationRoomAssignmentsQuerySchema,
@@ -12,7 +12,6 @@ import {
 } from '../validators/userRoomAssignment.validators';
 import { z } from 'zod';
 
-const logger = createLogger('UserRoomAssignmentController');
 const service = new UserRoomAssignmentService(prisma);
 
 /**
@@ -60,7 +59,7 @@ async function assertAdminOrPrimarySupervisor(
       ]);
 
       if (!location || !dbUser || dbUser.officeLocation !== location.name) {
-        logger.warn('Forbidden: principal/VP is not supervisor of requested location', {
+        loggers.roomAssignments.warn('Forbidden: principal/VP is not supervisor of requested location', {
           requesterId: req.user.id,
           targetLocationId: locationId,
           action: 'room-assignment',
@@ -84,7 +83,7 @@ async function assertAdminOrPrimarySupervisor(
   });
 
   if (!record) {
-    logger.warn('Forbidden: user is not primary supervisor', {
+    loggers.roomAssignments.warn('Forbidden: user is not primary supervisor', {
       requesterId: req.user.id,
       targetLocationId: locationId,
       action: 'room-assignment',

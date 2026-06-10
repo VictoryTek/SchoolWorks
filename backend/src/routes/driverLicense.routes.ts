@@ -11,7 +11,7 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { mkdirSync } from 'fs';
 import { authenticate } from '../middleware/auth';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { validateFileContentType } from '../utils/fileMagic';
 import { validateCsrfToken } from '../middleware/csrf';
 import { requireModule } from '../utils/groupAuth';
@@ -26,7 +26,7 @@ try {
   // Log but do not crash — the directory should already exist from the Docker image build
   const code = (err as NodeJS.ErrnoException).code;
   if (code !== 'EEXIST') {
-    logger.error('Could not create driver-license upload dir', { error: (err as Error).message });
+    loggers.driverLicense.error('Could not create driver-license upload dir', { error: (err as Error).message });
   }
 }
 

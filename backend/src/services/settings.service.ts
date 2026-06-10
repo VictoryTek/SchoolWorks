@@ -7,7 +7,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { ValidationError } from '../utils/errors';
 import { UpdateSettingsDto, StartNewFiscalYearDto } from '../validators/settings.validators';
 
@@ -51,7 +51,7 @@ export class SettingsService {
       update: data,
       create: { id: 'singleton', ...SETTINGS_DEFAULTS, ...data },
     });
-    logger.info('System settings updated', { data });
+    loggers.settings.info('System settings updated', { data });
     return settings;
   }
 
@@ -85,7 +85,7 @@ export class SettingsService {
 
     const { next_req_number, req_number_prefix } = result[0];
     const formatted = `${req_number_prefix}-${String(next_req_number).padStart(5, '0')}`;
-    logger.info('Req number issued', { formatted });
+    loggers.settings.info('Req number issued', { formatted });
     return formatted;
   }
 
@@ -307,7 +307,7 @@ export class SettingsService {
         },
       });
 
-      logger.info('Fiscal year rollover completed', {
+      loggers.settings.info('Fiscal year rollover completed', {
         fiscalYear:             data.fiscalYearLabel,
         action:                 data.inProgressAction,
         deniedCount,

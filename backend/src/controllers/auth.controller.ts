@@ -25,14 +25,15 @@ import {
   JWTAccessTokenPayload,
   JWTRefreshTokenPayload,
   isRefreshTokenPayload,
-  AuthUserInfo
+  AuthUserInfo,
+  ErrorResponse,
 } from '../types/auth.types';
 import { AuthenticationError, ExternalAPIError } from '../utils/errors';
 
 // Initiate login - redirect to Entra ID
 export const login = async (
-  req: Request<{}, LoginResponse>,
-  res: Response<LoginResponse>
+  req: Request<{}, LoginResponse | ErrorResponse>,
+  res: Response<LoginResponse | ErrorResponse>
 ) => {
   try {
     const isSilent = (req.query as { silent?: string }).silent === 'true';
@@ -70,7 +71,7 @@ export const login = async (
     res.status(500).json({
       error: 'Authentication failed',
       message: 'Could not initiate login',
-    } as any);
+    });
   }
 };
 
@@ -86,7 +87,7 @@ export const callback = async (
     return res.status(400).json({
       error: 'Bad Request',
       message: 'Authorization code is required',
-    } as any);
+    });
   }
 
   // Validate OAuth state parameter to prevent CSRF.
@@ -103,7 +104,7 @@ export const callback = async (
     return res.status(400).json({
       error: 'Bad Request',
       message: 'Invalid OAuth state',
-    } as any);
+    });
   }
 
   const stateA = Buffer.from(state as string);
@@ -117,7 +118,7 @@ export const callback = async (
     return res.status(400).json({
       error: 'Bad Request',
       message: 'Invalid OAuth state',
-    } as any);
+    });
   }
 
   try {
@@ -211,7 +212,7 @@ export const callback = async (
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Your account has been disabled. Contact your administrator.',
-      } as any);
+      });
     }
 
     // Create or update user in database with determined role
@@ -387,14 +388,14 @@ export const callback = async (
       details: process.env.NODE_ENV === 'development' && error instanceof Error
         ? error.message
         : undefined,
-    } as any);
+    });
   }
 };
 
 // Refresh access token
 export const refreshToken = async (
-  req: TypedAuthRequest<RefreshTokenRequestBody, {}, RefreshTokenResponse>,
-  res: Response<RefreshTokenResponse>
+  req: TypedAuthRequest<RefreshTokenRequestBody, {}, RefreshTokenResponse | ErrorResponse>,
+  res: Response<RefreshTokenResponse | ErrorResponse>
 ) => {
   // Extract refresh token from cookie (not body)
   const refreshToken = req.cookies.refresh_token;
@@ -403,7 +404,7 @@ export const refreshToken = async (
     return res.status(401).json({
       error: 'Unauthorized',
       message: 'No refresh token provided',
-    } as any);
+    });
   }
 
   try {
@@ -529,21 +530,21 @@ export const refreshToken = async (
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Refresh token expired',
-      } as any);
+      });
     }
     
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(401).json({
         error: 'Unauthorized',
         message: 'Invalid refresh token',
-      } as any);
+      });
     }
 
     if (error instanceof AuthenticationError) {
       return res.status(401).json({
         error: 'Unauthorized',
         message: error.message,
-      } as any);
+      });
     }
 
     // Unexpected errors
@@ -561,14 +562,14 @@ export const refreshToken = async (
     res.status(500).json({
       error: 'Internal Server Error',
       message: 'Could not refresh token',
-    } as any);
+    });
   }
 };
 
 // Logout
 export const logout = async (
-  req: Request<{}, LogoutResponse>,
-  res: Response<LogoutResponse>
+  req: Request<{}, LogoutResponse | ErrorResponse>,
+  res: Response<LogoutResponse | ErrorResponse>
 ) => {
   // Clear access token cookie
   res.clearCookie('access_token', {
@@ -607,13 +608,13 @@ export const logout = async (
 // Get current user info
 export const getMe = async (
   req: AuthRequest,
-  res: Response<GetMeResponse>
+  res: Response<GetMeResponse | ErrorResponse>
 ) => {
   if (!req.user) {
     return res.status(401).json({
       error: 'Unauthorized',
       message: 'No user found',
-    } as any);
+    });
   }
 
   res.json({
@@ -625,7 +626,7 @@ export const getMe = async (
 // Sync users from Entra ID
 export const syncUsers = async (
   req: AuthRequest,
-  res: Response<SyncUsersResponse>
+  res: Response<SyncUsersResponse | ErrorResponse>
 ) => {
   try {
     // Get all users from Entra ID
@@ -659,6 +660,6 @@ export const syncUsers = async (
     res.status(500).json({
       error: 'Sync failed',
       message: 'Could not sync users from Entra ID',
-    } as any);
+    });
   }
 };

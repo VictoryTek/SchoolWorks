@@ -6,7 +6,7 @@
  */
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { transportationRequestService } from '../services/transportationRequest.service';
 import {
   CreateTransportationRequestSchema,
@@ -42,7 +42,7 @@ export const create = async (req: AuthRequest, res: Response): Promise<void> => 
       // Notify supervisor that approval is needed
       sendTransportationRequestPendingSupervisor(supervisorEmail, record, req.user!.name)
         .catch((err: unknown) => {
-          logger.error('Failed to notify supervisor for transportation request', {
+          loggers.transportation.error('Failed to notify supervisor for transportation request', {
             error: err instanceof Error ? err.message : String(err),
           });
         });
@@ -56,7 +56,7 @@ export const create = async (req: AuthRequest, res: Response): Promise<void> => 
             return sendTransportationRequestSubmitted(emails, record, req.user!.name);
           })
           .catch((err: unknown) => {
-            logger.error('Failed to notify transportation secretary', {
+            loggers.transportation.error('Failed to notify transportation secretary', {
               error: err instanceof Error ? err.message : String(err),
             });
           });
@@ -109,7 +109,7 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
     // Non-blocking: notify submitter
     sendTransportationRequestApproved(result.submitterEmail, result)
       .catch((err: unknown) => {
-        logger.error('Failed to send transportation approval email', {
+        loggers.transportation.error('Failed to send transportation approval email', {
           error: err instanceof Error ? err.message : String(err),
         });
       });
@@ -132,7 +132,7 @@ export const deny = async (req: AuthRequest, res: Response): Promise<void> => {
     // Non-blocking: notify submitter
     sendTransportationRequestDenied(result.submitterEmail, result, data.denialReason)
       .catch((err: unknown) => {
-        logger.error('Failed to send transportation denial email', {
+        loggers.transportation.error('Failed to send transportation denial email', {
           error: err instanceof Error ? err.message : String(err),
         });
       });
@@ -160,7 +160,7 @@ export const supervisorApprove = async (req: AuthRequest, res: Response): Promis
           return sendTransportationRequestReadyForReview(emails, result, req.user!.name);
         })
         .catch((err: unknown) => {
-          logger.error('Failed to notify secretary after supervisor approval', {
+          loggers.transportation.error('Failed to notify secretary after supervisor approval', {
             error: err instanceof Error ? err.message : String(err),
           });
         });
@@ -169,7 +169,7 @@ export const supervisorApprove = async (req: AuthRequest, res: Response): Promis
     // Notify submitter their request was approved by supervisor
     sendTransportationRequestSupervisorApproved(result.submitterEmail, result)
       .catch((err: unknown) => {
-        logger.error('Failed to send supervisor approval notification to submitter', {
+        loggers.transportation.error('Failed to send supervisor approval notification to submitter', {
           error: err instanceof Error ? err.message : String(err),
         });
       });
@@ -192,7 +192,7 @@ export const supervisorDeny = async (req: AuthRequest, res: Response): Promise<v
     // Notify submitter their request was denied by supervisor
     sendTransportationRequestSupervisorDenied(result.submitterEmail, result, data.denialReason)
       .catch((err: unknown) => {
-        logger.error('Failed to send supervisor denial notification to submitter', {
+        loggers.transportation.error('Failed to send supervisor denial notification to submitter', {
           error: err instanceof Error ? err.message : String(err),
         });
       });

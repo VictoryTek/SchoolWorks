@@ -12,7 +12,7 @@
 
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { fieldTripService, getEmailsForStatus, getStageName } from '../services/fieldTrip.service';
 import {
   buildFieldTripApproverSnapshot,
@@ -174,7 +174,7 @@ export const submit = async (req: AuthRequest, res: Response): Promise<void> => 
         );
       }
     } catch (emailErr) {
-      logger.error('Failed to send field trip submission email', {
+      loggers.fieldTrip.error('Failed to send field trip submission email', {
         id,
         error: emailErr instanceof Error ? emailErr.message : String(emailErr),
       });
@@ -214,7 +214,7 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
       try {
         await sendFieldTripFinalApproved(result.submitterEmail, result);
       } catch (finalApprovedErr) {
-        logger.error('Failed to send field trip final-approved email', {
+        loggers.fieldTrip.error('Failed to send field trip final-approved email', {
           id,
           error: finalApprovedErr instanceof Error ? finalApprovedErr.message : String(finalApprovedErr),
         });
@@ -229,7 +229,7 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
             await sendFieldTripTransportationNotice(transportEmails, result, submitterName);
           }
         } catch (transportNoticeErr) {
-          logger.error('Failed to send field trip transportation secretary notice', {
+          loggers.fieldTrip.error('Failed to send field trip transportation secretary notice', {
             id,
             error: transportNoticeErr instanceof Error ? transportNoticeErr.message : String(transportNoticeErr),
           });
@@ -248,7 +248,7 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
           );
         }
       } catch (advanceErr) {
-        logger.error('Failed to send field trip advance-to-approver email', {
+        loggers.fieldTrip.error('Failed to send field trip advance-to-approver email', {
           id,
           error: advanceErr instanceof Error ? advanceErr.message : String(advanceErr),
         });
@@ -281,7 +281,7 @@ export const deny = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       await sendFieldTripDenied(updated.submitterEmail, updated, denierName, data.reason);
     } catch (emailErr) {
-      logger.error('Failed to send field trip denial email', {
+      loggers.fieldTrip.error('Failed to send field trip denial email', {
         id,
         error: emailErr instanceof Error ? emailErr.message : String(emailErr),
       });
@@ -313,7 +313,7 @@ export const sendBack = async (req: AuthRequest, res: Response): Promise<void> =
     try {
       await sendFieldTripSentBack(updated.submitterEmail, updated, senderName, data.reason);
     } catch (emailErr) {
-      logger.error('Failed to send field trip send-back email', {
+      loggers.fieldTrip.error('Failed to send field trip send-back email', {
         id,
         error: emailErr instanceof Error ? emailErr.message : String(emailErr),
       });
@@ -362,7 +362,7 @@ export const resubmit = async (req: AuthRequest, res: Response): Promise<void> =
         );
       }
     } catch (emailErr) {
-      logger.error('Failed to send field trip resubmit email', {
+      loggers.fieldTrip.error('Failed to send field trip resubmit email', {
         id,
         error: emailErr instanceof Error ? emailErr.message : String(emailErr),
       });

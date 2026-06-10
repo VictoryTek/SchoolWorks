@@ -7,7 +7,7 @@
 
 import { PrismaClient, equipment, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import {
   InventoryQuery,
   InventoryListResponse,
@@ -534,7 +534,7 @@ export class InventoryService {
       notes: 'Inventory item created',
     });
 
-    logger.info('Inventory item created', {
+    loggers.inventory.info('Inventory item created', {
       itemId: item.id,
       assetTag: item.assetTag,
       userId: user.id,
@@ -664,7 +664,7 @@ export class InventoryService {
       });
     }
 
-    logger.info('Inventory item updated', {
+    loggers.inventory.info('Inventory item updated', {
       itemId: item.id,
       assetTag: item.assetTag,
       userId: user.id,
@@ -691,7 +691,7 @@ export class InventoryService {
         where: { id },
       });
 
-      logger.warn('Inventory item permanently deleted', {
+      loggers.inventory.warn('Inventory item permanently deleted', {
         itemId: id,
         assetTag: existing.assetTag,
         userId: user.id,
@@ -714,7 +714,7 @@ export class InventoryService {
         notes: 'Item marked as disposed',
       });
 
-      logger.info('Inventory item marked as disposed', {
+      loggers.inventory.info('Inventory item marked as disposed', {
         itemId: id,
         assetTag: existing.assetTag,
         userId: user.id,
@@ -733,7 +733,7 @@ export class InventoryService {
       },
     });
 
-    logger.warn('Bulk inventory items permanently deleted', {
+    loggers.inventory.warn('Bulk inventory items permanently deleted', {
       count: result.count,
       ids,
     });
@@ -768,7 +768,7 @@ export class InventoryService {
       }
     }
 
-    logger.info('Bulk inventory update completed', {
+    loggers.inventory.info('Bulk inventory update completed', {
       total: itemIds.length,
       updated: result.updated,
       failed: result.failed,
@@ -1134,7 +1134,7 @@ export class InventoryService {
       },
     });
 
-    logger.info('Import job created (placeholder)', {
+    loggers.inventory.info('Import job created (placeholder)', {
       jobId: job.id,
       fileName,
       userId: user.id,

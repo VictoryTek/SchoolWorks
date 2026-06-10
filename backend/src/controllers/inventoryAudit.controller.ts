@@ -18,7 +18,7 @@ import {
 } from '../validators/inventoryAudit.validators';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { generateInventoryAuditHistoryPdf } from '../services/inventoryAuditPdf.service';
 
 const auditService = new InventoryAuditService(prisma);
@@ -46,7 +46,7 @@ export const getSessions = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const result = await auditService.getSessions(req.query as GetAuditSessionsQueryDto, user);
 
-    logger.info('Audit sessions retrieved', {
+    loggers.inventory.info('Audit sessions retrieved', {
       userId: user.id,
       total: result.total,
     });
@@ -69,7 +69,7 @@ export const getNextRoom = async (req: AuthRequest, res: Response) => {
       user
     );
 
-    logger.info('Next audit room resolved', {
+    loggers.inventory.info('Next audit room resolved', {
       userId: user.id,
       locationId: req.query.officeLocationId,
       hasNextRoom: !!result.nextRoom,
@@ -100,7 +100,7 @@ export const exportSessionsPdf = async (req: AuthRequest, res: Response) => {
     const datePart = new Date().toISOString().slice(0, 10);
     const filename = `inventory-audit-history-${safeSchool}-${datePart}.pdf`;
 
-    logger.info('Audit history PDF exported', {
+    loggers.inventory.info('Audit history PDF exported', {
       userId: user.id,
       locationId: exportData.officeLocationId,
       sessionsCount: exportData.sessions.length,
@@ -126,7 +126,7 @@ export const startSession = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const session = await auditService.startSession(req.body, user);
 
-    logger.info('Audit session created', {
+    loggers.inventory.info('Audit session created', {
       sessionId: session.id,
       userId: user.id,
       roomId: req.body.roomId,
@@ -147,7 +147,7 @@ export const getSession = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const session = await auditService.getSession(req.params.sessionId as string, user);
 
-    logger.info('Audit session retrieved', {
+    loggers.inventory.info('Audit session retrieved', {
       sessionId: req.params.sessionId,
       userId: user.id,
     });
@@ -171,7 +171,7 @@ export const completeSession = async (req: AuthRequest, res: Response) => {
       user
     );
 
-    logger.info('Audit session completed', {
+    loggers.inventory.info('Audit session completed', {
       sessionId: req.params.sessionId,
       userId: user.id,
     });
@@ -191,7 +191,7 @@ export const abandonSession = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const session = await auditService.abandonSession(req.params.sessionId as string, user);
 
-    logger.info('Audit session abandoned', {
+    loggers.inventory.info('Audit session abandoned', {
       sessionId: req.params.sessionId,
       userId: user.id,
     });
@@ -235,7 +235,7 @@ export const bulkUpdateItems = async (req: AuthRequest, res: Response) => {
       user
     );
 
-    logger.info('Bulk audit item update', {
+    loggers.inventory.info('Bulk audit item update', {
       sessionId: req.params.sessionId,
       userId: user.id,
       updated: result.updated,
@@ -256,7 +256,7 @@ export const getUnresolved = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const result = await auditService.getUnresolved(req.query as GetUnresolvedQueryDto, user);
 
-    logger.info('Unresolved audit items retrieved', {
+    loggers.inventory.info('Unresolved audit items retrieved', {
       userId: user.id,
       total: result.total,
     });
@@ -276,7 +276,7 @@ export const resolveItem = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const item = await auditService.resolveItem(req.params.itemId as string, req.body, user);
 
-    logger.info('Audit item resolved', {
+    loggers.inventory.info('Audit item resolved', {
       itemId: req.params.itemId,
       userId: user.id,
       action: req.body.resolvedAction,
@@ -297,7 +297,7 @@ export const checkRecent = async (req: AuthRequest, res: Response) => {
     const user = buildUserContext(req);
     const result = await auditService.checkRecent(req.query as unknown as CheckRecentQueryDto);
 
-    logger.info('Recent audit check', {
+    loggers.inventory.info('Recent audit check', {
       userId: user.id,
       roomId: req.query.roomId,
     });
@@ -339,7 +339,7 @@ export const addEquipmentToSession = async (req: AuthRequest, res: Response) => 
       user
     );
 
-    logger.info('Equipment added to audit session as addition', {
+    loggers.inventory.info('Equipment added to audit session as addition', {
       sessionId: req.params.sessionId,
       equipmentId: req.body.equipmentId,
       userId: user.id,
@@ -368,7 +368,7 @@ export const getRoomStatuses = async (req: AuthRequest, res: Response) => {
       user
     );
 
-    logger.info('Room audit statuses retrieved', {
+    loggers.inventory.info('Room audit statuses retrieved', {
       userId: user.id,
       officeLocationId,
       fiscalYear: fiscalYear ?? null,
@@ -388,7 +388,7 @@ export const startFiscalYearAudit = async (req: AuthRequest, res: Response) => {
   try {
     const user = buildUserContext(req);
     const result = await auditService.startFiscalYearAudit(req.body, user);
-    logger.info('Fiscal year audit started via API', { auditId: result.id, userId: user.id });
+    loggers.inventory.info('Fiscal year audit started via API', { auditId: result.id, userId: user.id });
     res.status(201).json(result);
   } catch (error) {
     handleControllerError(error, res);

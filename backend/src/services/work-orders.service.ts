@@ -10,7 +10,7 @@
 
 import { Prisma, PrismaClient, TicketStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { SettingsService } from './settings.service';
 import { sendWorkOrderAssigned } from './email.service';
 import type {
@@ -429,7 +429,7 @@ export class WorkOrderService {
       return created;
     });
 
-    logger.info('Work order created', { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, department: data.department, reportedById, autoAssignedTo: autoAssigneeId ?? 'none' });
+    loggers.workOrders.info('Work order created', { ticketId: ticket.id, ticketNumber: ticket.ticketNumber, department: data.department, reportedById, autoAssignedTo: autoAssigneeId ?? 'none' });
 
     // Send email notification to auto-assigned worker (fire-and-forget)
     if (autoAssigneeId) {
@@ -471,7 +471,7 @@ export class WorkOrderService {
       include: WORK_ORDER_DETAIL_INCLUDE,
     });
 
-    logger.info('Work order updated', { ticketId: id, userId });
+    loggers.workOrders.info('Work order updated', { ticketId: id, userId });
     return updated;
   }
 
@@ -529,7 +529,7 @@ export class WorkOrderService {
       return result;
     });
 
-    logger.info('Work order status updated', {
+    loggers.workOrders.info('Work order status updated', {
       ticketId: id,
       from: ticket.status,
       to: data.status,
@@ -586,7 +586,7 @@ export class WorkOrderService {
       return result;
     });
 
-    logger.info('Work order assigned', { ticketId: id, assignedToId: data.assignedToId, userId });
+    loggers.workOrders.info('Work order assigned', { ticketId: id, assignedToId: data.assignedToId, userId });
 
     // Send email notification to newly assigned user (fire-and-forget)
     if (data.assignedToId) {
@@ -624,7 +624,7 @@ export class WorkOrderService {
       },
     });
 
-    logger.info('Comment added to work order', { ticketId, commentId: comment.id, isInternal });
+    loggers.workOrders.info('Comment added to work order', { ticketId, commentId: comment.id, isInternal });
     return comment;
   }
 
@@ -642,7 +642,7 @@ export class WorkOrderService {
 
     await this.prisma.ticket.delete({ where: { id } });
 
-    logger.info('Work order deleted', { ticketId: id, ticketNumber: ticket.ticketNumber });
+    loggers.workOrders.info('Work order deleted', { ticketId: id, ticketNumber: ticket.ticketNumber });
   }
 
   // -------------------------------------------------------------------------

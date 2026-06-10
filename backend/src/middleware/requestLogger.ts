@@ -5,7 +5,7 @@
 
 import morgan from 'morgan';
 import { v4 as uuidv4 } from 'uuid';
-import { logger } from '../lib/logger';
+import { logger, loggers } from '../lib/logger';
 import { Request, Response, NextFunction } from 'express';
 
 // Extend Express Request type to include logger and id
@@ -28,7 +28,7 @@ export const requestId = (req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Request-ID', req.id);
   
   // Attach logger with request context
-  req.logger = logger.child({ requestId: req.id });
+  req.logger = loggers.http.child({ requestId: req.id });
   
   next();
 };
@@ -65,12 +65,12 @@ const stream = {
     if (process.env.NODE_ENV === 'production') {
       try {
         const log = JSON.parse(message);
-        logger.http('HTTP Request', log);
+        loggers.http.http('HTTP Request', log);
       } catch {
-        logger.http(message.trim());
+        loggers.http.http(message.trim());
       }
     } else {
-      logger.http(message.trim());
+      loggers.http.http(message.trim());
     }
   },
 };

@@ -14,7 +14,7 @@ import { AuthRequest } from '../middleware/auth';
 import { PurchaseOrderService } from '../services/purchaseOrder.service';
 import { handleControllerError, sanitizeFilename } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import {
   PurchaseOrderQuerySchema,
   CreatePurchaseOrderSchema,

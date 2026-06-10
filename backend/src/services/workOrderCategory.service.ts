@@ -7,7 +7,7 @@
 
 import { PrismaClient, WorkOrderCategory, Prisma, WorkOrderCategoryModule } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import {
   CreateWorkOrderCategoryDto,
   UpdateWorkOrderCategoryDto,
@@ -111,7 +111,7 @@ export class WorkOrderCategoryService {
         tx.workOrderCategory.create({ data }),
       );
     });
-    logger.info('Work order category created', { id: record.id, name: record.name, module: record.module });
+    loggers.workOrders.info('Work order category created', { id: record.id, name: record.name, module: record.module });
     return record;
   }
 
@@ -149,7 +149,7 @@ export class WorkOrderCategoryService {
       return tx.workOrderCategory.update({ where: { id }, data });
     });
 
-    logger.info('Work order category updated', { id: record.id, name: record.name });
+    loggers.workOrders.info('Work order category updated', { id: record.id, name: record.name });
     return record;
   }
 
@@ -159,7 +159,7 @@ export class WorkOrderCategoryService {
   async delete(id: string): Promise<void> {
     await this.findById(id); // 404 guard
     await this.prisma.workOrderCategory.delete({ where: { id } });
-    logger.info('Work order category deleted', { id });
+    loggers.workOrders.info('Work order category deleted', { id });
   }
 
   // ---------------------------------------------------------------------------

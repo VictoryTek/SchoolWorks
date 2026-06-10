@@ -9,7 +9,7 @@ import { PrismaClient, InventoryImportJob, InventoryImportItem } from '@prisma/c
 import ExcelJS from 'exceljs';
 import { parse as parseCSV } from 'csv-parse/sync';
 import { z } from 'zod';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { ValidationError } from '../utils/errors';
 import { ImportOptions, ImportValidationError, ImportJobResult } from '../types/inventory.types';
 
@@ -102,7 +102,7 @@ export class InventoryImportService {
     options: ImportOptions = {},
     user: UserContext
   ): Promise<ImportJobResult> {
-    logger.info('Starting inventory import', {
+    loggers.inventory.info('Starting inventory import', {
       fileName,
       userId: user.id,
       options,
@@ -129,7 +129,7 @@ export class InventoryImportService {
         data: { totalRows: rows.length },
       });
 
-      logger.info('Excel file parsed', {
+      loggers.inventory.info('Excel file parsed', {
         jobId: job.id,
         totalRows: rows.length,
       });
@@ -164,7 +164,7 @@ export class InventoryImportService {
           },
         });
 
-        logger.info('Batch processed', {
+        loggers.inventory.info('Batch processed', {
           jobId: job.id,
           batchStart: i + 1,
           batchEnd: i + batch.length,
@@ -183,7 +183,7 @@ export class InventoryImportService {
         },
       });
 
-      logger.info('Import completed', {
+      loggers.inventory.info('Import completed', {
         jobId: job.id,
         totalRows: rows.length,
         successCount,
@@ -203,7 +203,7 @@ export class InventoryImportService {
         completedAt: new Date(),
       };
     } catch (error) {
-      logger.error('Import failed', {
+      loggers.inventory.error('Import failed', {
         jobId: job.id,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
@@ -245,10 +245,10 @@ export class InventoryImportService {
         cast: true,
       }) as ExcelRowData[];
 
-      logger.info('CSV file parsed', { rowCount: rows.length });
+      loggers.inventory.info('CSV file parsed', { rowCount: rows.length });
       return rows;
     } catch (error) {
-      logger.error('Failed to parse CSV file', {
+      loggers.inventory.error('Failed to parse CSV file', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw new ValidationError('Failed to parse file. Please ensure it is a valid .xlsx, .xls, or .csv file.');
@@ -280,14 +280,14 @@ export class InventoryImportService {
 
       const rows = this.worksheetToJson<ExcelRowData>(worksheet);
 
-      logger.info('Excel sheet parsed', {
+      loggers.inventory.info('Excel sheet parsed', {
         sheetName: worksheet.name,
         rowCount: rows.length,
       });
       return rows;
     } catch (error) {
       if (error instanceof ValidationError) throw error;
-      logger.error('Failed to parse Excel file', {
+      loggers.inventory.error('Failed to parse Excel file', {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       throw new ValidationError('Failed to parse file. Please ensure it is a valid .xlsx, .xls, or .csv file.');
@@ -428,7 +428,7 @@ export class InventoryImportService {
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         
-        logger.warn('Row import failed', {
+        loggers.inventory.warn('Row import failed', {
           jobId,
           rowNumber,
           error: errorMessage,

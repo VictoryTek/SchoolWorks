@@ -171,9 +171,9 @@ export function isRefreshTokenPayload(payload: unknown): payload is JWTRefreshTo
     'id' in payload &&
     'entraId' in payload &&
     'type' in payload &&
-    typeof (payload as any).id === 'string' &&
-    typeof (payload as any).entraId === 'string' &&
-    (payload as any).type === 'refresh'
+    typeof (payload as Record<string, unknown>).id === 'string' &&
+    typeof (payload as Record<string, unknown>).entraId === 'string' &&
+    (payload as Record<string, unknown>).type === 'refresh'
   );
 }
 

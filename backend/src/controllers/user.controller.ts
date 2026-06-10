@@ -4,7 +4,7 @@ import { UserService } from '../services/user.service';
 import { getUserIncidentSummary } from '../services/damageIncident.service';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 
 // Instantiate service
 const userService = new UserService(prisma);
@@ -206,7 +206,7 @@ export const searchUsers = async (req: Request, res: Response) => {
     const locationId = req.query.locationId ? String(req.query.locationId) : undefined;
     const staffOnly = req.query.staffOnly === 'true';
 
-    logger.debug('User autocomplete search', { q, limit, locationId, staffOnly });
+    loggers.user.debug('User autocomplete search', { q, limit, locationId, staffOnly });
 
     const users = await userService.searchForAutocomplete(q, limit, locationId, staffOnly);
     res.json(users);

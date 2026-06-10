@@ -10,7 +10,7 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { sanitizeText } from '../utils/redact';
 import {
   CreatePurchaseOrderDto,
@@ -241,7 +241,7 @@ export class PurchaseOrderService {
       return record;
     });
 
-    logger.info('Purchase order created', { id: po.id, requestorId, status: 'draft' });
+    loggers.purchaseOrder.info('Purchase order created', { id: po.id, requestorId, status: 'draft' });
     return po;
   }
 
@@ -300,7 +300,7 @@ export class PurchaseOrderService {
         userScopeClause = { OR: orClauses };
       } else {
         // No assigned locations and not FS supervisor — fall back to own POs only
-        logger.warn('Level-3 supervisor has no LocationSupervisor records; falling back to own-only scope', { userId });
+        loggers.purchaseOrder.warn('Level-3 supervisor has no LocationSupervisor records; falling back to own-only scope', { userId });
         userScopeClause = { requestorId: userId };
       }
     } else if (isFoodServiceOnly) {
@@ -648,7 +648,7 @@ export class PurchaseOrderService {
       });
     });
 
-    logger.info('Purchase order updated', { id, updatedBy: userId });
+    loggers.purchaseOrder.info('Purchase order updated', { id, updatedBy: userId });
     return updated;
   }
 
@@ -675,7 +675,7 @@ export class PurchaseOrderService {
     }
 
     await this.prisma.purchase_orders.delete({ where: { id } });
-    logger.info('Purchase order deleted', { id, deletedBy: userId });
+    loggers.purchaseOrder.info('Purchase order deleted', { id, deletedBy: userId });
   }
 
   /**
@@ -687,7 +687,7 @@ export class PurchaseOrderService {
     if (!po) throw new NotFoundError('PurchaseOrder', id);
 
     await this.prisma.purchase_orders.delete({ where: { id } });
-    logger.warn('Admin hard-deleted purchase order', {
+    loggers.purchaseOrder.warn('Admin hard-deleted purchase order', {
       id: po.id,
       reqNumber: po.reqNumber,
       poNumber: po.poNumber,
@@ -755,7 +755,7 @@ export class PurchaseOrderService {
             // Skip LocationSupervisor lookup entirely.
             isDistrictOffice = true;
             isSelfSupervisor = false;
-            logger.info('District Office PO — routing supervisor approval to Finance Director', {
+            loggers.purchaseOrder.info('District Office PO — routing supervisor approval to Finance Director', {
               id,
               locationId: po.officeLocationId,
             });
@@ -785,7 +785,7 @@ export class PurchaseOrderService {
                 .filter(Boolean).join(' ') ||
               null;
             isSelfSupervisor = false;
-            logger.info('Using location supervisor for approval routing', {
+            loggers.purchaseOrder.info('Using location supervisor for approval routing', {
               id,
               locationId:       po.officeLocationId,
               supervisorUserId: supervisorId,
@@ -799,7 +799,7 @@ export class PurchaseOrderService {
           // If no primary location supervisor found, fall through to personal supervisor
         } // end if (!isDistrictOffice)
       } catch (err) {
-        logger.warn('Location supervisor lookup failed, falling back to personal supervisor', {
+        loggers.purchaseOrder.warn('Location supervisor lookup failed, falling back to personal supervisor', {
           message: err instanceof Error ? err.message : String(err),
         });
       }
@@ -828,7 +828,7 @@ export class PurchaseOrderService {
           supervisorId = supervisorRecord!.supervisorId;
         }
       } catch (err) {
-        logger.warn('Supervisor lookup failed, proceeding without supervisor notification', {
+        loggers.purchaseOrder.warn('Supervisor lookup failed, proceeding without supervisor notification', {
           message: err instanceof Error ? err.message : String(err),
         });
         // isSelfSupervisor remains true → bypass path taken
@@ -892,7 +892,7 @@ export class PurchaseOrderService {
             return updated;
           });
 
-          logger.info('Purchase order auto-advanced past supervisor stage (self-supervisor)', {
+          loggers.purchaseOrder.info('Purchase order auto-advanced past supervisor stage (self-supervisor)', {
             id,
             submittedBy: userId,
             newStatus:   'supervisor_approved',
@@ -940,7 +940,7 @@ export class PurchaseOrderService {
             return updated;
           });
 
-          logger.info('Purchase order submitted', { id, submittedBy: userId });
+          loggers.purchaseOrder.info('Purchase order submitted', { id, submittedBy: userId });
 
           return { po: record, supervisorEmail, supervisorId, selfSupervisorBypass: false, isDistrictOffice };
         }
@@ -952,7 +952,7 @@ export class PurchaseOrderService {
           'code' in err &&
           (err as { code: string }).code === 'P2002';
         if (isPrismaUniqueError && attempt < MAX_REQ_RETRIES) {
-          logger.warn('Req number collision, retrying with next number', {
+          loggers.purchaseOrder.warn('Req number collision, retrying with next number', {
             id,
             reqNumber,
             attempt,
@@ -1011,7 +1011,7 @@ export class PurchaseOrderService {
     // ── Separation of duties ────────────────────────────────────────────────
     // 1. The requestor may not approve their own PO at any stage.
     if (po.requestorId === userId) {
-      logger.warn('Self-approval attempt blocked', {
+      loggers.purchaseOrder.warn('Self-approval attempt blocked', {
         poId: id,
         userId,
         action: 'self_approval_attempt',
@@ -1031,7 +1031,7 @@ export class PurchaseOrderService {
       },
     });
     if (priorApproval) {
-      logger.warn('Multi-stage approval attempt blocked', {
+      loggers.purchaseOrder.warn('Multi-stage approval attempt blocked', {
         poId: id,
         userId,
         priorStage: priorApproval.toStatus,
@@ -1054,7 +1054,7 @@ export class PurchaseOrderService {
         if (dosGroupId) {
           const isDosApprover = userGroups.includes(dosGroupId);
           if (!isDosApprover) {
-            logger.warn('Unauthorized approval attempt blocked', {
+            loggers.purchaseOrder.warn('Unauthorized approval attempt blocked', {
               poId: id,
               stage: 'food_service_dos',
               action: 'unauthorized_approval_attempt',
@@ -1072,7 +1072,7 @@ export class PurchaseOrderService {
         if (fdGroupId) {
           const isFinanceDirector = userGroups.includes(fdGroupId);
           if (!isFinanceDirector) {
-            logger.warn('Unauthorized approval attempt blocked', {
+            loggers.purchaseOrder.warn('Unauthorized approval attempt blocked', {
               poId: id,
               stage: 'finance_director',
               action: 'unauthorized_approval_attempt',
@@ -1091,7 +1091,7 @@ export class PurchaseOrderService {
       if (dosGroupId) {
         const isDosApprover = userGroups.includes(dosGroupId);
         if (!isDosApprover) {
-          logger.warn('Unauthorized approval attempt blocked', {
+          loggers.purchaseOrder.warn('Unauthorized approval attempt blocked', {
             poId: id,
             stage: 'director_of_schools',
             action: 'unauthorized_approval_attempt',
@@ -1130,7 +1130,7 @@ export class PurchaseOrderService {
           if (fdGroupId) {
             const isFinanceDirector = userGroups.includes(fdGroupId);
             if (!isFinanceDirector) {
-              logger.warn('Unauthorized approval attempt blocked', {
+              loggers.purchaseOrder.warn('Unauthorized approval attempt blocked', {
                 poId: id,
                 stage: 'district_office_supervisor',
                 action: 'unauthorized_approval_attempt',
@@ -1159,7 +1159,7 @@ export class PurchaseOrderService {
             }
           } else {
             // No primary supervisor assigned — block until one is configured.
-            logger.warn('Approval blocked — no primary supervisor for location', {
+            loggers.purchaseOrder.warn('Approval blocked — no primary supervisor for location', {
               poId: id,
               locationId: po.officeLocationId,
               action: 'no_supervisor_assigned',
@@ -1242,7 +1242,7 @@ export class PurchaseOrderService {
       return record;
     });
 
-    logger.info('Purchase order approved', {
+    loggers.purchaseOrder.info('Purchase order approved', {
       id,
       approvedBy: userId,
       permLevel,
@@ -1302,7 +1302,7 @@ export class PurchaseOrderService {
       return record;
     });
 
-    logger.info('Purchase order rejected', { id, rejectedBy: userId });
+    loggers.purchaseOrder.info('Purchase order rejected', { id, rejectedBy: userId });
     return updated;
   }
 
@@ -1362,7 +1362,7 @@ export class PurchaseOrderService {
       return record;
     });
 
-    logger.info('Account code assigned to purchase order', {
+    loggers.purchaseOrder.info('Account code assigned to purchase order', {
       id,
       accountCodeSet: true,
       assignedBy: userId,
@@ -1437,7 +1437,7 @@ export class PurchaseOrderService {
       return record;
     });
 
-    logger.info('Purchase order issued', {
+    loggers.purchaseOrder.info('Purchase order issued', {
       id,
       poNumber,
       issuedBy: userId,

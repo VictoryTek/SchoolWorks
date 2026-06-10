@@ -9,7 +9,7 @@
  */
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import {
   generateTransportationRequestPdf,
@@ -80,11 +80,11 @@ export class TransportationRequestService {
         // Self-supervisor bypass
         isSelfSupervisor = true;
         initialStatus = 'PENDING_SECRETARY_REVIEW';
-        logger.info('Self-supervisor bypass for transportation request', { userId });
+        loggers.transportation.info('Self-supervisor bypass for transportation request', { userId });
       } else {
         // No supervisor found — skip to secretary
         initialStatus = 'PENDING_SECRETARY_REVIEW';
-        logger.warn('No primary principal found for location, skipping supervisor step', {
+        loggers.transportation.warn('No primary principal found for location, skipping supervisor step', {
           officeLocationId: data.officeLocationId,
         });
       }
@@ -93,7 +93,7 @@ export class TransportationRequestService {
       initialStatus = 'PENDING_SECRETARY_REVIEW';
     }
 
-    logger.info('Creating transportation request', { userId, initialStatus });
+    loggers.transportation.info('Creating transportation request', { userId, initialStatus });
 
     const record = await prisma.transportationRequest.create({
       data: {
@@ -213,7 +213,7 @@ export class TransportationRequestService {
 
     await this.assertIsSupervisorForRequest(record, approverId);
 
-    logger.info('Supervisor approving transportation request', { id, approverId });
+    loggers.transportation.info('Supervisor approving transportation request', { id, approverId });
 
     return prisma.transportationRequest.update({
       where: { id },
@@ -235,7 +235,7 @@ export class TransportationRequestService {
 
     await this.assertIsSupervisorForRequest(record, denierId);
 
-    logger.info('Supervisor denying transportation request', { id, denierId });
+    loggers.transportation.info('Supervisor denying transportation request', { id, denierId });
 
     return prisma.transportationRequest.update({
       where: { id },
@@ -256,7 +256,7 @@ export class TransportationRequestService {
       throw new ValidationError(`Cannot approve a request with status '${record.status}'`);
     }
 
-    logger.info('Approving transportation request', { id, approverId });
+    loggers.transportation.info('Approving transportation request', { id, approverId });
 
     return prisma.transportationRequest.update({
       where: { id },
@@ -278,7 +278,7 @@ export class TransportationRequestService {
       throw new ValidationError(`Cannot deny a request with status '${record.status}'`);
     }
 
-    logger.info('Denying transportation request', { id, denierId });
+    loggers.transportation.info('Denying transportation request', { id, denierId });
 
     return prisma.transportationRequest.update({
       where: { id },
@@ -302,7 +302,7 @@ export class TransportationRequestService {
       throw new ValidationError('Only pending requests can be deleted');
     }
 
-    logger.info('Deleting transportation request', { id, userId });
+    loggers.transportation.info('Deleting transportation request', { id, userId });
     await prisma.transportationRequest.delete({ where: { id } });
   }
 
@@ -314,7 +314,7 @@ export class TransportationRequestService {
     if (!record) throw new NotFoundError('TransportationRequest', id);
 
     await prisma.transportationRequest.delete({ where: { id } });
-    logger.warn('Admin hard-deleted transportation request', {
+    loggers.transportation.warn('Admin hard-deleted transportation request', {
       id: record.id,
       status: record.status,
       submittedById: record.submittedById,

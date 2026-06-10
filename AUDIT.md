@@ -292,7 +292,7 @@ The following variables are used in code but undocumented in `.env.example`:
 
 ## 5. Code Quality Issues
 
-### QA-1 ⚪ — `as any` Casts Used as Response Type Escape Hatches
+### ~~QA-1~~ ✅ — ~~`as any` Casts Used as Response Type Escape Hatches~~
 **File:** `backend/src/controllers/auth.controller.ts` (lines 57, 343, 486, etc.)
 
 `res.status(500).json({ error: '...' } as any)` appears throughout the auth controller as a workaround for TypeScript strict typing on response generics. This defeats the purpose of typed response bodies.
@@ -301,7 +301,7 @@ The following variables are used in code but undocumented in `.env.example`:
 
 ---
 
-### QA-2 ⚪ — `any` Type Annotations in Controllers
+### ~~QA-2~~ ✅ — ~~`any` Type Annotations in Controllers~~
 **Files:** `backend/src/controllers/inventory.controller.ts` (lines 516, 527), `backend/src/controllers/referenceData.controller.ts` (lines 151, 168), `backend/src/controllers/work-orders.controller.ts` (line 35)
 
 Multiple `any` annotations allow type-unsafe operations on data going to/from the database.
@@ -310,7 +310,7 @@ Multiple `any` annotations allow type-unsafe operations on data going to/from th
 
 ---
 
-### QA-3 ⚪ — Cron Expression From Environment Not Validated at Startup
+### ~~QA-3~~ ✅ — ~~Cron Expression From Environment Not Validated at Startup~~
 **File:** `backend/src/services/cronJobs.service.ts` (line 31)
 
 `const schedule = process.env.SUPERVISOR_SYNC_SCHEDULE || '0 2 * * *'` — a user-supplied cron expression from the environment is not validated before being passed to `cron.schedule()`. An invalid expression will throw at startup with an unhelpful error.
@@ -319,7 +319,7 @@ Multiple `any` annotations allow type-unsafe operations on data going to/from th
 
 ---
 
-### QA-4 ⚪ — `bulkUpdateInventory` Body Has No Zod Validation
+### ~~QA-4~~ ✅ — ~~`bulkUpdateInventory` Body Has No Zod Validation~~
 **File:** `backend/src/controllers/inventory.controller.ts` (lines 320–344)
 
 `const { itemIds, updates } = req.body` — neither field is validated. `updates` is passed directly to `inventoryService.bulkUpdate()` with no type safety.
@@ -328,7 +328,7 @@ Multiple `any` annotations allow type-unsafe operations on data going to/from th
 
 ---
 
-### QA-5 ⚪ — Inconsistent Logger Usage (`logger` vs `loggers` child loggers)
+### ~~QA-5~~ ✅ — ~~Inconsistent Logger Usage (`logger` vs `loggers` child loggers)~~
 **File:** `backend/src/lib/logger.ts`
 
 Some controllers import the default `logger` export while others use `loggers.moduleName` child loggers. This makes it harder to filter and search logs by component.

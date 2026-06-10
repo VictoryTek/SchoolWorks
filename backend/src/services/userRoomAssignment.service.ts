@@ -1,8 +1,7 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { createLogger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 
-const logger = createLogger('UserRoomAssignmentService');
 
 export class UserRoomAssignmentService {
   constructor(private prisma: PrismaClient) {}
@@ -284,7 +283,7 @@ export class UserRoomAssignmentService {
       data: { primaryRoomId: roomId },
     });
 
-    logger.info('Users assigned to room', {
+    loggers.roomAssignments.info('Users assigned to room', {
       roomId,
       assignedCount: result.count,
       totalRequested: userIds.length,
@@ -323,7 +322,7 @@ export class UserRoomAssignmentService {
       data: { primaryRoomId: null },
     });
 
-    logger.info('User unassigned from room', { roomId, userId });
+    loggers.roomAssignments.info('User unassigned from room', { roomId, userId });
   }
 
   /**
@@ -400,7 +399,7 @@ export class UserRoomAssignmentService {
       },
     });
 
-    logger.info('Primary room updated', { userId, roomId });
+    loggers.roomAssignments.info('Primary room updated', { userId, roomId });
     return updated;
   }
 

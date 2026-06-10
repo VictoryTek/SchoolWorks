@@ -40,6 +40,13 @@ class CronJobsService {
     // Default: 0 2 * * * = Every day at 2:00 AM
     const schedule = process.env.SUPERVISOR_SYNC_SCHEDULE || '0 2 * * *';
 
+    if (!cron.validate(schedule)) {
+      throw new Error(
+        `Invalid SUPERVISOR_SYNC_SCHEDULE: "${schedule}". ` +
+        'Must be a valid cron expression (e.g. "0 2 * * *" for 2 AM daily).'
+      );
+    }
+
     const job = cron.schedule(
       schedule,
       async () => {

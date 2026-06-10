@@ -10,7 +10,7 @@
 
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import type {
   CreateTransportationDto,
@@ -101,7 +101,7 @@ export class FieldTripTransportationService {
       throw new ValidationError('Driver name is required when you are providing your own driver');
     }
 
-    logger.info('Creating transportation request draft', { userId, fieldTripId });
+    loggers.fieldTrip.info('Creating transportation request draft', { userId, fieldTripId });
 
     return prisma.fieldTripTransportationRequest.create({
       data: {
@@ -198,7 +198,7 @@ export class FieldTripTransportationService {
       throw new ValidationError('Driver name is required when you are providing your own driver');
     }
 
-    logger.info('Updating transportation request', { userId, fieldTripId });
+    loggers.fieldTrip.info('Updating transportation request', { userId, fieldTripId });
 
     return prisma.fieldTripTransportationRequest.update({
       where:   { fieldTripRequestId: fieldTripId },
@@ -240,7 +240,7 @@ export class FieldTripTransportationService {
       throw new ValidationError('Driver name is required when you are providing your own driver');
     }
 
-    logger.info('Submitting transportation request', { userId, fieldTripId });
+    loggers.fieldTrip.info('Submitting transportation request', { userId, fieldTripId });
 
     return prisma.fieldTripTransportationRequest.update({
       where: { fieldTripRequestId: fieldTripId },
@@ -298,7 +298,7 @@ export class FieldTripTransportationService {
       );
     }
 
-    logger.info('Approving transportation request Part C', { userId, fieldTripId });
+    loggers.fieldTrip.info('Approving transportation request Part C', { userId, fieldTripId });
 
     return prisma.fieldTripTransportationRequest.update({
       where: { fieldTripRequestId: fieldTripId },
@@ -360,7 +360,7 @@ export class FieldTripTransportationService {
       );
     }
 
-    logger.info('Denying transportation request Part C', { userId, fieldTripId });
+    loggers.fieldTrip.info('Denying transportation request Part C', { userId, fieldTripId });
 
     return prisma.fieldTripTransportationRequest.update({
       where: { fieldTripRequestId: fieldTripId },

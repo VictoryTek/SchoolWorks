@@ -12,7 +12,7 @@
 
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { fieldTripTransportationService } from '../services/fieldTripTransportation.service';
 import {
   CreateTransportationSchema,
@@ -131,7 +131,7 @@ export const submit = async (req: AuthRequest, res: Response): Promise<void> => 
           );
         })
         .catch((err) => {
-          logger.warn('Failed to send transportation step 2 submitted notice', {
+          loggers.fieldTrip.warn('Failed to send transportation step 2 submitted notice', {
             error: err instanceof Error ? err.message : String(err),
           });
         });
@@ -180,7 +180,7 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
           transportationNotes:    result.transportationNotes,
         },
       ).catch((err) => {
-        logger.warn('Failed to send transportation approved email', {
+        loggers.fieldTrip.warn('Failed to send transportation approved email', {
           error: err instanceof Error ? err.message : String(err),
         });
       });
@@ -226,7 +226,7 @@ export const deny = async (req: AuthRequest, res: Response): Promise<void> => {
         },
         data.reason,
       ).catch((err) => {
-        logger.warn('Failed to send transportation denied email', {
+        loggers.fieldTrip.warn('Failed to send transportation denied email', {
           error: err instanceof Error ? err.message : String(err),
         });
       });

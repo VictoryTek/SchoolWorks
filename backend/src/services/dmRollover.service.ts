@@ -10,7 +10,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { ValidationError } from '../utils/errors';
 import { StartDmRolloverInput } from '../validators/dmRollover.validators';
 
@@ -151,7 +151,7 @@ export class DmRolloverService {
         },
       });
 
-      logger.info('DM year rollover completed', {
+      loggers.dmRollover.info('DM year rollover completed', {
         outgoingSchoolYear: data.outgoingSchoolYear,
         newSchoolYear: data.newSchoolYear,
         incidentsStamped,

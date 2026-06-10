@@ -4,7 +4,7 @@ import { handleControllerError } from '../utils/errorHandler';
 import * as service from '../services/damageIncident.service';
 import { prisma } from '../lib/prisma';
 import { sendBuildingAdminIncidentAlert } from '../services/email.service';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import type { z } from 'zod';
 import type {
   CreateDamageIncidentSchema,
@@ -220,7 +220,7 @@ export const notifyBuildingAdmin = async (req: AuthRequest, res: Response): Prom
     const [localPart, domain] = adminInfo.adminEmail.split('@');
     const maskedEmail = localPart ? `${localPart[0]}***@${domain ?? ''}` : adminInfo.adminEmail;
 
-    logger.info('Building admin incident alert queued', {
+    loggers.damageIncident.info('Building admin incident alert queued', {
       userId,
       schoolName:   adminInfo.schoolName,
       recipientEmail: maskedEmail,

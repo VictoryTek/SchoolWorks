@@ -11,7 +11,7 @@
  */
 
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import type { FieldTripApproverSnapshot } from './email.service';
 import type { CreateFieldTripDto, UpdateFieldTripDto } from '../validators/fieldTrip.validators';
@@ -96,7 +96,7 @@ export class FieldTripService {
   // -------------------------------------------------------------------------
 
   async createDraft(userId: string, submitterEmail: string, data: CreateFieldTripDto) {
-    logger.info('Creating field trip draft', { userId });
+    loggers.fieldTrip.info('Creating field trip draft', { userId });
 
     return prisma.fieldTripRequest.create({
       data: {
@@ -155,7 +155,7 @@ export class FieldTripService {
       throw new ValidationError('Only draft or revision-pending requests can be edited');
     }
 
-    logger.info('Updating field trip draft', { userId, id });
+    loggers.fieldTrip.info('Updating field trip draft', { userId, id });
 
     const updateData: Record<string, unknown> = {};
     if (data.teacherName          !== undefined) updateData.teacherName          = data.teacherName;
@@ -228,7 +228,7 @@ export class FieldTripService {
 
     const settings = await prisma.systemSettings.findUnique({ where: { id: 'singleton' } });
 
-    logger.info('Submitting field trip', { userId, id, firstStatus });
+    loggers.fieldTrip.info('Submitting field trip', { userId, id, firstStatus });
 
     const updated = await prisma.$transaction(async (tx) => {
       const updated = await tx.fieldTripRequest.update({
@@ -316,7 +316,7 @@ export class FieldTripService {
     });
     const approverName = approver ? resolveDisplayName(approver) : 'Unknown Approver';
 
-    logger.info('Approving field trip', { userId, id, stage, nextStatus });
+    loggers.fieldTrip.info('Approving field trip', { userId, id, stage, nextStatus });
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.fieldTripApproval.create({
@@ -404,7 +404,7 @@ export class FieldTripService {
     });
     const denierName = denier ? resolveDisplayName(denier) : 'Unknown';
 
-    logger.info('Denying field trip', { userId, id, stage });
+    loggers.fieldTrip.info('Denying field trip', { userId, id, stage });
 
     const updated = await prisma.$transaction(async (tx) => {
       await tx.fieldTripApproval.create({
@@ -480,7 +480,7 @@ export class FieldTripService {
     });
     const senderName = sender ? resolveDisplayName(sender) : 'Unknown';
 
-    logger.info('Sending field trip back for revision', { userId, id, stage });
+    loggers.fieldTrip.info('Sending field trip back for revision', { userId, id, stage });
 
     const fromStatus = trip.status;
 
@@ -548,7 +548,7 @@ export class FieldTripService {
     const firstStatus =
       snapshot.supervisorEmails.length > 0 ? 'PENDING_SUPERVISOR' : 'PENDING_ASST_DIRECTOR';
 
-    logger.info('Resubmitting field trip for revision', { userId, id, firstStatus });
+    loggers.fieldTrip.info('Resubmitting field trip for revision', { userId, id, firstStatus });
 
     const updated = await prisma.$transaction(async (tx) => {
       const updated = await tx.fieldTripRequest.update({
@@ -725,7 +725,7 @@ export class FieldTripService {
       throw new AuthorizationError('You do not have permission to view this field trip request');
     }
 
-    logger.info('Generating field trip PDF', { userId, id });
+    loggers.fieldTrip.info('Generating field trip PDF', { userId, id });
 
     return generateFieldTripPdf(trip);
   }
@@ -744,7 +744,7 @@ export class FieldTripService {
       throw new ValidationError('Only draft requests can be deleted');
     }
 
-    logger.info('Deleting field trip draft', { userId, id });
+    loggers.fieldTrip.info('Deleting field trip draft', { userId, id });
 
     await prisma.fieldTripRequest.delete({ where: { id } });
   }
@@ -758,7 +758,7 @@ export class FieldTripService {
     if (!trip) throw new NotFoundError('FieldTripRequest', id);
 
     await prisma.fieldTripRequest.delete({ where: { id } });
-    logger.warn('Admin hard-deleted field trip request', {
+    loggers.fieldTrip.warn('Admin hard-deleted field trip request', {
       id: trip.id,
       status: trip.status,
       tripDate: trip.tripDate,

@@ -8,7 +8,7 @@
 
 import { PrismaClient, Prisma } from '@prisma/client';
 import { NotFoundError, ValidationError, AppError, ConflictError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import {
   StartAuditSessionDto,
   CompleteSessionDto,
@@ -175,7 +175,7 @@ export class InventoryAuditService {
       return created;
     });
 
-    logger.info('Inventory audit session started', {
+    loggers.inventory.info('Inventory audit session started', {
       sessionId: session.id,
       userId: user.id,
       locationId: dto.officeLocationId,
@@ -548,7 +548,7 @@ export class InventoryAuditService {
         : []),
     ]);
 
-    logger.info('Inventory audit session completed', {
+    loggers.inventory.info('Inventory audit session completed', {
       sessionId,
       userId: user.id,
       missingCount: updatedSession.missingCount,
@@ -591,7 +591,7 @@ export class InventoryAuditService {
       },
     });
 
-    logger.info('Inventory audit session abandoned', { sessionId, userId: user.id });
+    loggers.inventory.info('Inventory audit session abandoned', { sessionId, userId: user.id });
 
     return updated;
   }
@@ -700,7 +700,7 @@ export class InventoryAuditService {
 
     const sessionCounts = await this._recalculateSessionCounts(sessionId);
 
-    logger.info('Bulk audit item update', {
+    loggers.inventory.info('Bulk audit item update', {
       sessionId,
       userId: user.id,
       updated,
@@ -954,7 +954,7 @@ export class InventoryAuditService {
     // Recalculate session unresolved count
     await this._recalculateSessionCounts(item.sessionId);
 
-    logger.info('Audit item resolved', {
+    loggers.inventory.info('Audit item resolved', {
       itemId,
       sessionId: item.sessionId,
       equipmentId: item.equipmentId,
@@ -1174,7 +1174,7 @@ export class InventoryAuditService {
     // 8. Re-fetch session counts for the response
     const sessionCounts = await this._recalculateSessionCounts(sessionId);
 
-    logger.info('Equipment addition added to audit session', {
+    loggers.inventory.info('Equipment addition added to audit session', {
       sessionId,
       equipmentId: equipment.id,
       equipmentTag: equipment.assetTag,
@@ -1388,7 +1388,7 @@ export class InventoryAuditService {
       },
     });
 
-    logger.info('Fiscal year audit started', {
+    loggers.inventory.info('Fiscal year audit started', {
       auditId: audit.id,
       fiscalYear: dto.fiscalYear,
       userId: user.id,
@@ -1546,7 +1546,7 @@ export class InventoryAuditService {
       data: { completedLocations: completedCount },
     });
 
-    logger.info('Fiscal year audit location completed', {
+    loggers.inventory.info('Fiscal year audit location completed', {
       auditId,
       officeLocationId: dto.officeLocationId,
       userId: user.id,
@@ -1602,7 +1602,7 @@ export class InventoryAuditService {
       },
     });
 
-    logger.info('Fiscal year audit closed', {
+    loggers.inventory.info('Fiscal year audit closed', {
       auditId,
       fiscalYear: audit.fiscalYear,
       userId: user.id,

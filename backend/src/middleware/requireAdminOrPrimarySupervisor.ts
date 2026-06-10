@@ -1,9 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from './auth';
 import { prisma } from '../lib/prisma';
-import { createLogger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 
-const logger = createLogger('RequireAdminOrPrimarySupervisor');
 
 type LocationIdSource = 'body' | 'params' | 'query';
 
@@ -67,7 +66,7 @@ export const requireAdminOrPrimarySupervisor = (
       });
 
       if (!record) {
-        logger.warn('Forbidden: not primary supervisor', {
+        loggers.accessControl.warn('Forbidden: not primary supervisor', {
           requesterId: req.user.id,
           targetLocationId: locationId,
           action: 'room-assignment',
@@ -81,7 +80,7 @@ export const requireAdminOrPrimarySupervisor = (
 
       next();
     } catch (error) {
-      logger.error('Error checking primary supervisor status', {
+      loggers.accessControl.error('Error checking primary supervisor status', {
         requesterId: req.user.id,
         targetLocationId: locationId,
         error,

@@ -7,7 +7,7 @@
 
 import { PrismaClient } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../utils/errors';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import {
   AssignToUserDto,
   AssignToRoomDto,
@@ -143,7 +143,7 @@ export class AssignmentService {
         },
       });
 
-      logger.info('Equipment assigned to user', {
+      loggers.assignment.info('Equipment assigned to user', {
         equipmentId,
         equipmentTag: equipment.assetTag,
         userId,
@@ -264,7 +264,7 @@ export class AssignmentService {
         },
       });
 
-      logger.info('Equipment assigned to room', {
+      loggers.assignment.info('Equipment assigned to room', {
         equipmentId,
         equipmentTag: equipment.assetTag,
         roomId,
@@ -371,7 +371,7 @@ export class AssignmentService {
         },
       });
 
-      logger.info('Equipment unassigned', {
+      loggers.assignment.info('Equipment unassigned', {
         equipmentId,
         equipmentTag: equipment.assetTag,
         unassignType,
@@ -494,7 +494,7 @@ export class AssignmentService {
         },
       });
 
-      logger.info('Equipment transferred between users', {
+      loggers.assignment.info('Equipment transferred between users', {
         equipmentId,
         equipmentTag: equipment.assetTag,
         fromUserId,
@@ -547,7 +547,7 @@ export class AssignmentService {
       this.prisma.equipmentAssignmentHistory.count({ where }),
     ]);
 
-    logger.info('Assignment history retrieved', {
+    loggers.assignment.info('Assignment history retrieved', {
       equipmentId,
       count: history.length,
       total,
@@ -595,7 +595,7 @@ export class AssignmentService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    logger.info('User assignments retrieved', {
+    loggers.assignment.info('User assignments retrieved', {
       userId,
       count: equipment.length,
     });
@@ -642,7 +642,7 @@ export class AssignmentService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    logger.info('Room assignments retrieved', {
+    loggers.assignment.info('Room assignments retrieved', {
       roomId,
       roomName: room.name,
       count: equipment.length,
@@ -684,7 +684,7 @@ export class AssignmentService {
       }
     }
 
-    logger.info('Bulk assignment completed', {
+    loggers.assignment.info('Bulk assignment completed', {
       total: equipmentIds.length,
       success: result.success,
       failed: result.failed,

@@ -10,7 +10,7 @@
 
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
-import { WorkOrderService } from '../services/work-orders.service';
+import { WorkOrderService, WorkOrderListResponse } from '../services/work-orders.service';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
 import {
@@ -32,7 +32,10 @@ const service = new WorkOrderService(prisma);
 // Response mapper — renames DB field `ticketNumber` → `workOrderNumber`
 // ---------------------------------------------------------------------------
 
-function mapTicket(ticket: any): any {
+type WorkOrderSummary = WorkOrderListResponse['items'][number];
+type MappedWorkOrder = Omit<WorkOrderSummary, 'ticketNumber'> & { workOrderNumber: WorkOrderSummary['ticketNumber'] };
+
+function mapTicket(ticket: WorkOrderSummary): MappedWorkOrder {
   if (!ticket) return ticket;
   const { ticketNumber, ...rest } = ticket;
   return { ...rest, workOrderNumber: ticketNumber };

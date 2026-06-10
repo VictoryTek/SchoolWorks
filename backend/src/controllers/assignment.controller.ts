@@ -10,7 +10,7 @@ import { AuthRequest } from '../middleware/auth';
 import { AssignmentService } from '../services/assignment.service';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import { AssignmentUserContext } from '../types/assignment.types';
 
 // Instantiate service
@@ -66,7 +66,7 @@ export const assignEquipmentToUser = async (req: AuthRequest, res: Response) => 
       userContext
     );
 
-    logger.info('Equipment assigned to user via API', {
+    loggers.assignment.info('Equipment assigned to user via API', {
       equipmentId,
       userId,
       assignedBy: req.user?.id,
@@ -94,7 +94,7 @@ export const assignEquipmentToRoom = async (req: AuthRequest, res: Response) => 
       userContext
     );
 
-    logger.info('Equipment assigned to room via API', {
+    loggers.assignment.info('Equipment assigned to room via API', {
       equipmentId,
       roomId,
       assignedBy: req.user?.id,
@@ -122,7 +122,7 @@ export const unassignEquipment = async (req: AuthRequest, res: Response) => {
       userContext
     );
 
-    logger.info('Equipment unassigned via API', {
+    loggers.assignment.info('Equipment unassigned via API', {
       equipmentId,
       unassignType,
       unassignedBy: req.user?.id,
@@ -150,7 +150,7 @@ export const transferEquipment = async (req: AuthRequest, res: Response) => {
       userContext
     );
 
-    logger.info('Equipment transferred via API', {
+    loggers.assignment.info('Equipment transferred via API', {
       equipmentId,
       fromUserId,
       toUserId,
@@ -178,7 +178,7 @@ export const getAssignmentHistory = async (req: AuthRequest, res: Response) => {
       assignmentType: assignmentType as 'user' | 'room' | 'location' | undefined,
     });
 
-    logger.info('Assignment history retrieved via API', {
+    loggers.assignment.info('Assignment history retrieved via API', {
       equipmentId,
       userId: req.user?.id,
       count: result.history.length,
@@ -237,7 +237,7 @@ export const getCurrentAssignment = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'Equipment not found' });
     }
 
-    logger.info('Current assignment retrieved via API', {
+    loggers.assignment.info('Current assignment retrieved via API', {
       equipmentId,
       userId: req.user?.id,
     });
@@ -258,7 +258,7 @@ export const getUserAssignedEquipment = async (req: AuthRequest, res: Response) 
 
     const equipment = await assignmentService.getUserAssignments(userId);
 
-    logger.info('User assigned equipment retrieved via API', {
+    loggers.assignment.info('User assigned equipment retrieved via API', {
       userId,
       requestedBy: req.user?.id,
       count: equipment.length,
@@ -283,7 +283,7 @@ export const getRoomAssignedEquipment = async (req: AuthRequest, res: Response) 
 
     const result = await assignmentService.getRoomAssignments(roomId);
 
-    logger.info('Room assigned equipment retrieved via API', {
+    loggers.assignment.info('Room assigned equipment retrieved via API', {
       roomId,
       requestedBy: req.user?.id,
       count: result.equipment.length,
@@ -313,7 +313,7 @@ export const bulkAssignEquipment = async (req: AuthRequest, res: Response) => {
       userContext
     );
 
-    logger.info('Bulk assignment completed via API', {
+    loggers.assignment.info('Bulk assignment completed via API', {
       total: equipmentIds.length,
       success: result.success,
       failed: result.failed,
@@ -390,7 +390,7 @@ export const getMyEquipment = async (req: AuthRequest, res: Response) => {
       assignmentSource: item.assignedToUserId === currentUserId ? 'user' : 'room',
     }));
 
-    logger.info('My equipment retrieved via API', {
+    loggers.assignment.info('My equipment retrieved via API', {
       userId: currentUserId,
       count: equipment.length,
       page,

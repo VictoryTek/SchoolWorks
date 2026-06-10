@@ -10,9 +10,10 @@ import { AuthRequest } from '../middleware/auth';
 import { InventoryService } from '../services/inventory.service';
 import { InventoryImportService } from '../services/inventoryImport.service';
 import { handleControllerError } from '../utils/errorHandler';
-import { GetInventoryQuerySchema, InventorySearchQuerySchema, ExportInventory, ImportOptionsSchema, BulkDeleteInventorySchema } from '../validators/inventory.validators';
+import { GetInventoryQuerySchema, InventorySearchQuerySchema, ExportInventory, ImportOptionsSchema, BulkDeleteInventorySchema, BulkUpdateInventorySchema } from '../validators/inventory.validators';
+import { InventoryItemWithRelations } from '../types/inventory.types';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
+import { loggers } from '../lib/logger';
 import ExcelJS from 'exceljs';
 
 // Instantiate services
@@ -29,7 +30,7 @@ export const getInventory = async (req: AuthRequest, res: Response) => {
 
     const result = await inventoryService.findAll(query);
 
-    logger.info('Inventory items retrieved', {
+    loggers.inventory.info('Inventory items retrieved', {
       userId: req.user?.id,
       count: result.items.length,
       total: result.total,
@@ -57,7 +58,7 @@ export const searchInventory = async (req: AuthRequest, res: Response) => {
       status,
     });
 
-    logger.info('Inventory search completed', {
+    loggers.inventory.info('Inventory search completed', {
       userId: req.user?.id,
       q,
       resultCount: results.length,
@@ -77,7 +78,7 @@ export const getInventoryStats = async (req: AuthRequest, res: Response) => {
   try {
     const stats = await inventoryService.getStatistics();
 
-    logger.info('Inventory statistics retrieved', {
+    loggers.inventory.info('Inventory statistics retrieved', {
       userId: req.user?.id,
       totalItems: stats.totalItems,
     });
@@ -97,7 +98,7 @@ export const getInventoryItem = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const item = await inventoryService.findById(id as string);
 
-    logger.info('Inventory item retrieved', {
+    loggers.inventory.info('Inventory item retrieved', {
       userId: req.user?.id,
       itemId: item.id,
       assetTag: item.assetTag,
@@ -118,7 +119,7 @@ export const getInventoryHistory = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const history = await inventoryService.getHistory(id as string);
 
-    logger.info('Inventory history retrieved', {
+    loggers.inventory.info('Inventory history retrieved', {
       userId: req.user?.id,
       itemId: id,
       changeCount: history.length,
@@ -148,7 +149,7 @@ export const createInventoryItem = async (req: AuthRequest, res: Response) => {
 
     const item = await inventoryService.create(req.body, user);
 
-    logger.info('Inventory item created', {
+    loggers.inventory.info('Inventory item created', {
       userId: req.user.id,
       itemId: item.id,
       assetTag: item.assetTag,
@@ -179,7 +180,7 @@ export const updateInventoryItem = async (req: AuthRequest, res: Response) => {
 
     const item = await inventoryService.update(id as string, req.body, user);
 
-    logger.info('Inventory item updated', {
+    loggers.inventory.info('Inventory item updated', {
       userId: req.user.id,
       itemId: item.id,
       assetTag: item.assetTag,
@@ -219,7 +220,7 @@ export const deleteInventoryItem = async (req: AuthRequest, res: Response) => {
 
     await inventoryService.delete(id as string, permanent, user);
 
-    logger.warn('Inventory item deleted', {
+    loggers.inventory.warn('Inventory item deleted', {
       userId: req.user.id,
       itemId: id,
       permanent,
@@ -249,14 +250,14 @@ export const bulkDeleteInventory = async (req: AuthRequest, res: Response) => {
     }
     const { ids } = parsed.data;
 
-    logger.warn('Bulk delete disposed inventory items requested', {
+    loggers.inventory.warn('Bulk delete disposed inventory items requested', {
       userId: req.user.id,
       count: ids.length,
     });
 
     const result = await inventoryService.bulkDelete(ids);
 
-    logger.warn('Bulk inventory delete completed', {
+    loggers.inventory.warn('Bulk inventory delete completed', {
       userId: req.user.id,
       deletedCount: result.deletedCount,
     });
@@ -277,7 +278,11 @@ export const bulkUpdateInventory = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Authentication required' });
     }
 
-    const { itemIds, updates } = req.body;
+    const parsed = BulkUpdateInventorySchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
+    }
+    const { itemIds, updates } = parsed.data;
     const user = {
       id: req.user.id,
       email: req.user.email,
@@ -286,7 +291,7 @@ export const bulkUpdateInventory = async (req: AuthRequest, res: Response) => {
 
     const result = await inventoryService.bulkUpdate(itemIds, updates, user);
 
-    logger.info('Bulk inventory update completed', {
+    loggers.inventory.info('Bulk inventory update completed', {
       userId: req.user.id,
       updated: result.updated,
       failed: result.failed,
@@ -307,7 +312,7 @@ export const getInventoryByLocation = async (req: AuthRequest, res: Response) =>
     const { locationId } = req.params;
     const items = await inventoryService.findByLocation(locationId as string);
 
-    logger.info('Location inventory retrieved', {
+    loggers.inventory.info('Location inventory retrieved', {
       userId: req.user?.id,
       locationId,
       count: items.length,
@@ -332,7 +337,7 @@ export const getInventoryByRoom = async (req: AuthRequest, res: Response) => {
     const { roomId } = req.params;
     const items = await inventoryService.findByRoom(roomId as string);
 
-    logger.info('Room inventory retrieved', {
+    loggers.inventory.info('Room inventory retrieved', {
       userId: req.user?.id,
       roomId,
       count: items.length,
@@ -402,7 +407,7 @@ export const importInventory = async (req: AuthRequest, res: Response) => {
       name: req.user.name,
     };
 
-    logger.info('Starting inventory import', {
+    loggers.inventory.info('Starting inventory import', {
       userId: req.user.id,
       fileName: req.file.originalname,
       fileSize: req.file.size,
@@ -417,7 +422,7 @@ export const importInventory = async (req: AuthRequest, res: Response) => {
       user
     );
 
-    logger.info('Inventory import completed', {
+    loggers.inventory.info('Inventory import completed', {
       userId: req.user.id,
       jobId: result.jobId,
       successCount: result.successCount,
@@ -439,7 +444,7 @@ export const getImportJobStatus = async (req: AuthRequest, res: Response) => {
     const { jobId } = req.params;
     const job = await importService.getImportJob(jobId as string);
 
-    logger.info('Import job status retrieved', {
+    loggers.inventory.info('Import job status retrieved', {
       userId: req.user?.id,
       jobId,
       status: job.status,
@@ -460,7 +465,7 @@ export const getImportJobs = async (req: AuthRequest, res: Response) => {
     const userId = req.query.userId as string | undefined;
     const jobs = await importService.getImportJobs(userId);
 
-    logger.info('Import jobs retrieved', {
+    loggers.inventory.info('Import jobs retrieved', {
       userId: req.user?.id,
       count: jobs.length,
     });
@@ -491,7 +496,7 @@ export const exportInventory = async (req: AuthRequest, res: Response) => {
     const result = await inventoryService.findAll(query);
 
     // Build worksheet rows
-    const rows = result.items.map((item: any) => ({
+    const rows = result.items.map((item: InventoryItemWithRelations) => ({
       'Asset Tag': item.assetTag ?? '',
       'Name': item.name ?? '',
       'Category': item.category?.name ?? '',
@@ -540,7 +545,7 @@ export const exportInventory = async (req: AuthRequest, res: Response) => {
     res.setHeader('Content-Length', buf.length);
     res.send(buf);
 
-    logger.info('Inventory exported', {
+    loggers.inventory.info('Inventory exported', {
       userId: req.user?.id,
       rowCount: rows.length,
     });
