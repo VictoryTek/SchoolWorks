@@ -15,7 +15,7 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import EmailIcon from '@mui/icons-material/Email';
 import PersonIcon from '@mui/icons-material/Person';
 import LogoutIcon from '@mui/icons-material/Logout';
-import api from '../services/api';
+import api, { cancelProactiveRefresh } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 
 interface AdminContact {
@@ -29,6 +29,7 @@ export default function AccessDenied() {
   const [loading, setLoading] = useState(true);
 
   const handleLogout = () => {
+    cancelProactiveRefresh();
     sessionStorage.setItem('explicit_logout', 'true');
     clearAuth();
     window.location.href = '/login';

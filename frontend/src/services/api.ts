@@ -35,6 +35,7 @@ function doRefresh(): Promise<void> {
     })
     .catch((err) => {
       // Refresh failed — force logout
+      cancelProactiveRefresh();
       sessionStorage.setItem('explicit_logout', 'true');
       useAuthStore.getState().clearAuth();
       window.location.href = '/login';
@@ -52,6 +53,13 @@ function doRefresh(): Promise<void> {
 // is actively using the app. The interval resets on any user activity.
 const PROACTIVE_REFRESH_MS = 25 * 60 * 1000; // 25 minutes
 let proactiveTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function cancelProactiveRefresh() {
+  if (proactiveTimer) {
+    clearTimeout(proactiveTimer);
+    proactiveTimer = null;
+  }
+}
 
 function scheduleProactiveRefresh() {
   if (proactiveTimer) clearTimeout(proactiveTimer);

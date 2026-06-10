@@ -393,7 +393,7 @@ The `/api/auth/sync-users` endpoint returns `users: users.value` — the raw Mic
 
 ---
 
-### ARCH-5 ⚪ — Proactive Frontend Token Refresh Timer Not Cancelled on Logout
+### ARCH-5 ✅ — Proactive Frontend Token Refresh Timer Not Cancelled on Logout
 **File:** `frontend/src/services/api.ts` (lines 46–84)
 
 `proactiveTimer` is a module-level variable. When a user logs out, the timer continues firing. It checks `isAuthenticated` before refreshing (so no actual refresh occurs), but the dangling timer is a memory leak in long-running sessions or test environments.

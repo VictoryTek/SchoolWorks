@@ -7,6 +7,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useAuthStore, selectCanAccessDeviceManagement } from '../../store/authStore';
 import { authApi } from '../../services/authService';
+import { cancelProactiveRefresh } from '../../services/api';
 import { useRoomAssignmentAccess } from '../../hooks/useRoomAssignmentAccess';
 import { OfflineIndicator } from '../responsive/OfflineIndicator';
 import './AppLayout.css';
@@ -142,6 +143,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   });
 
   const handleLogout = async () => {
+    cancelProactiveRefresh();
     sessionStorage.setItem('explicit_logout', 'true');
     try {
       await authApi.logout();
