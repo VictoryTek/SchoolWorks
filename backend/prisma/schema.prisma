@@ -495,6 +495,8 @@ model User {
   officeLocation                                            String?
   employeeId                                                String?
   gradeLevel                                                String?
+  cachedGroups                                              String[]
+  groupsLastSyncedAt                                        DateTime?
   locationSupervisors                                       LocationSupervisor[]
   maintenance_orders_maintenance_orders_assignedToIdTousers maintenance_orders[]  @relation("maintenance_orders_assignedToIdTousers")
   maintenance_orders_maintenance_orders_createdByIdTousers  maintenance_orders[]  @relation("maintenance_orders_createdByIdTousers")

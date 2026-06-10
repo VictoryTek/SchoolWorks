@@ -228,6 +228,8 @@ export const callback = async (
         role: determinedRole, // With simplified 2-role system (ADMIN/USER), role always syncs from Entra groups.
         isActive: userInfo.accountEnabled ?? true,
         lastLogin: new Date(),
+        cachedGroups: groupIds,
+        groupsLastSyncedAt: new Date(),
       },
       create: {
         entraId: userInfo.id,
@@ -240,6 +242,8 @@ export const callback = async (
         role: determinedRole,
         isActive: userInfo.accountEnabled ?? true,
         lastLogin: new Date(),
+        cachedGroups: groupIds,
+        groupsLastSyncedAt: new Date(),
       },
     });
 
@@ -430,6 +434,8 @@ export const refreshToken = async (
         lastName: true,
         role: true,
         isActive: true,
+        cachedGroups: true,
+        groupsLastSyncedAt: true,
       },
     });
 
@@ -441,19 +447,48 @@ export const refreshToken = async (
       throw new AuthenticationError('User account is inactive');
     }
 
-    // Fetch fresh group memberships from Entra ID using app-level credentials
+    // Resolve group memberships — use DB cache unless stale
+    const cacheTtlMs = parseInt(process.env.GROUP_MEMBERSHIP_CACHE_TTL_MS ?? String(30 * 60 * 1000), 10);
+    const cacheAge = user.groupsLastSyncedAt
+      ? Date.now() - user.groupsLastSyncedAt.getTime()
+      : Infinity;
+    const cacheIsStale = cacheAge >= cacheTtlMs;
+
     let groupIds: string[] = [];
-    try {
-      const groupsResult = await graphClient
-        .api(`/users/${user.entraId}/transitiveMemberOf`)
-        .select('id')
-        .get();
-      groupIds = (groupsResult.value || []).map((g: { id: string }) => g.id);
-    } catch (graphErr) {
-      loggers.auth.warn('Failed to fetch groups during token refresh, using empty groups', {
+    if (!cacheIsStale && user.cachedGroups.length > 0) {
+      groupIds = user.cachedGroups;
+      loggers.auth.debug('Using cached group memberships during token refresh', {
         entraId: redactEntraId(user.entraId),
-        error: graphErr instanceof Error ? graphErr.message : String(graphErr),
+        groupCount: groupIds.length,
+        cacheAgeSeconds: Math.round(cacheAge / 1000),
       });
+    } else {
+      try {
+        const groupsResult = await graphClient
+          .api(`/users/${user.entraId}/transitiveMemberOf`)
+          .select('id')
+          .get();
+        groupIds = (groupsResult.value || []).map((g: { id: string }) => g.id);
+        // Update cache in DB (best-effort — refresh still succeeds if this fails)
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { cachedGroups: groupIds, groupsLastSyncedAt: new Date() },
+        }).catch((err) => {
+          loggers.auth.warn('Failed to update group membership cache', { error: err });
+        });
+        loggers.auth.debug('Refreshed group memberships from Graph', {
+          entraId: redactEntraId(user.entraId),
+          groupCount: groupIds.length,
+        });
+      } catch (graphErr) {
+        // Fall back to cached groups if Graph is unreachable
+        groupIds = user.cachedGroups;
+        loggers.auth.warn('Failed to fetch groups from Graph during refresh, using cache', {
+          entraId: redactEntraId(user.entraId),
+          cachedGroupCount: groupIds.length,
+          error: graphErr instanceof Error ? graphErr.message : String(graphErr),
+        });
+      }
     }
 
     // Re-derive role from fresh groups in case it changed

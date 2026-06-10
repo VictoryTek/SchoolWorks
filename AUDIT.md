@@ -375,7 +375,7 @@ Entra group IDs are baked into the React bundle via `import.meta.env.VITE_ENTRA_
 
 ---
 
-### ARCH-3 ⚪ — Token Refresh Fetches Full Group Membership on Every Refresh
+### ARCH-3 ✅ — Token Refresh Fetches Full Group Membership on Every Refresh
 **File:** `backend/src/controllers/auth.controller.ts` (lines 394–407)
 
 Every token refresh (every ~25 minutes) makes a full Microsoft Graph API call to enumerate transitive group memberships. For users in many groups, this requires multiple paginated HTTP requests and adds significant latency to a frequent background operation.
