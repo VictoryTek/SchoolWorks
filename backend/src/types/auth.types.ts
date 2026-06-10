@@ -125,11 +125,6 @@ export interface SyncUsersResponse {
   success: boolean;
   message: string;
   count: number;
-  users: Array<{
-    id: string;
-    displayName: string;
-    userPrincipalName: string;
-  }>;
 }
 
 /**

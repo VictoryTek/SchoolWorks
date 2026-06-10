@@ -384,7 +384,7 @@ Every token refresh (every ~25 minutes) makes a full Microsoft Graph API call to
 
 ---
 
-### ARCH-4 ⚪ — `syncUsers` Endpoint Returns Raw Entra Graph API Objects
+### ARCH-4 ✅ — `syncUsers` Endpoint Returns Raw Entra Graph API Objects
 **File:** `backend/src/controllers/auth.controller.ts` (lines 578–617)
 
 The `/api/auth/sync-users` endpoint returns `users: users.value` — the raw Microsoft Graph API response. This exposes PII and organizational structure data that bypasses the application's own data model.

@@ -722,7 +722,6 @@ export const syncUsers = async (
       success: true,
       message: 'Users synced successfully',
       count: users.value.length,
-      users: users.value,
     });
   } catch (error) {
     if (error instanceof Error) {
