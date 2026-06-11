@@ -109,6 +109,18 @@ router.get(
 );
 
 /**
+ * GET /api/inventory/import
+ * Get all import jobs
+ * Permission: TECHNOLOGY level 3 (admin access)
+ * NOTE: registered before GET /inventory/:id to prevent param capture
+ */
+router.get(
+  '/inventory/import',
+  requireModule('TECHNOLOGY', 3),
+  inventoryController.getImportJobs
+);
+
+/**
  * GET /api/inventory/:id
  * Get single inventory item with full details
  * Permission: TECHNOLOGY level 1+ (view access)
@@ -236,17 +248,6 @@ router.post(
   upload.single('file'), // Accept single file with field name 'file'
   requireModule('TECHNOLOGY', 3),
   inventoryController.importInventory
-);
-
-/**
- * GET /api/inventory/import
- * Get all import jobs
- * Permission: TECHNOLOGY level 3 (admin access)
- */
-router.get(
-  '/inventory/import',
-  requireModule('TECHNOLOGY', 3),
-  inventoryController.getImportJobs
 );
 
 /**
