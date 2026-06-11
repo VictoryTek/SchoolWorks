@@ -69,6 +69,10 @@ RUN mkdir -p logs \
     public/uploads/damage-incidents \
     public/uploads/driver-licenses
 
+# Install postgresql-client for on-demand pg_dump / psql restore from the admin UI.
+# Uses the Alpine postgres16 package to match the db container's server version.
+RUN apk add --no-cache postgresql16-client
+
 # Run as non-root
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup && \

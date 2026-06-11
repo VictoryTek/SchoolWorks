@@ -41,6 +41,8 @@ import dmRolloverRoutes from './routes/dmRollover.routes';
 import inventoryAuditRoutes from './routes/inventoryAudit.routes';
 import { provideCsrfToken, getCsrfToken } from './middleware/csrf';
 import { authenticate, requireAdmin } from './middleware/auth';
+import { maintenanceMode } from './middleware/maintenanceMode';
+import { enableMaintenance, isMaintenanceEnabled } from './services/backup.service';
 import { logger, loggers } from './lib/logger';
 import { requestId, httpLogger } from './middleware/requestLogger';
 import path from 'path';
@@ -50,6 +52,11 @@ import { validateEnv } from './config/validateEnv';
 // service or middleware tries to use a missing secret.
 dotenv.config();
 validateEnv();
+
+// Honour MAINTENANCE_MODE=true env var — activate on cold start without UI interaction.
+if (process.env.MAINTENANCE_MODE === 'true' && !isMaintenanceEnabled()) {
+  enableMaintenance();
+}
 
 const app: Express = express();
 
@@ -149,6 +156,12 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads
 // CSRF token provider - applies to all routes
 // Provides CSRF token in response header and cookie
 app.use(provideCsrfToken);
+
+// Maintenance mode — blocks non-admin access when flag file exists.
+// Runs after CSRF / cookie setup so req.user is populated by authenticate
+// when reached via protected routes. Registered globally so it applies to
+// every API route without needing to be added per-router.
+app.use('/api', maintenanceMode);
 
 // CSRF token endpoint - allows frontend to explicitly request a token
 app.get('/api/csrf-token', getCsrfToken);

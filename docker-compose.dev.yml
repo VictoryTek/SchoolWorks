@@ -68,9 +68,15 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       APP_URL: ${APP_URL:-http://localhost}
       TZ: ${TZ:-America/Chicago}
+      BACKUP_DIR: /backups
+      BACKUP_RETAIN_COUNT: ${BACKUP_RETAIN_COUNT:-7}
+      DB_USER: ${DB_USER:-techv2}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MAINTENANCE_MODE: ${MAINTENANCE_MODE:-false}
     volumes:
       - backend_logs_dev:/workspace/backend/logs
       - backend_uploads_dev:/workspace/backend/public/uploads
+      - backup_local_dev:/backups
     ports:
       - "3000:3000"
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
@@ -138,3 +144,4 @@ volumes:
   pgdata_dev:
   backend_logs_dev:
   backend_uploads_dev:
+  backup_local_dev:

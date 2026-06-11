@@ -61,14 +61,16 @@ import { queryKeys } from '../../lib/queryKeys';
 import { useIsMobile } from '../../hooks/useResponsive';
 import { AdminJobsContent } from './AdminJobsPage';
 import AdminEmailQueueTab from './AdminEmailQueueTab';
+import AdminBackupTab from './AdminBackupTab';
 import SyncIcon from '@mui/icons-material/Sync';
 import EmailIcon from '@mui/icons-material/Email';
+import BackupIcon from '@mui/icons-material/Backup';
 
 // ---------------------------------------------------------------------------
 // Tab hash helpers
 // ---------------------------------------------------------------------------
 
-const TAB_HASHES = ['#general', '#requisitions', '#fiscal-year', '#jobs', '#email-queue'] as const;
+const TAB_HASHES = ['#general', '#requisitions', '#fiscal-year', '#jobs', '#email-queue', '#backup'] as const;
 
 function hashToTab(hash: string): number {
   const idx = TAB_HASHES.indexOf(hash as (typeof TAB_HASHES)[number]);
@@ -309,6 +311,7 @@ export default function AdminSettings() {
           <Tab label="Fiscal Year" />
           <Tab label="Jobs" icon={<SyncIcon />} iconPosition="start" />
           <Tab label="Email Queue" icon={<EmailIcon />} iconPosition="start" />
+          <Tab label="Backup" icon={<BackupIcon />} iconPosition="start" />
         </Tabs>
       </Box>
 
@@ -538,6 +541,11 @@ export default function AdminSettings() {
       {/*  Tab 5: Email Queue                                          */}
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 4 && <AdminEmailQueueTab />}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/*  Tab 6: Backup                                              */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 5 && <AdminBackupTab />}
     </Box>
   );
 }

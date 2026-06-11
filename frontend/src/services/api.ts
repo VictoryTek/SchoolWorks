@@ -162,6 +162,19 @@ api.interceptors.response.use(
       }
     }
 
+    // Maintenance mode: server returns 503 with { maintenance: true }.
+    // Redirect non-admin users to the /maintenance page so they see a
+    // friendly message instead of an opaque network error.
+    if (
+      error.response?.status === 503 &&
+      (error.response.data as Record<string, unknown>)?.maintenance === true
+    ) {
+      if (window.location.pathname !== '/maintenance') {
+        window.location.replace('/maintenance');
+      }
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );

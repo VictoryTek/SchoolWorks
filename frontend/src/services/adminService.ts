@@ -1,5 +1,10 @@
 import api from './api';
 
+export interface BackupFile {
+  filename: string;
+  sizeBytes: number;
+  createdAt: string; // ISO 8601
+}
 export interface SyncStatus {
   totalUsers: number;
   activeUsers: number;
@@ -161,6 +166,40 @@ export const adminService = {
   // Run a job immediately (new unified endpoint)
   runJobNow: async (jobKey: string): Promise<JobResult> => {
     const response = await api.post(`/admin/jobs/${jobKey}/run`);
+    return response.data;
+  },
+
+  // -------------------------------------------------------------------------
+  // Backup & Maintenance Mode
+  // -------------------------------------------------------------------------
+
+  listBackups: async (): Promise<{ backups: BackupFile[] }> => {
+    const response = await api.get('/admin/backup/list');
+    return response.data;
+  },
+
+  triggerBackup: async (): Promise<{ filename: string }> => {
+    const response = await api.post('/admin/backup/trigger');
+    return response.data;
+  },
+
+  restoreBackup: async (filename: string): Promise<{ success: boolean }> => {
+    const response = await api.post('/admin/backup/restore', { filename });
+    return response.data;
+  },
+
+  getMaintenanceStatus: async (): Promise<{ enabled: boolean }> => {
+    const response = await api.get('/admin/backup/maintenance');
+    return response.data;
+  },
+
+  enableMaintenanceMode: async (): Promise<{ enabled: boolean }> => {
+    const response = await api.post('/admin/backup/maintenance/enable');
+    return response.data;
+  },
+
+  disableMaintenanceMode: async (): Promise<{ enabled: boolean }> => {
+    const response = await api.post('/admin/backup/maintenance/disable');
     return response.data;
   },
 };

@@ -14,6 +14,7 @@ import { handleControllerError } from '../utils/errorHandler';
 import { CronExpressionParser } from 'cron-parser';
 import cron from 'node-cron';
 import emailQueueAdminRoutes from './emailQueueAdmin.routes';
+import backupRoutes from './backup.routes';
 
 const router = express.Router();
 
@@ -30,6 +31,7 @@ router.use(validateCsrfToken);
 
 // Mount email queue admin sub-router
 router.use('/email-queue', emailQueueAdminRoutes);
+router.use('/backup', backupRoutes);
 
 // Get sync status
 router.get('/sync-status', async (req: Request, res: Response) => {

@@ -75,6 +75,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { PwaUpdatePrompt } from './components/layout/PwaUpdatePrompt'
 import { PwaInstallPrompt } from './components/layout/PwaInstallPrompt'
 import AppLayout from './components/layout/AppLayout'
+import MaintenancePage from './pages/Maintenance'
 import './App.css'
 
 function AuthInitializer({ children }: { children: React.ReactNode }) {
@@ -94,6 +95,7 @@ function App() {
       <AuthInitializer>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/maintenance" element={<MaintenancePage />} />
         <Route
           path="/dashboard"
           element={

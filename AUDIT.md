@@ -745,13 +745,21 @@ A regression in any controller, service, or middleware would ship silently. All 
 
 ---
 
-### PR-2 ? No Database Backup Strategy
+### ~~PR-2~~ ✅ — ~~No Database Backup Strategy~~
 
-**Severity:** ?? Critical (for production deployment)
+**Severity:** ~~⛔ Critical (for production deployment)~~ ✅ Resolved
 
-The PostgreSQL data lives in the `pgdata` Docker volume. There is no `pg_dump` schedule, no volume snapshot automation, and no documented restore procedure. If the volume is corrupted or the host is lost, all data is unrecoverable.
+~~The PostgreSQL data lives in the `pgdata` Docker volume. There is no `pg_dump` schedule, no volume snapshot automation, and no documented restore procedure. If the volume is corrupted or the host is lost, all data is unrecoverable.~~
 
-**Fix:** Before accepting any production traffic: add a cron job (host cron or a sidecar container) that runs `pg_dump` on a schedule, compresses the output, and ships it to off-host storage (S3, Backblaze, network share). Document a tested restore procedure. Verify that at least one restore has been successfully exercised.
+**Implemented:**
+- `scripts/backup.sh` — nightly `pg_dump | gzip` with retention pruning (runs in `backup-cron` sidecar)
+- `backup-cron` Docker Compose service writing to a CIFS-backed `backup_smb` volume (`//10.0.10.83/homes/technology`)
+- `backend/src/services/backup.service.ts` — on-demand backup, restore, and maintenance flag logic
+- `backend/src/controllers/backup.controller.ts` + `backend/src/routes/backup.routes.ts` — REST API mounted at `POST /admin/backup/*`
+- `backend/src/middleware/maintenanceMode.ts` — 503 + `{ maintenance: true }` for non-admins when flag is active
+- `frontend/src/pages/admin/AdminBackupTab.tsx` — Admin UI: backup list, Backup Now, maintenance toggle, Restore (requires typing "RESTORE")
+- `frontend/src/pages/Maintenance.tsx` — public maintenance page with auto-redirect when system recovers
+- Startup env flag: `MAINTENANCE_MODE=true` activates maintenance before first request (crash recovery)
 
 ---
 
@@ -765,7 +773,7 @@ There are no GitHub Actions workflows (`.github/workflows/` ? no files). Every d
 
 ---
 
-### PR-4 ? No `.env.example` File
+### ~~PR-4~~ ✅ — ~~No `.env.example` File~~
 
 **Severity:** ?? Medium
 
@@ -800,9 +808,9 @@ This was flagged as ARCH-2 in the first pass and partially addressed (authorizat
 | Finding | Severity | Blocks Go-Live? |
 |---|---|---|
 | ~~PR-1~~ ✅ ~~No automated tests~~ | ~~🔴 High~~ | ~~Recommended before wider rollout~~ |
-| PR-2 ? No database backup | ?? Critical | **Yes ? fix before any production traffic** |
+| PR-2 ~~No database backup~~ ✅ | ~~⛔ Critical~~ ✅ Resolved | **Yes — implemented** |
 | PR-3 ? No CI/CD pipeline | ?? Medium | No, but fix soon after launch |
-| PR-4 ? No `.env.example` | ?? Medium | No, but fix before next deployment |
+| ~~PR-4~~ ✅ ~~No `.env.example`~~ | ~~🟡 Medium~~ | ~~No, but fix before next deployment~~ |
 | PR-5 ? No external monitoring | ?? Medium | Recommended before go-live |
 | ~~PR-6~~ ✅ ~~Group IDs in bundle~~ | ~~🔵 Info~~ | ~~No — accepted tradeoff~~ |
 

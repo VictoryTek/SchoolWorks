@@ -70,9 +70,15 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       APP_URL: ${APP_URL:-https://schoolworks.ocboe.com}
       TZ: ${TZ:-America/Chicago}
+      BACKUP_DIR: /backups
+      BACKUP_RETAIN_COUNT: ${BACKUP_RETAIN_COUNT:-7}
+      DB_USER: ${DB_USER:-techv2}
+      DB_PASSWORD: ${DB_PASSWORD}
+      MAINTENANCE_MODE: ${MAINTENANCE_MODE:-false}
     volumes:
       - backend_logs:/workspace/backend/logs
       - backend_uploads:/workspace/backend/public/uploads
+      - backup_smb:/backups
     expose:
       - "3000"
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
@@ -109,9 +115,41 @@ services:
     # Auto-renew: check every 12 hours
     entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
+  # Nightly database backup cron — writes pg_dump to the SMB share.
+  # Runs at midnight daily and prunes files older than BACKUP_RETAIN_COUNT (default: 7).
+  backup-cron:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+      DB_USER: ${DB_USER:-techv2}
+      BACKUP_RETAIN_COUNT: ${BACKUP_RETAIN_COUNT:-7}
+      BACKUP_DIR: /backups
+    volumes:
+      - backup_smb:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+    # Run crond in the foreground; install the cron job; keep container alive.
+    entrypoint:
+      - sh
+      - -c
+      - |
+        echo "0 0 * * * sh /backup.sh >> /proc/1/fd/1 2>&1" | crontab -
+        crond -f -d 8
+
 volumes:
   pgdata:
   backend_logs:
   backend_uploads:
   certbot_conf:
   certbot_www:
+  # SMB-backed volume for database backups (//10.0.10.83/homes/technology).
+  # Requires SMB_USER and SMB_PASS to be set in .env.
+  backup_smb:
+    driver: local
+    driver_opts:
+      type: cifs
+      o: "username=${SMB_USER},password=${SMB_PASS},uid=70,gid=70,file_mode=0660,dir_mode=0770"
+      device: "//10.0.10.83/homes/technology"
