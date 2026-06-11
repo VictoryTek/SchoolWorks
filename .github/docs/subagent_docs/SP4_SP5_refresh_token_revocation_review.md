@@ -44,13 +44,16 @@
 
 ## Migration Note
 
-The `refresh_tokens` table does not exist in the live DB until the migration is run.
-The user must execute:
+The backend container runs `npx prisma migrate deploy` on every startup
+(`docker-compose.dev.yml` line 76), so migrations are applied automatically when the
+container restarts with the new image — no manual deploy-time step needed.
+
+The only required action is to **create** the migration file on your dev machine:
 ```
 npx prisma migrate dev --name add_refresh_tokens
 ```
-Until then, the running container will throw 500 on token refresh (Prisma table-not-found).
-Deploy the new image only after running the migration.
+Commit and push the generated file under `backend/prisma/migrations/`.
+After that, restarting the backend container applies it automatically.
 
 ## Score Table
 
