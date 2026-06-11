@@ -110,6 +110,34 @@ export const validateCsrfToken = (req: Request, res: Response, next: NextFunctio
 };
 
 /**
+ * Force-rotate the CSRF token for the current response.
+ * Call from login (callback) and after clearing it on logout to ensure a
+ * cookie-forced token from before the session boundary cannot be reused.
+ */
+export function rotateCsrfToken(res: Response): void {
+  const token = generateCsrfToken();
+  res.cookie(CSRF_COOKIE_NAME, token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 60 * 60 * 1000,
+  });
+  res.setHeader('X-CSRF-Token', token);
+}
+
+/**
+ * Clear the CSRF token cookie on logout so the old token cannot be reused
+ * after the session ends. The next request will trigger provideCsrfToken to
+ * issue a fresh token.
+ */
+export function clearCsrfToken(res: Response): void {
+  res.clearCookie(CSRF_COOKIE_NAME, {
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production',
+  });
+}
+
+/**
  * Endpoint to get a fresh CSRF token
  * Frontend can call this to obtain a token before making protected requests
  */

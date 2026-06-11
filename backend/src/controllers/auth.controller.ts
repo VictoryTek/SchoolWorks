@@ -6,6 +6,7 @@ import jwt, { SignOptions } from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { UserSyncService } from '../services/userSync.service';
 import { getCookieConfig } from '../config/cookies';
+import { rotateCsrfToken, clearCsrfToken } from '../middleware/csrf';
 import { loggers } from '../lib/logger';
 import { redactEmail, redactEntraId } from '../utils/redact';
 import { derivePermLevelFromGroups, hasDeviceManagementAccess, canSeeAllLocations, isPrincipalOrVP } from '../utils/groupAuth';
@@ -320,6 +321,10 @@ export const callback = async (
         expiresAt: new Date(Date.now() + parseExpiryMs(refreshExpiryStr)),
       },
     });
+
+    // Rotate CSRF token on login so a cookie-forced token from before the session
+    // boundary cannot be reused (SP-8).
+    rotateCsrfToken(res);
 
     // Build permLevels map from roleMapping for the response
     const permLevels = { TECHNOLOGY: 0, MAINTENANCE: 0, REQUISITIONS: 0, FIELD_TRIPS: 0, CHECKOUT: 0, TRANSPORTATION: 0, WORK_ORDERS: 0 };
@@ -690,6 +695,10 @@ export const logout = async (
     sameSite: process.env.NODE_ENV === 'development' ? 'lax' : 'strict',
     path: '/api/auth/refresh-token',
   });
+
+  // Clear CSRF token so the old token cannot be reused after the session ends (SP-8).
+  // The next request will trigger provideCsrfToken to issue a fresh token.
+  clearCsrfToken(res);
 
   // Build Entra end-session URL so the client can terminate the Entra SSO session.
   // Without this, prompt:none on the next /login visit re-authenticates the user silently.

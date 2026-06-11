@@ -655,7 +655,7 @@ can repeatedly stream 10 MB bodies into server memory before receiving 403.
 
 ---
 
-### SP-8 🔵 — CSRF Token Is Not Session-Bound and Never Rotated
+### ~~SP-8~~ ✅ — ~~CSRF Token Is Not Session-Bound and Never Rotated~~
 **File:** `backend/src/middleware/csrf.ts` (lines 38–53)
 
 The double-submit token is generated once per browser (24 h cookie) and is not
@@ -695,7 +695,7 @@ and makes the mutation surface uniform.
 | 🔴 Critical | 0 | — |
 | 🟠 High | 1 | ~~SP-1~~ ✅ |
 | 🟡 Medium | 3 | ~~SP-2~~ ✅, ~~SP-3~~ ✅, ~~SP-4~~ ✅ |
-| 🔵 Low / Info | 5 | ~~SP-6~~ ✅, ~~SP-7~~ ✅, SP-8, SP-9, SP-10 |
+| 🔵 Low / Info | 5 | ~~SP-6~~ ✅, ~~SP-7~~ ✅, ~~SP-8~~ ✅, SP-9, SP-10 |
 | ⚪ Quality | 1 | ~~SP-5~~ ✅ |
 | **Total** | **10** | |
 
