@@ -1,6 +1,9 @@
 # Build stage
 FROM node:20-alpine AS builder
 
+# Install postgresql-client for pg_dump / psql — needed in dev (test stage) and production.
+RUN apk add --no-cache postgresql16-client
+
 # Use /workspace as root so that 'file:../shared' in backend/package.json
 # resolves to /workspace/shared from /workspace/backend.
 WORKDIR /workspace

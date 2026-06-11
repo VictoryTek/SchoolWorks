@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Divider,
   Stack,
   Table,
   TableBody,
@@ -23,6 +24,7 @@ import {
 import BackupIcon from '@mui/icons-material/Backup';
 import RestoreIcon from '@mui/icons-material/Restore';
 import BuildIcon from '@mui/icons-material/Build';
+import UploadFileIcon from '@mui/icons-material/UploadFile';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminService } from '../../services/adminService';
 import { queryKeys } from '../../lib/queryKeys';
@@ -106,6 +108,9 @@ function RestoreDialog({ filename, onClose, onConfirm, isLoading }: RestoreDialo
 export default function AdminBackupTab() {
   const queryClient = useQueryClient();
   const [restoreTarget, setRestoreTarget] = useState<string | null>(null);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadConfirm, setUploadConfirm] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── Data queries ──────────────────────────────────────────────────────────
 
@@ -136,6 +141,14 @@ export default function AdminBackupTab() {
   const restoreMutation = useMutation({
     mutationFn: (filename: string) => adminService.restoreBackup(filename),
     onSuccess: () => setRestoreTarget(null),
+  });
+
+  const uploadRestoreMutation = useMutation({
+    mutationFn: (file: File) => adminService.restoreBackupFromFile(file),
+    onSuccess: () => {
+      setUploadFile(null);
+      setUploadConfirm('');
+    },
   });
 
   const enableMaintMutation = useMutation({
@@ -305,6 +318,91 @@ export default function AdminBackupTab() {
       {restoreMutation.isError && (
         <Alert severity="error">Restore failed. Check server logs for details.</Alert>
       )}
+
+      {/* ─── Upload & Restore ─────────────────────────────────────────────────── */}
+      <Divider />
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Restore from Local File
+        </Typography>
+        <Typography variant="body2" color="text.secondary" mb={2}>
+          Upload a <code>.sql.gz</code> backup file from your computer. This will overwrite the
+          current database.
+        </Typography>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".sql.gz,application/gzip,application/x-gzip,application/octet-stream"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            setUploadFile(f);
+            setUploadConfirm('');
+            uploadRestoreMutation.reset();
+          }}
+        />
+
+        <Stack spacing={2}>
+          <Stack direction="row" alignItems="center" gap={2} flexWrap="wrap">
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileIcon />}
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadRestoreMutation.isPending}
+            >
+              Choose File
+            </Button>
+            {uploadFile && (
+              <Typography variant="body2" color="text.secondary">
+                {uploadFile.name} ({formatBytes(uploadFile.size)})
+              </Typography>
+            )}
+          </Stack>
+
+          {uploadFile && (
+            <>
+              <Alert severity="error">
+                <strong>This action is destructive and irreversible.</strong> The current database
+                will be overwritten. Type <strong>RESTORE</strong> to confirm.
+              </Alert>
+              <Stack direction="row" alignItems="center" gap={2} flexWrap="wrap">
+                <TextField
+                  size="small"
+                  label="Type RESTORE to confirm"
+                  value={uploadConfirm}
+                  onChange={(e) => setUploadConfirm(e.target.value)}
+                  disabled={uploadRestoreMutation.isPending}
+                  sx={{ minWidth: 260 }}
+                />
+                <Button
+                  variant="contained"
+                  color="error"
+                  disabled={uploadConfirm !== 'RESTORE' || uploadRestoreMutation.isPending}
+                  startIcon={
+                    uploadRestoreMutation.isPending ? (
+                      <CircularProgress size={18} color="inherit" />
+                    ) : (
+                      <RestoreIcon />
+                    )
+                  }
+                  onClick={() => uploadRestoreMutation.mutate(uploadFile)}
+                >
+                  Restore from Upload
+                </Button>
+              </Stack>
+            </>
+          )}
+
+          {uploadRestoreMutation.isSuccess && (
+            <Alert severity="success">Restore from uploaded file completed successfully.</Alert>
+          )}
+          {uploadRestoreMutation.isError && (
+            <Alert severity="error">Restore failed. Check server logs for details.</Alert>
+          )}
+        </Stack>
+      </Box>
     </Stack>
   );
 }

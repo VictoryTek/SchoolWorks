@@ -3,6 +3,8 @@ import {
   list,
   trigger,
   restore,
+  restoreUpload,
+  backupUpload,
   dbSize,
   getMaintenanceStatus,
   setMaintenanceEnabled,
@@ -18,6 +20,7 @@ router.get('/list', list);
 router.get('/size', dbSize);
 router.post('/trigger', trigger);
 router.post('/restore', restore);
+router.post('/restore/upload', backupUpload.single('file'), restoreUpload);
 
 router.get('/maintenance', getMaintenanceStatus);
 router.post('/maintenance/enable', setMaintenanceEnabled);

@@ -79,7 +79,7 @@ export function triggerBackup(): string {
   return filename;
 }
 
-/** Restores the database from the specified backup file. */
+/** Restores the database from the specified backup file on disk. */
 export function restoreBackup(filename: string): void {
   if (!isValidBackupFilename(filename)) {
     throw new Error('Invalid backup filename');
@@ -105,6 +105,38 @@ export function restoreBackup(filename: string): void {
   );
 
   loggers.admin.warn('Database restore complete', { filename });
+}
+
+/** Validates that a buffer is a gzip file (magic bytes 1f 8b). */
+export function isGzipBuffer(buf: Buffer): boolean {
+  return buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+}
+
+/**
+ * Restores the database from an in-memory gzip buffer (uploaded file).
+ * The buffer is written to a temp file then piped through gunzip → psql,
+ * identical to restoreBackup() so the same ON_ERROR_STOP safety applies.
+ */
+export function restoreFromBuffer(buf: Buffer, originalName: string): void {
+  const dbUser = process.env.DB_USER ?? 'techv2';
+  const env = { ...process.env, PGPASSWORD: process.env.DB_PASSWORD ?? '' };
+
+  // Write to a temp file so we can use the same gunzip pipe pattern
+  const tmpPath = path.join('/tmp', `restore_upload_${Date.now()}.sql.gz`);
+  fs.writeFileSync(tmpPath, buf);
+
+  loggers.admin.warn('Starting database restore from upload', { originalName, sizeBytes: buf.length });
+
+  try {
+    execSync(
+      `gunzip -c "${tmpPath}" | psql --set ON_ERROR_STOP=on -h ${DB_HOST} -U ${dbUser} ${DB_NAME}`,
+      { env, shell: '/bin/sh', stdio: ['ignore', 'ignore', 'pipe'] }
+    );
+  } finally {
+    try { fs.unlinkSync(tmpPath); } catch { /* best-effort cleanup */ }
+  }
+
+  loggers.admin.warn('Database restore from upload complete', { originalName });
 }
 
 // ── Maintenance mode ────────────────────────────────────────────────────────

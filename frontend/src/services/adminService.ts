@@ -193,6 +193,16 @@ export const adminService = {
     return response.data;
   },
 
+  restoreBackupFromFile: async (file: File): Promise<{ success: boolean }> => {
+    const form = new FormData();
+    form.append('file', file);
+    const response = await api.post('/admin/backup/restore/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 300_000, // 5 min — large DB restores can take a while
+    });
+    return response.data;
+  },
+
   getMaintenanceStatus: async (): Promise<{ enabled: boolean }> => {
     const response = await api.get('/admin/backup/maintenance');
     return response.data;
