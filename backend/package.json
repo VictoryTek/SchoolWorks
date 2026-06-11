@@ -10,7 +10,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "test": "vitest",
+    "test": "vitest run",
     "sync:supervisors:all": "tsx scripts/sync-all-supervisors.ts",
     "sync:supervisors:directors": "tsx scripts/sync-supervisors.ts",
     "sync:supervisors:users": "tsx scripts/assign-user-supervisors.ts",
@@ -66,6 +66,8 @@
     "@types/nodemailer": "^8.0.0",
     "@types/pdfkit": "^0.17.5",
     "@types/pg": "^8.16.0",
+    "@types/supertest": "^6.0.3",
+    "supertest": "^7.1.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"

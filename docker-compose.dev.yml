@@ -97,6 +97,51 @@ services:
     volumes:
       - ./frontend/nginx.dev.conf:/etc/nginx/conf.d/default.conf:ro
 
+  # ── Test services (profile: test) ─────────────────────────────────────────
+  # Not started during normal dev (`docker compose up`). Activated only when
+  # the `--profile test` flag is passed (e.g. from scripts/preflight.ps1 step 3).
+
+  db-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: tech_v2_test
+      POSTGRES_USER: techv2test
+      POSTGRES_PASSWORD: testpass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U techv2test -d tech_v2_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles:
+      - test
+
+  backend-test:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      target: test
+    depends_on:
+      db-test:
+        condition: service_healthy
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://techv2test:testpass@db-test:5432/tech_v2_test
+      JWT_ACCESS_SECRET: test-access-secret-min-32-chars-long-placeholder
+      JWT_REFRESH_SECRET: test-refresh-secret-min-32-chars-long-placeholder
+      ENTRA_CLIENT_ID: test-client-id
+      ENTRA_CLIENT_SECRET: test-client-secret
+      ENTRA_TENANT_ID: test-tenant-id
+      REDIRECT_URI: http://localhost:3000/api/auth/callback
+      ENTRA_ADMIN_GROUP_ID: test-admin-group-id
+      GROUP_MEMBERSHIP_CACHE_TTL_MS: "999999999"
+      ENTRA_TECH_ASSISTANTS_GROUP_ID: test-wo-level-5-group-id
+      ENTRA_SCHOOL_MAINTENANCE_GROUP_ID: test-wo-level-3-group-id
+      ENTRA_PRINCIPALS_GROUP_ID: test-wo-level-3b-group-id
+      ENTRA_ALL_STAFF_GROUP_ID: test-allstaff-group-id
+      CORS_ORIGIN: "http://localhost"
+    profiles:
+      - test
+
 volumes:
   pgdata_dev:
   backend_logs_dev:

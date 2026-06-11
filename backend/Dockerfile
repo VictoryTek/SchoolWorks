@@ -82,3 +82,12 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 CMD ["node", "dist/server.js"]
+
+# ── Test stage ────────────────────────────────────────────────────────────────
+# Extends builder (all devDeps + compiled output + source files).
+# src/__tests__/ is already present from the builder COPY of ./src.
+FROM builder AS test
+WORKDIR /workspace/backend
+# vitest.config.ts is not copied in the builder stage; bring it in explicitly.
+COPY backend/vitest.config.ts ./
+CMD ["sh", "-c", "npx prisma migrate deploy && npx vitest run"]
