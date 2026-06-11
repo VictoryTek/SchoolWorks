@@ -36,7 +36,12 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host '==> Preflight 3/3: backend integration tests (vitest run inside Docker)'
 docker compose -f docker-compose.dev.yml --profile test run --rm backend-test
-if ($LASTEXITCODE -ne 0) {
+$testResult = $LASTEXITCODE
+
+Write-Host '==> Cleaning up test containers'
+docker compose -f docker-compose.dev.yml --profile test down
+
+if ($testResult -ne 0) {
     Write-Host 'PREFLIGHT FAILED: backend integration tests returned a non-zero exit code.'
     exit 1
 }
