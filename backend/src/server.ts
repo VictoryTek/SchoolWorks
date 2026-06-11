@@ -141,7 +141,13 @@ app.use('/uploads/driver-licenses', (_req: Request, res: Response) => {
   res.status(403).json({ error: 'Forbidden' });
 });
 
-// Serve other uploaded files statically (damage-incident photos, etc.)
+// Block direct static access to damage-incident photos — served via the
+// authenticated GET /api/damage-incidents/:id/photos/:photoId endpoint (AUDIT.md SP-1)
+app.use('/uploads/damage-incidents', (_req: Request, res: Response) => {
+  res.status(403).json({ error: 'Forbidden' });
+});
+
+// Serve any remaining uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '..', 'public', 'uploads')));
 
 // CSRF token provider - applies to all routes

@@ -1,6 +1,8 @@
 import { Response } from 'express';
+import fs from 'fs';
 import { AuthRequest } from '../middleware/auth';
 import { handleControllerError } from '../utils/errorHandler';
+import { NotFoundError } from '../utils/errors';
 import * as service from '../services/damageIncident.service';
 import { prisma } from '../lib/prisma';
 import { sendBuildingAdminIncidentAlert } from '../services/email.service';
@@ -116,6 +118,27 @@ export const uploadPhotos = async (req: AuthRequest, res: Response): Promise<voi
     }
     const photos = await service.addPhotos(id, files, req.user!.id);
     res.status(201).json(photos);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Get photo — serves the image behind auth (static /uploads access is blocked)
+// ---------------------------------------------------------------------------
+
+export const getPhoto = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id      = req.params['id'] as string;
+    const photoId = req.params['photoId'] as string;
+    const { fullPath, fileType } = await service.getPhotoPath(id, photoId);
+
+    if (!fs.existsSync(fullPath)) {
+      throw new NotFoundError('DamageIncidentPhoto file', photoId);
+    }
+
+    res.setHeader('Content-Type', fileType);
+    res.sendFile(fullPath);
   } catch (error) {
     handleControllerError(error, res);
   }

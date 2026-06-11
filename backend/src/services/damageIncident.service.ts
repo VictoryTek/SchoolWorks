@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { prisma } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
 import { NotFoundError, ValidationError, AppError } from '../utils/errors';
@@ -16,6 +17,25 @@ import type {
 import { generateInvoiceNumber } from './invoice.service';
 
 const log = createLogger('DamageIncidentService');
+
+const PHOTO_UPLOAD_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'damage-incidents');
+
+// Photos are served through the authenticated API route, never via static /uploads
+// (static access to /uploads/damage-incidents is blocked in server.ts — see AUDIT.md SP-1).
+function apiPhotoUrl(incidentId: string, photoId: string): string {
+  return `/api/damage-incidents/${incidentId}/photos/${photoId}`;
+}
+
+// Legacy rows store a raw "/uploads/damage-incidents/<file>" fileUrl; rewrite at read
+// time so all clients receive the authenticated API URL without a data backfill.
+function withApiPhotoUrls<T extends { id: string; photos: { id: string; fileUrl: string }[] }>(
+  incident: T,
+): T {
+  return {
+    ...incident,
+    photos: incident.photos.map((p) => ({ ...p, fileUrl: apiPhotoUrl(incident.id, p.id) })),
+  };
+}
 
 type CreateData             = z.infer<typeof CreateDamageIncidentSchema>;
 type UpdateData             = z.infer<typeof UpdateDamageIncidentSchema>;
@@ -245,7 +265,7 @@ export async function getAll(query: ListQuery) {
   ]);
 
   return {
-    items,
+    items: items.map(withApiPhotoUrls),
     total,
     page,
     limit,
@@ -259,7 +279,7 @@ export async function getById(id: string) {
     include: detailInclude,
   });
   if (!incident) throw new NotFoundError('DamageIncident', id);
-  return incident;
+  return withApiPhotoUrls(incident);
 }
 
 export async function addPhotos(
@@ -276,22 +296,42 @@ export async function addPhotos(
   }
 
   const created = await Promise.all(
-    files.map((file) =>
-      prisma.damageIncidentPhoto.create({
+    files.map((file) => {
+      // Pre-generate the id so the stored fileUrl can point at the authenticated API route
+      const photoId = randomUUID();
+      return prisma.damageIncidentPhoto.create({
         data: {
+          id:         photoId,
           incidentId,
           fileName:   file.filename,
-          fileUrl:    `/uploads/damage-incidents/${file.filename}`,
+          fileUrl:    apiPhotoUrl(incidentId, photoId),
           fileSize:   file.size,
           fileType:   file.mimetype,
           uploadedBy: uploadedByUserId,
         },
-      })
-    )
+      });
+    })
   );
 
   log.info('Photos added to incident', { incidentId, count: created.length });
   return created;
+}
+
+/**
+ * Resolve the on-disk path for a photo, verifying it belongs to the incident.
+ * Used by the authenticated GET /:id/photos/:photoId serving endpoint.
+ */
+export async function getPhotoPath(incidentId: string, photoId: string) {
+  const photo = await prisma.damageIncidentPhoto.findUnique({ where: { id: photoId } });
+  if (!photo || photo.incidentId !== incidentId) {
+    throw new NotFoundError('DamageIncidentPhoto', photoId);
+  }
+
+  return {
+    // basename() is defensive — fileName is always a server-generated UUID + extension
+    fullPath: path.join(PHOTO_UPLOAD_DIR, path.basename(photo.fileName)),
+    fileType: photo.fileType,
+  };
 }
 
 export async function deletePhoto(incidentId: string, photoId: string, userId: string) {
@@ -302,8 +342,7 @@ export async function deletePhoto(incidentId: string, photoId: string, userId: s
   }
 
   // Delete file from disk
-  const UPLOAD_DIR = path.join(__dirname, '..', '..', 'public', 'uploads', 'damage-incidents');
-  const filePath = path.join(UPLOAD_DIR, photo.fileName);
+  const filePath = path.join(PHOTO_UPLOAD_DIR, photo.fileName);
   try {
     await fs.promises.unlink(filePath);
   } catch (err) {

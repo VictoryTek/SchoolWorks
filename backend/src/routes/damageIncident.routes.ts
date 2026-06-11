@@ -111,6 +111,13 @@ router.delete(
 );
 
 // Photos
+// GET serves the image behind auth — static /uploads/damage-incidents access is
+// blocked in server.ts (AUDIT.md SP-1), mirroring the driver-license pattern.
+router.get(
+  '/:id/photos/:photoId',
+  requireDeviceManagementAccess(),
+  controller.getPhoto,
+);
 router.post(
   '/:id/photos',
   validateCsrfToken,
