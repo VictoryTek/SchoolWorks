@@ -3,6 +3,8 @@ import {
   Alert,
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   CircularProgress,
   Dialog,
@@ -174,42 +176,63 @@ export default function AdminBackupTab() {
           Maintenance Mode
         </Typography>
 
-        <Alert
-          severity={maintenanceEnabled ? 'warning' : 'success'}
-          icon={<BuildIcon />}
-          action={
-            <Button
-              size="small"
-              color={maintenanceEnabled ? 'inherit' : 'inherit'}
-              variant="outlined"
-              disabled={maintLoading || maintenanceQuery.isLoading}
-              startIcon={maintLoading ? <CircularProgress size={14} /> : undefined}
-              onClick={() =>
-                maintenanceEnabled
-                  ? disableMaintMutation.mutate()
-                  : enableMaintMutation.mutate()
-              }
-            >
-              {maintenanceEnabled ? 'Disable' : 'Enable'}
-            </Button>
-          }
-        >
-          {maintenanceEnabled
-            ? 'Maintenance mode is ON — non-admin users see a maintenance page.'
-            : 'Maintenance mode is OFF — the system is accessible to all users.'}
-        </Alert>
+        <Card variant="outlined">
+          <CardContent>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={maintenanceEnabled || enableMaintMutation.isError || disableMaintMutation.isError ? 1.5 : 0}>
+              <Typography variant="body1" fontWeight="medium">
+                {maintenanceEnabled
+                  ? 'Maintenance mode is ON'
+                  : 'Maintenance mode is OFF'}
+              </Typography>
+              <Button
+                size="small"
+                color={maintenanceEnabled ? 'error' : 'primary'}
+                variant="outlined"
+                disabled={maintLoading || maintenanceQuery.isLoading}
+                startIcon={maintLoading ? <CircularProgress size={14} /> : <BuildIcon />}
+                onClick={() =>
+                  maintenanceEnabled
+                    ? disableMaintMutation.mutate()
+                    : enableMaintMutation.mutate()
+                }
+                sx={{ flexShrink: 0, ml: 2 }}
+              >
+                {maintenanceEnabled ? 'Disable' : 'Enable'}
+              </Button>
+            </Box>
 
-        {(enableMaintMutation.isError || disableMaintMutation.isError) && (
-          <Alert severity="error" sx={{ mt: 1 }}>
-            Failed to update maintenance mode. Please try again.
-          </Alert>
-        )}
+            {maintenanceEnabled && (
+              <Alert severity="warning" icon={<BuildIcon />}>
+                Non-admin users are currently seeing a maintenance page.
+              </Alert>
+            )}
+
+            {!maintenanceEnabled && (
+              <Typography variant="body2" color="text.secondary">
+                When enabled, non-admin users will see a maintenance page. Enable this before performing a restore.
+              </Typography>
+            )}
+
+            {(enableMaintMutation.isError || disableMaintMutation.isError) && (
+              <Alert severity="error" sx={{ mt: 1 }}>
+                Failed to update maintenance mode. Please try again.
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
       </Box>
 
       {/* ─── On-demand Backup ─────────────────────────────────────────────── */}
       <Box>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={1}>
-          <Stack direction="row" alignItems="center" gap={1.5}>
+        <Stack
+          direction="row"
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          justifyContent="space-between"
+          flexWrap="wrap"
+          gap={1}
+          mb={1}
+        >
+          <Stack direction="row" alignItems="center" gap={1.5} flexWrap="wrap">
             <Typography variant="h6">Database Backups</Typography>
             {dbSizeQuery.data && (
               <Chip
@@ -228,10 +251,26 @@ export default function AdminBackupTab() {
             }
             disabled={triggerMutation.isPending}
             onClick={() => triggerMutation.mutate()}
+            sx={{ flexShrink: 0 }}
           >
             Backup Now
           </Button>
         </Stack>
+
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2" fontWeight="bold" gutterBottom>
+            How backups work:
+          </Typography>
+          <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
+            <li><strong>Automatic nightly backup</strong> — a backup runs automatically each night via the scheduled job. Files are stored as compressed PostgreSQL dumps (<code>.sql.gz</code>).</li>
+            <li><strong>Retention</strong> — the system keeps the {/* BACKUP_RETAIN_COUNT */}7 most recent backups. The oldest file is automatically deleted when the limit is reached.</li>
+            <li><strong>Backup Now</strong> — creates an immediate on-demand backup outside the nightly schedule.</li>
+            <li><strong>Restore</strong> — completely overwrites the current database with the selected backup. This is irreversible. Enable maintenance mode first to prevent users from accessing the system during the restore.</li>
+          </Typography>
+          <Typography variant="body2">
+            Backup files are named <code>tech_v2_YYYY-MM-DD_HHMMSS.sql.gz</code>. You can also restore from a file stored on your local machine using the <strong>Restore from Local File</strong> section below.
+          </Typography>
+        </Alert>
 
         {triggerMutation.isSuccess && (
           <Alert severity="success" sx={{ mb: 1 }}>
@@ -265,28 +304,32 @@ export default function AdminBackupTab() {
               <TableHead>
                 <TableRow>
                   <TableCell>Filename</TableCell>
-                  <TableCell align="right">Size</TableCell>
-                  <TableCell>Created</TableCell>
+                  <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Size</TableCell>
+                  <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Created</TableCell>
                   <TableCell />
                 </TableRow>
               </TableHead>
               <TableBody>
                 {(backupsQuery.data?.backups ?? []).map((b) => (
                   <TableRow key={b.filename} hover>
-                    <TableCell>
-                      <Typography variant="body2" fontFamily="monospace">
+                    <TableCell sx={{ maxWidth: { xs: 160, sm: 300 } }}>
+                      <Typography variant="body2" fontFamily="monospace" noWrap title={b.filename}>
                         {b.filename}
                       </Typography>
+                      {/* Show size + date inline on mobile since columns are hidden */}
+                      <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'block', sm: 'none' } }}>
+                        {formatBytes(b.sizeBytes)} · {new Date(b.createdAt).toLocaleString()}
+                      </Typography>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}>
                       <Chip label={formatBytes(b.sizeBytes)} size="small" variant="outlined" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' }, whiteSpace: 'nowrap' }}>
                       <Typography variant="body2">
                         {new Date(b.createdAt).toLocaleString()}
                       </Typography>
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ whiteSpace: 'nowrap', width: 1 }}>
                       <Button
                         size="small"
                         color="warning"
@@ -367,14 +410,14 @@ export default function AdminBackupTab() {
                 <strong>This action is destructive and irreversible.</strong> The current database
                 will be overwritten. Type <strong>RESTORE</strong> to confirm.
               </Alert>
-              <Stack direction="row" alignItems="center" gap={2} flexWrap="wrap">
+              <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} gap={2}>
                 <TextField
                   size="small"
                   label="Type RESTORE to confirm"
                   value={uploadConfirm}
                   onChange={(e) => setUploadConfirm(e.target.value)}
                   disabled={uploadRestoreMutation.isPending}
-                  sx={{ minWidth: 260 }}
+                  fullWidth
                 />
                 <Button
                   variant="contained"
@@ -388,6 +431,7 @@ export default function AdminBackupTab() {
                     )
                   }
                   onClick={() => uploadRestoreMutation.mutate(uploadFile)}
+                  sx={{ flexShrink: 0 }}
                 >
                   Restore from Upload
                 </Button>

@@ -251,13 +251,31 @@ export default function TransportationSettingsPage() {
                   label={dotEnabled ? 'Enabled' : 'Disabled'}
                 />
               </Box>
+
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  Status stages (shown in the driver list):
+                </Typography>
+                <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
+                  <li><strong>Valid</strong> — more than 30 days until expiration.</li>
+                  <li><strong>Expiring Soon</strong> — 30 days or fewer until expiration.</li>
+                  <li><strong>Expired</strong> — expiration date has passed.</li>
+                </Typography>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  When reminder emails are sent:
+                </Typography>
+                <Typography variant="body2">
+                  Reminder emails are sent to the transportation secretary on each configured day before expiration, <strong>regardless of status stage</strong>. For example, with the default settings (60, 30, 14, 7), emails are sent 60, 30, 14, and 7 days before the physical expires — the 60-day and 30-day emails fire while the status is still <strong>Valid</strong>. A separate expired notice is sent on the day the physical expires.
+                </Typography>
+              </Alert>
+
               <TextField
                 label="Reminder Days Before Expiration"
                 fullWidth
                 size="small"
                 value={reminderDays}
                 onChange={(e) => setReminderDays(e.target.value)}
-                helperText="Comma-separated days (e.g., 60, 30, 14, 7)"
+                helperText="Comma-separated days before expiration to send a reminder email (e.g., 60, 30, 14, 7). Emails go to the transportation secretary."
                 disabled={!dotEnabled}
               />
             </CardContent>
@@ -280,13 +298,31 @@ export default function TransportationSettingsPage() {
                   label={licenseEnabled ? 'Enabled' : 'Disabled'}
                 />
               </Box>
+
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  Status stages (shown in the driver list):
+                </Typography>
+                <Typography variant="body2" component="ul" sx={{ pl: 2, mb: 1 }}>
+                  <li><strong>Active</strong> — more than 30 days until expiration.</li>
+                  <li><strong>Expiring Soon</strong> — 30 days or fewer until expiration.</li>
+                  <li><strong>Expired</strong> — expiration date has passed.</li>
+                </Typography>
+                <Typography variant="body2" fontWeight="bold" gutterBottom>
+                  When reminder emails are sent:
+                </Typography>
+                <Typography variant="body2">
+                  Reminder emails are sent to both the driver and the transportation secretary on each configured day before expiration, <strong>regardless of status stage</strong>. For example, with the default settings (60, 30, 14, 7), emails are sent 60, 30, 14, and 7 days before the license expires — the 60-day and 30-day emails fire while the status is still <strong>Active</strong>. A separate expired notice is sent on the day the license expires.
+                </Typography>
+              </Alert>
+
               <TextField
                 label="Reminder Days Before Expiration"
                 fullWidth
                 size="small"
                 value={licenseReminderDays}
                 onChange={(e) => setLicenseReminderDays(e.target.value)}
-                helperText="Comma-separated days (e.g., 60, 30, 14, 7). Notifies both the driver and transportation secretary."
+                helperText="Comma-separated days before expiration to send a reminder email (e.g., 60, 30, 14, 7). Notifies both the driver and transportation secretary."
                 disabled={!licenseEnabled}
               />
             </CardContent>
