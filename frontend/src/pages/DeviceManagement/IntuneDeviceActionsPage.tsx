@@ -31,7 +31,7 @@ import SearchIcon     from '@mui/icons-material/Search';
 import PlayArrowIcon  from '@mui/icons-material/PlayArrow';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   INTUNE_ACTION_LABELS,
   INTUNE_ACTION_RISK,
@@ -196,7 +196,7 @@ function ActionSelector({
 // ─── Main component ─────────────────────────────────────────────────────────
 
 export default function IntuneDeviceActionsPage() {
-  const [tab, setTab] = useState<0 | 1 | 2>(0);
+  const [tab, setTab] = useState<0 | 1 | 2 | 3>(0);
   const [historyEntries,   setHistoryEntries]   = useState<IntuneHistoryEntry[]>(() => loadHistory());
   const [reloadKey,        setReloadKey]        = useState(0);
   const [preloadedDevices, setPreloadedDevices] = useState<{
@@ -324,6 +324,24 @@ export default function IntuneDeviceActionsPage() {
     setHistoryEntries(updated);
   };
 
+  // ── Tab 3: Reconciliation ──────────────────────────────────────────────────
+  const [recoPage0, setRecoPage0] = useState(0); // stale devices
+  const [recoPage1, setRecoPage1] = useState(0); // intune-only
+  const [recoPage2, setRecoPage2] = useState(0); // inventory-only
+
+  const {
+    data:       recoReport,
+    isFetching: recoFetching,
+    isError:    recoIsError,
+    refetch:    refetchReco,
+  } = useQuery({
+    queryKey: ['intune-reconciliation'],
+    queryFn:  () => intuneService.getReconciliation(),
+    enabled:  false,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
   // ── Results table derived state ──────────────────────────────────────────────
   const filteredResults = results
     ? results.results.filter((r) => {
@@ -357,7 +375,7 @@ export default function IntuneDeviceActionsPage() {
         value={tab}
         onChange={(_, v) => {
           if (v === 1 || v === 2) setHistoryEntries(loadHistory());
-          setTab(v as 0 | 1 | 2);
+          setTab(v as 0 | 1 | 2 | 3);
           setResults(null);
           setIsDryRun(true);
         }}
@@ -366,6 +384,7 @@ export default function IntuneDeviceActionsPage() {
         <Tab label="By Device Model" />
         <Tab label="Scan / Search by Name" />
         <Tab label="History" />
+        <Tab label="Reconciliation" />
       </Tabs>
 
       {/* ── TAB 0: BY MODEL ──────────────────────────────────────────────────── */}
@@ -826,6 +845,215 @@ export default function IntuneDeviceActionsPage() {
                 </Paper>
               ))}
             </Stack>
+          )}
+        </Box>
+      )}
+
+      {/* ── TAB 3: RECONCILIATION ───────────────────────────────────────────── */}
+      {tab === 3 && (
+        <Box>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <Typography variant="h6" gutterBottom>Intune ↔ Inventory Reconciliation</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Compares all Intune-enrolled devices against active inventory by serial number.
+              Surfaces untracked devices, un-enrolled assets, and stale check-ins.
+              May take 10–30 seconds for large environments.
+            </Typography>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Button
+                variant="contained"
+                startIcon={<PlayArrowIcon />}
+                onClick={() => refetchReco()}
+                disabled={recoFetching}
+              >
+                {recoFetching ? 'Generating…' : recoReport ? 'Refresh Report' : 'Generate Report'}
+              </Button>
+              {recoFetching && <CircularProgress size={20} />}
+              {recoReport && !recoFetching && (
+                <Typography variant="caption" color="text.secondary">
+                  Generated at: {new Date(recoReport.generatedAt).toLocaleString()}
+                </Typography>
+              )}
+            </Stack>
+          </Paper>
+
+          {recoIsError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              Failed to generate the reconciliation report. Please try again.
+            </Alert>
+          )}
+
+          {recoReport && (
+            <>
+              {/* Summary chips */}
+              <Stack direction="row" spacing={1} flexWrap="wrap" sx={{ mb: 2 }}>
+                <Chip label={`Intune total: ${recoReport.summary.totalIntune}`} variant="outlined" size="small" />
+                <Chip label={`Inventory active: ${recoReport.summary.totalInventoryActive}`} variant="outlined" size="small" />
+                <Chip label={`Untracked (Intune only): ${recoReport.summary.inIntuneOnly}`} size="small" color={recoReport.summary.inIntuneOnly > 0 ? 'warning' : 'default'} />
+                <Chip label={`Not enrolled: ${recoReport.summary.inInventoryOnly}`} size="small" color={recoReport.summary.inInventoryOnly > 0 ? 'warning' : 'default'} />
+                <Chip label={`Stale 60+ days: ${recoReport.summary.stale60Days}`} size="small" color={recoReport.summary.stale60Days > 0 ? 'error' : 'default'} />
+                <Chip label={`Stale 90+ days: ${recoReport.summary.stale90Days}`} size="small" color={recoReport.summary.stale90Days > 0 ? 'error' : 'default'} />
+              </Stack>
+
+              {/* Stale devices */}
+              <Paper sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Stale Devices ({recoReport.staleDevices.length})
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  Enrolled in Intune but no check-in for 60+ days. Likely lost, broken, or decommissioned.
+                </Typography>
+                {recoReport.staleDevices.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">No stale devices found.</Typography>
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Device Name</TableCell>
+                          <TableCell>Serial</TableCell>
+                          <TableCell>Asset Tag</TableCell>
+                          <TableCell>Model</TableCell>
+                          <TableCell>OS</TableCell>
+                          <TableCell>Days Since Sync</TableCell>
+                          <TableCell>In Inventory</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {recoReport.staleDevices
+                          .slice(recoPage0 * 25, recoPage0 * 25 + 25)
+                          .map((d) => (
+                            <TableRow key={d.intuneDeviceId}>
+                              <TableCell>{d.deviceName ?? '—'}</TableCell>
+                              <TableCell>{d.serialNumber ?? '—'}</TableCell>
+                              <TableCell>{d.assetTag ?? '—'}</TableCell>
+                              <TableCell>{d.model ?? '—'}</TableCell>
+                              <TableCell>{d.operatingSystem ?? '—'}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={d.daysSinceSync}
+                                  size="small"
+                                  color={d.daysSinceSync >= 90 ? 'error' : 'warning'}
+                                />
+                              </TableCell>
+                              <TableCell>{d.inInventory ? 'Yes' : 'No'}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                    <TablePagination
+                      component="div"
+                      count={recoReport.staleDevices.length}
+                      page={recoPage0}
+                      onPageChange={(_, p) => setRecoPage0(p)}
+                      rowsPerPage={25}
+                      rowsPerPageOptions={[25]}
+                    />
+                  </TableContainer>
+                )}
+              </Paper>
+
+              {/* In Intune, not in inventory */}
+              <Paper sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  In Intune, Not in Inventory ({recoReport.inIntuneOnly.length})
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  Enrolled in Intune but no matching serial in active inventory. May be untagged or unregistered hardware.
+                  Devices with no serial number cannot be matched and are always listed here.
+                </Typography>
+                {recoReport.inIntuneOnly.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">All enrolled devices have matching inventory records.</Typography>
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Device Name</TableCell>
+                          <TableCell>Serial</TableCell>
+                          <TableCell>Model</TableCell>
+                          <TableCell>OS</TableCell>
+                          <TableCell>Last Sync</TableCell>
+                          <TableCell>Enrolled</TableCell>
+                          <TableCell>Compliance</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {recoReport.inIntuneOnly
+                          .slice(recoPage1 * 25, recoPage1 * 25 + 25)
+                          .map((d) => (
+                            <TableRow key={d.intuneDeviceId}>
+                              <TableCell>{d.deviceName ?? '—'}</TableCell>
+                              <TableCell>{d.serialNumber ?? '—'}</TableCell>
+                              <TableCell>{d.model ?? '—'}</TableCell>
+                              <TableCell>{d.operatingSystem ?? '—'}</TableCell>
+                              <TableCell>{d.lastSyncDateTime ? new Date(d.lastSyncDateTime).toLocaleDateString() : '—'}</TableCell>
+                              <TableCell>{d.enrolledDateTime ? new Date(d.enrolledDateTime).toLocaleDateString() : '—'}</TableCell>
+                              <TableCell>{d.complianceState ?? '—'}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                    <TablePagination
+                      component="div"
+                      count={recoReport.inIntuneOnly.length}
+                      page={recoPage1}
+                      onPageChange={(_, p) => setRecoPage1(p)}
+                      rowsPerPage={25}
+                      rowsPerPageOptions={[25]}
+                    />
+                  </TableContainer>
+                )}
+              </Paper>
+
+              {/* In inventory, not enrolled */}
+              <Paper sx={{ p: 2, mb: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  In Inventory, Not Enrolled ({recoReport.inInventoryOnly.length})
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  Active inventory equipment with a serial number that has no matching Intune enrollment.
+                </Typography>
+                {recoReport.inInventoryOnly.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">All active inventory devices are enrolled in Intune.</Typography>
+                ) : (
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Asset Tag</TableCell>
+                          <TableCell>Serial</TableCell>
+                          <TableCell>Name</TableCell>
+                          <TableCell>Model</TableCell>
+                          <TableCell>Brand</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {recoReport.inInventoryOnly
+                          .slice(recoPage2 * 25, recoPage2 * 25 + 25)
+                          .map((d) => (
+                            <TableRow key={d.assetTag}>
+                              <TableCell>{d.assetTag}</TableCell>
+                              <TableCell>{d.serialNumber}</TableCell>
+                              <TableCell>{d.name}</TableCell>
+                              <TableCell>{d.modelName ?? '—'}</TableCell>
+                              <TableCell>{d.brandName ?? '—'}</TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                    <TablePagination
+                      component="div"
+                      count={recoReport.inInventoryOnly.length}
+                      page={recoPage2}
+                      onPageChange={(_, p) => setRecoPage2(p)}
+                      rowsPerPage={25}
+                      rowsPerPageOptions={[25]}
+                    />
+                  </TableContainer>
+                )}
+              </Paper>
+            </>
           )}
         </Box>
       )}

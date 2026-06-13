@@ -289,3 +289,62 @@ export interface DeviceModelSearchResponse {
   /** Devices returned by Intune for this model (all enrolled by definition) */
   devices: IntuneDevicePreview[];
 }
+
+// ---------------------------------------------------------------------------
+// Reconciliation report
+// ---------------------------------------------------------------------------
+
+/** Intune-enrolled device with no matching active inventory row (by serial). */
+export interface IntuneOnlyDevice {
+  intuneDeviceId: string;
+  deviceName: string | null;
+  serialNumber: string | null;
+  model: string | null;
+  manufacturer: string | null;
+  operatingSystem: string | null;
+  lastSyncDateTime: string | null;
+  enrolledDateTime: string | null;
+  complianceState: string | null;
+}
+
+/** Active inventory equipment (not disposed) with no matching Intune enrollment. */
+export interface InventoryOnlyDevice {
+  assetTag: string;
+  serialNumber: string;
+  name: string;
+  modelName: string | null;
+  brandName: string | null;
+}
+
+/** Intune-enrolled device whose last sync was ≥ 60 days ago. */
+export interface StaleIntuneDevice {
+  intuneDeviceId: string;
+  deviceName: string | null;
+  serialNumber: string | null;
+  /** Asset tag from inventory if the serial matches an active row, otherwise null. */
+  assetTag: string | null;
+  model: string | null;
+  operatingSystem: string | null;
+  lastSyncDateTime: string | null;
+  daysSinceSync: number;
+  inInventory: boolean;
+}
+
+/** Response from GET /api/intune/reconciliation */
+export interface ReconciliationReport {
+  /** ISO timestamp of when the report was generated. */
+  generatedAt: string;
+  summary: {
+    totalIntune: number;
+    totalInventoryActive: number;
+    inIntuneOnly: number;
+    inInventoryOnly: number;
+    /** Devices with lastSyncDateTime ≥ 60 days ago. */
+    stale60Days: number;
+    /** Subset of stale60Days where daysSinceSync ≥ 90. */
+    stale90Days: number;
+  };
+  inIntuneOnly: IntuneOnlyDevice[];
+  inInventoryOnly: InventoryOnlyDevice[];
+  staleDevices: StaleIntuneDevice[];
+}

@@ -11,6 +11,7 @@ import type {
   DeviceModelSearchResponse,
   DeviceListActionRequest,
   IntuneActionLogsResponse,
+  ReconciliationReport,
 } from '@mgspe/shared-types';
 
 const BASE = '/intune';
@@ -45,4 +46,7 @@ export const intuneService = {
 
   executeDeviceListAction: (data: DeviceListActionRequest): Promise<BulkDeviceActionResponse> =>
     api.post(`${BASE}/actions/by-device-ids`, data).then((r) => r.data),
+
+  getReconciliation: (): Promise<ReconciliationReport> =>
+    api.get(`${BASE}/reconciliation`).then((r) => r.data),
 };

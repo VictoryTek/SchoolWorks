@@ -20,6 +20,10 @@ import type {
   DeviceSearchResponse,
   DeviceModelSearchResponse,
   IntuneActionLogsResponse,
+  ReconciliationReport,
+  IntuneOnlyDevice,
+  InventoryOnlyDevice,
+  StaleIntuneDevice,
 } from '@mgspe/shared-types';
 
 const log = createLogger('IntuneDeviceService');
@@ -434,6 +438,51 @@ async function executeBatchAction(
 }
 
 // ---------------------------------------------------------------------------
+// Inventory write-back after decommission
+// ---------------------------------------------------------------------------
+
+async function writeInventoryDisposals(
+  results: DeviceActionResult[],
+  action: IntuneAction,
+  logId: string,
+): Promise<void> {
+  if (action !== 'fullDecommission' && action !== 'deleteDevice') return;
+
+  const serialsToDispose = results
+    .filter((r) => {
+      if (!r.serialNumber) return false;
+      if (action === 'fullDecommission') {
+        return (
+          r.status === 'success' ||
+          (r.status === 'partial' && r.stepResults?.deleteDevice === 'success')
+        );
+      }
+      return r.status === 'success';
+    })
+    .map((r) => r.serialNumber);
+
+  if (serialsToDispose.length === 0) return;
+
+  const updated = await prisma.equipment.updateMany({
+    where: {
+      serialNumber: { in: serialsToDispose },
+      isDisposed: false,
+    },
+    data: {
+      isDisposed:    true,
+      disposedDate:  new Date(),
+      disposedReason: `Decommissioned via Intune — IntuneActionLog/${logId}`,
+      status:        'disposed',
+    },
+  });
+
+  log.info(`Inventory write-back: marked ${updated.count} device(s) as disposed`, {
+    logId,
+    serials: serialsToDispose,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
@@ -634,6 +683,10 @@ export async function executeBulkAction(
     },
   });
 
+  await writeInventoryDisposals(allResults, action, logRecord.id).catch(
+    (err) => log.error('Inventory write-back failed (non-fatal)', { logId: logRecord.id, error: err }),
+  );
+
   log.info(`Bulk action '${action}' on model '${modelName}' complete`, {
     total: allResults.length,
     succeeded,
@@ -747,6 +800,10 @@ export async function executeSingleAction(
       results:          [result] as unknown as object,
     },
   });
+
+  await writeInventoryDisposals([result], action, logRecord.id).catch(
+    (err) => log.error('Inventory write-back failed (non-fatal)', { logId: logRecord.id, error: err }),
+  );
 
   log.info(`Single action '${action}' complete`, {
     serialNumber,
@@ -1079,6 +1136,10 @@ export async function executeDeviceListAction(
     },
   });
 
+  await writeInventoryDisposals(allResults, action, logRecord.id).catch(
+    (err) => log.error('Inventory write-back failed (non-fatal)', { logId: logRecord.id, error: err }),
+  );
+
   log.info(`Device-list action '${action}' complete`, {
     total: allResults.length, succeeded, failed, partial, logId: logRecord.id,
   });
@@ -1094,6 +1155,132 @@ export async function executeDeviceListAction(
     partial,
     results:    allResults,
     logId:      logRecord.id,
+  };
+}
+
+export async function getReconciliationReport(): Promise<ReconciliationReport> {
+  const client = await createGraphClient();
+  const now = new Date();
+
+  // Fetch every Intune-enrolled device (no filter — full scan)
+  const select =
+    'id,deviceName,serialNumber,model,manufacturer,operatingSystem,' +
+    'complianceState,lastSyncDateTime,enrolledDateTime';
+  let url = `/deviceManagement/managedDevices?$select=${select}&$top=999`;
+  const allIntuneDevices: IntuneDevice[] = [];
+  while (url) {
+    // eslint-disable-next-line no-await-in-loop
+    const page: IntuneDeviceCollection = await withRetry(() => client.api(url).get());
+    allIntuneDevices.push(...(page.value ?? []));
+    url = page['@odata.nextLink'] ?? '';
+  }
+
+  // Fetch all active inventory equipment that has a serial number
+  const inventoryRows = await prisma.equipment.findMany({
+    where: { isDisposed: false, serialNumber: { not: null } },
+    select: {
+      assetTag: true,
+      serialNumber: true,
+      name: true,
+      models: { select: { name: true } },
+      brands: { select: { name: true } },
+    },
+  });
+
+  // Build lookup maps keyed by normalised serial (trimmed + uppercased)
+  const normalize = (s: string | null | undefined): string | null =>
+    s ? s.trim().toUpperCase() : null;
+
+  const intuneBySerial = new Map<string, IntuneDevice>();
+  for (const d of allIntuneDevices) {
+    const k = normalize(d.serialNumber);
+    if (k) intuneBySerial.set(k, d);
+  }
+
+  const inventoryBySerial = new Map<string, (typeof inventoryRows)[0]>();
+  for (const d of inventoryRows) {
+    const k = normalize(d.serialNumber);
+    if (k) inventoryBySerial.set(k, d);
+  }
+
+  // Compute categories
+  const STALE_DAYS = 60;
+  const inIntuneOnly: IntuneOnlyDevice[] = [];
+  const staleDevices: StaleIntuneDevice[] = [];
+
+  for (const d of allIntuneDevices) {
+    const k = normalize(d.serialNumber);
+    const inventoryMatch = k ? inventoryBySerial.get(k) : undefined;
+
+    if (!inventoryMatch) {
+      inIntuneOnly.push({
+        intuneDeviceId:  d.id,
+        deviceName:      d.deviceName,
+        serialNumber:    d.serialNumber,
+        model:           d.model,
+        manufacturer:    d.manufacturer,
+        operatingSystem: d.operatingSystem,
+        lastSyncDateTime: d.lastSyncDateTime,
+        enrolledDateTime: d.enrolledDateTime,
+        complianceState: d.complianceState,
+      });
+    }
+
+    if (d.lastSyncDateTime) {
+      const daysSinceSync = Math.floor(
+        (now.getTime() - new Date(d.lastSyncDateTime).getTime()) / 86_400_000,
+      );
+      if (daysSinceSync >= STALE_DAYS) {
+        staleDevices.push({
+          intuneDeviceId:  d.id,
+          deviceName:      d.deviceName,
+          serialNumber:    d.serialNumber,
+          assetTag:        inventoryMatch?.assetTag ?? null,
+          model:           d.model,
+          operatingSystem: d.operatingSystem,
+          lastSyncDateTime: d.lastSyncDateTime,
+          daysSinceSync,
+          inInventory:     !!inventoryMatch,
+        });
+      }
+    }
+  }
+
+  const inInventoryOnly: InventoryOnlyDevice[] = inventoryRows
+    .filter((d) => {
+      const k = normalize(d.serialNumber);
+      return k ? !intuneBySerial.has(k) : false;
+    })
+    .map((d) => ({
+      assetTag:   d.assetTag,
+      serialNumber: d.serialNumber!,
+      name:       d.name,
+      modelName:  d.models?.name ?? null,
+      brandName:  d.brands?.name ?? null,
+    }));
+
+  log.info('Reconciliation report generated', {
+    totalIntune:          allIntuneDevices.length,
+    totalInventoryActive: inventoryRows.length,
+    inIntuneOnly:         inIntuneOnly.length,
+    inInventoryOnly:      inInventoryOnly.length,
+    stale60Days:          staleDevices.length,
+    stale90Days:          staleDevices.filter((d) => d.daysSinceSync >= 90).length,
+  });
+
+  return {
+    generatedAt: now.toISOString(),
+    summary: {
+      totalIntune:          allIntuneDevices.length,
+      totalInventoryActive: inventoryRows.length,
+      inIntuneOnly:         inIntuneOnly.length,
+      inInventoryOnly:      inInventoryOnly.length,
+      stale60Days:          staleDevices.length,
+      stale90Days:          staleDevices.filter((d) => d.daysSinceSync >= 90).length,
+    },
+    inIntuneOnly,
+    inInventoryOnly,
+    staleDevices,
   };
 }
 

@@ -25,6 +25,12 @@ router.use(authenticate);
 // ---------------------------------------------------------------------------
 
 router.get(
+  '/reconciliation',
+  requireDeviceManagementAccess(),
+  controller.getReconciliationReport,
+);
+
+router.get(
   '/devices/by-model/:modelId',
   requireDeviceManagementAccess(),
   validateRequest(ModelIdParamSchema, 'params'),

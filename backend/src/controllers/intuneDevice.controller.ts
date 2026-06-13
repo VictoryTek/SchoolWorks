@@ -165,6 +165,22 @@ export const executeDeviceListAction = async (
 };
 
 // ---------------------------------------------------------------------------
+// Reconciliation report
+// ---------------------------------------------------------------------------
+
+export const getReconciliationReport = async (
+  _req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const report = await service.getReconciliationReport();
+    res.json(report);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Audit logs
 // ---------------------------------------------------------------------------
 
