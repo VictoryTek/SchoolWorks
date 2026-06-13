@@ -168,6 +168,8 @@ function DeviceTable({ devices }: { devices: IntuneDevicePreview[] }) {
         <TableHead>
           <TableRow>
             <TableCell>Device Name</TableCell>
+            <TableCell>Matched As</TableCell>
+            <TableCell>Model</TableCell>
             <TableCell>Asset Tag</TableCell>
             <TableCell>Serial</TableCell>
             <TableCell>OS</TableCell>
@@ -180,6 +182,19 @@ function DeviceTable({ devices }: { devices: IntuneDevicePreview[] }) {
           {devices.map((d, idx) => (
             <TableRow key={d.intuneDeviceId || d.serialNumber || idx}>
               <TableCell>{d.displayName ?? '—'}</TableCell>
+              <TableCell>
+                {d.matchedName ? (
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <span>{d.matchedName}</span>
+                    {d.matchType === 'contains' && (
+                      <Tooltip title="Partial (fuzzy) match — verify this is the correct device before acting">
+                        <Chip label="fuzzy" size="small" color="warning" sx={{ height: 18, fontSize: 10 }} />
+                      </Tooltip>
+                    )}
+                  </Stack>
+                ) : '—'}
+              </TableCell>
+              <TableCell>{d.model ?? '—'}</TableCell>
               <TableCell>{d.assetTag ?? '—'}</TableCell>
               <TableCell>{d.serialNumber || '—'}</TableCell>
               <TableCell>{d.operatingSystem ?? '—'}</TableCell>
@@ -504,6 +519,16 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
               {lookupResult.devices.length === 0 && (
                 <Alert severity="error" sx={{ mb: 1.5 }}>
                   No enrolled devices found. Go back and adjust your list.
+                </Alert>
+              )}
+
+              {lookupResult.devices.some((d) => d.matchType === 'contains') && (
+                <Alert severity="warning" sx={{ mb: 1.5 }}>
+                  {lookupResult.devices.filter((d) => d.matchType === 'contains').length} device
+                  {lookupResult.devices.filter((d) => d.matchType === 'contains').length !== 1 ? 's were' : ' was'}{' '}
+                  matched by <strong>partial name</strong> (marked “fuzzy” below). A partial match returns
+                  the first device that contains your text and may not be the one you intended — verify
+                  each before running a destructive action.
                 </Alert>
               )}
 

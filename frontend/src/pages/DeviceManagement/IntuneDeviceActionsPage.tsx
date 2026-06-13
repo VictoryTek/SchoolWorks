@@ -218,8 +218,8 @@ export default function IntuneDeviceActionsPage() {
   const [resultsPage,       setResultsPage]       = useState(0);
   const [resultsRowsPerPage, setResultsRowsPerPage] = useState(25);
   const [resultsFilter,     setResultsFilter]     = useState('');
-  const [selectedResultIds, setSelectedResultIds] = useState<Set<string>>(new Set());
   const [excludedIds,       setExcludedIds]       = useState<Set<string>>(new Set());
+  const [resultsExcludedCount, setResultsExcludedCount] = useState(0);
   // Step 2 device-list filter + selection
   const [deviceFilter,      setDeviceFilter]      = useState('');
   const [devicePage,        setDevicePage]        = useState(0);
@@ -231,7 +231,7 @@ export default function IntuneDeviceActionsPage() {
 
   const modelSearchMutation = useMutation({
     mutationFn: (model: string) => intuneService.searchByModel(model),
-    onSuccess: () => { setResults(null); setSelectedAction(''); setExcludedIds(new Set()); setSelectedResultIds(new Set()); setResultsFilter(''); setDeviceFilter(''); setDevicePage(0); setDeviceSelectedIds(new Set()); },
+    onSuccess: () => { setResults(null); setSelectedAction(''); setExcludedIds(new Set()); setResultsExcludedCount(0); setResultsFilter(''); setDeviceFilter(''); setDevicePage(0); setDeviceSelectedIds(new Set()); },
   });
 
   const modelSearchDevices = modelSearchMutation.data?.devices ?? [];
@@ -245,6 +245,7 @@ export default function IntuneDeviceActionsPage() {
   const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
 
   const modelActionMutation = useMutation({
+    onMutate: () => { setResultsExcludedCount(excludedIds.size); },
     mutationFn: async (confirmText?: string) => {
       // ── Dry run short-circuit ───────────────────────────────────────────────────────
       if (isDryRun) {
@@ -272,7 +273,6 @@ export default function IntuneDeviceActionsPage() {
       setResults(data);
       setResultsPage(0);
       setResultsFilter('');
-      setSelectedResultIds(new Set());
       setConfirmDialogOpen(false);
       setBatchProgress(null);
     },
@@ -296,6 +296,7 @@ export default function IntuneDeviceActionsPage() {
         displayName:           d.displayName,
         serialNumber:          d.serialNumber,
         assetTag:              d.assetTag,
+        model:                 null,
         operatingSystem:       d.operatingSystem,
         complianceState:       null,
         lastSyncDateTime:      null,
@@ -323,14 +324,6 @@ export default function IntuneDeviceActionsPage() {
     setHistoryEntries(updated);
   };
 
-  const getResultKey = (r: { intuneDeviceId: string | null; serialNumber: string }) =>
-    r.intuneDeviceId ?? r.serialNumber ?? '';
-
-  const handleExcludeSelected = () => {
-    setExcludedIds((prev) => new Set([...prev, ...selectedResultIds]));
-    setSelectedResultIds(new Set());
-  };
-
   // ── Results table derived state ──────────────────────────────────────────────
   const filteredResults = results
     ? results.results.filter((r) => {
@@ -347,10 +340,6 @@ export default function IntuneDeviceActionsPage() {
     resultsPage * resultsRowsPerPage,
     resultsPage * resultsRowsPerPage + resultsRowsPerPage,
   );
-  const allPageSelected =
-    pagedResultRows.length > 0 &&
-    pagedResultRows.every((r) => selectedResultIds.has(getResultKey(r)));
-  const somePageSelected = pagedResultRows.some((r) => selectedResultIds.has(getResultKey(r)));
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
@@ -501,7 +490,7 @@ export default function IntuneDeviceActionsPage() {
                                 setDeviceSelectedIds(new Set());
                               }}
                             >
-                              Exclude selected ({deviceSelectedIds.size})
+                              Click to exclude ({deviceSelectedIds.size})
                             </Button>
                           )}
                           {deviceFilter.trim() && (
@@ -533,6 +522,7 @@ export default function IntuneDeviceActionsPage() {
                                   />
                                 </TableCell>
                                 <TableCell>Device Name</TableCell>
+                                <TableCell>Model</TableCell>
                                 <TableCell>Asset Tag</TableCell>
                                 <TableCell>Serial</TableCell>
                                 <TableCell>OS</TableCell>
@@ -559,6 +549,7 @@ export default function IntuneDeviceActionsPage() {
                                     />
                                   </TableCell>
                                   <TableCell>{d.displayName ?? '—'}</TableCell>
+                                  <TableCell>{d.model ?? '—'}</TableCell>
                                   <TableCell>{d.assetTag ?? '—'}</TableCell>
                                   <TableCell>{d.serialNumber || '—'}</TableCell>
                                   <TableCell>{d.operatingSystem ?? '—'}</TableCell>
@@ -854,7 +845,7 @@ export default function IntuneDeviceActionsPage() {
             <Chip label={`Failed: ${results.failed}`}            size="small" color={results.failed > 0 ? 'error' : 'default'} />
             {results.partial > 0 && <Chip label={`Partial: ${results.partial}`} size="small" color="warning" />}
             <Chip label={`Not enrolled: ${results.notEnrolled}`} size="small" color="default" />
-            {excludedIds.size > 0 && <Chip label={`Excluded: ${excludedIds.size}`} size="small" color="warning" variant="outlined" />}
+            {resultsExcludedCount > 0 && results.logId === 'DRY_RUN' && <Chip label={`Excluded: ${resultsExcludedCount}`} size="small" color="warning" variant="outlined" />}
           </Stack>
           <Divider sx={{ mb: 1.5 }} />
           {/* Filter + exclude toolbar */}
@@ -873,11 +864,6 @@ export default function IntuneDeviceActionsPage() {
               }}
               sx={{ minWidth: 260 }}
             />
-            {selectedResultIds.size > 0 && (
-              <Button size="small" variant="outlined" color="warning" onClick={handleExcludeSelected}>
-                Exclude selected ({selectedResultIds.size})
-              </Button>
-            )}
             {resultsFilter.trim() && (
               <Typography variant="caption" color="text.secondary">
                 Showing {filteredResults.length} of {results.results.length}
@@ -888,24 +874,6 @@ export default function IntuneDeviceActionsPage() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      size="small"
-                      indeterminate={somePageSelected && !allPageSelected}
-                      checked={allPageSelected}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedResultIds((prev) => new Set([...prev, ...pagedResultRows.map(getResultKey)]));
-                        } else {
-                          setSelectedResultIds((prev) => {
-                            const next = new Set(prev);
-                            pagedResultRows.forEach((r) => next.delete(getResultKey(r)));
-                            return next;
-                          });
-                        }
-                      }}
-                    />
-                  </TableCell>
                   <TableCell>Device Name / Asset Tag</TableCell>
                   <TableCell>Serial</TableCell>
                   <TableCell>Status</TableCell>
@@ -922,20 +890,6 @@ export default function IntuneDeviceActionsPage() {
               <TableBody>
                 {pagedResultRows.map((r, i) => (
                   <TableRow key={r.intuneDeviceId || r.serialNumber || i}>
-                    <TableCell padding="checkbox">
-                      <Checkbox
-                        size="small"
-                        checked={selectedResultIds.has(getResultKey(r))}
-                        onChange={(e) => {
-                          setSelectedResultIds((prev) => {
-                            const next = new Set(prev);
-                            if (e.target.checked) next.add(getResultKey(r));
-                            else next.delete(getResultKey(r));
-                            return next;
-                          });
-                        }}
-                      />
-                    </TableCell>
                     <TableCell>{r.assetTag ?? r.serialNumber ?? '—'}</TableCell>
                     <TableCell>{r.serialNumber || '—'}</TableCell>
                     <TableCell>

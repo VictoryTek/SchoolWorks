@@ -494,6 +494,7 @@ export async function getDevicesByModel(modelId: string): Promise<DeviceModelPre
       assetTag:              eq.assetTag,
       intuneDeviceId:        intune?.id ?? null,
       displayName:           intune?.deviceName ?? null,
+      model:                 intune?.model ?? null,
       operatingSystem:       intune?.operatingSystem ?? null,
       complianceState:       intune?.complianceState ?? null,
       lastSyncDateTime:      intune?.lastSyncDateTime ?? null,
@@ -817,7 +818,12 @@ export async function searchDevicesByNames(
     'id,deviceName,serialNumber,operatingSystem,complianceState,lastSyncDateTime,enrolledDateTime,managedDeviceOwnerType,azureADDeviceId,model';
 
   const CONCURRENCY = 5;
-  const found: IntuneDevice[] = [];
+  // Track how each device was matched so the UI can flag fuzzy (contains) matches.
+  const found: Array<{
+    device: IntuneDevice;
+    matchedName: string;
+    matchType: 'exact' | 'contains';
+  }> = [];
   const notFound: string[] = [];
 
   for (let i = 0; i < deviceNames.length; i += CONCURRENCY) {
@@ -836,11 +842,13 @@ export async function searchDevicesByNames(
               .get(),
           );
           if (exactPage.value?.[0]) {
-            return { name, device: exactPage.value[0] };
+            return { name, device: exactPage.value[0], matchType: 'exact' as const };
           }
 
           // 2. Fallback: contains — handles barcode scans that only capture the
-          //    numeric suffix (e.g. "56538" matches "OCS-56538")
+          //    numeric suffix (e.g. "56538" matches "OCS-56538"). This is a fuzzy
+          //    match: $top=1 returns the first arbitrary match, so it is surfaced
+          //    to the user as 'contains' for verification before any action.
           const containsPage: IntuneDeviceCollection = await withRetry(() =>
             client
               .api(
@@ -848,17 +856,17 @@ export async function searchDevicesByNames(
               )
               .get(),
           );
-          return { name, device: containsPage.value?.[0] ?? null };
+          return { name, device: containsPage.value?.[0] ?? null, matchType: 'contains' as const };
         } catch (err) {
           log.warn(`Graph search failed for device name '${name}'`, { error: err });
-          return { name, device: null };
+          return { name, device: null, matchType: 'contains' as const };
         }
       }),
     );
 
-    for (const { name, device } of results) {
+    for (const { name, device, matchType } of results) {
       if (device) {
-        found.push(device);
+        found.push({ device, matchedName: name, matchType });
       } else {
         notFound.push(name);
       }
@@ -866,7 +874,7 @@ export async function searchDevicesByNames(
   }
 
   // Look up asset tags from inventory DB for found devices
-  const serialNumbers = found.map((d) => d.serialNumber).filter((s): s is string => !!s);
+  const serialNumbers = found.map((f) => f.device.serialNumber).filter((s): s is string => !!s);
   const equipmentMap = new Map<string, string>();
   if (serialNumbers.length > 0) {
     const rows = await prisma.equipment.findMany({
@@ -878,11 +886,12 @@ export async function searchDevicesByNames(
     }
   }
 
-  const devices: IntuneDevicePreview[] = found.map((d) => ({
+  const devices: IntuneDevicePreview[] = found.map(({ device: d, matchedName, matchType }) => ({
     serialNumber:            d.serialNumber ?? '',
     assetTag:                d.serialNumber ? (equipmentMap.get(d.serialNumber) ?? null) : null,
     intuneDeviceId:          d.id,
     displayName:             d.deviceName ?? null,
+    model:                   d.model ?? null,
     operatingSystem:         d.operatingSystem ?? null,
     complianceState:         d.complianceState ?? null,
     lastSyncDateTime:        d.lastSyncDateTime ?? null,
@@ -890,6 +899,8 @@ export async function searchDevicesByNames(
     managedDeviceOwnerType:  d.managedDeviceOwnerType ?? null,
     azureADDeviceId:         d.azureADDeviceId ?? null,
     enrollmentStatus:        'enrolled' as const,
+    matchedName,
+    matchType,
   }));
 
   log.info(`Device name search complete`, {
@@ -947,6 +958,7 @@ export async function searchDevicesByModelName(
     assetTag:               d.serialNumber ? (equipmentMap.get(d.serialNumber) ?? null) : null,
     intuneDeviceId:         d.id,
     displayName:            d.deviceName ?? null,
+    model:                  d.model ?? null,
     operatingSystem:        d.operatingSystem ?? null,
     complianceState:        d.complianceState ?? null,
     lastSyncDateTime:       d.lastSyncDateTime ?? null,

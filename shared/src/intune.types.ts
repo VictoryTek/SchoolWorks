@@ -143,6 +143,8 @@ export interface IntuneDevicePreview {
   /** Intune managed device ID (null if not enrolled) */
   intuneDeviceId: string | null;
   displayName: string | null;
+  /** Hardware model reported by Intune (managedDevice.model) */
+  model: string | null;
   operatingSystem: string | null;
   complianceState: string | null;
   lastSyncDateTime: string | null;
@@ -151,6 +153,16 @@ export interface IntuneDevicePreview {
   /** Azure AD device ID from Intune record — used for removeEntra lookup */
   azureADDeviceId: string | null;
   enrollmentStatus: 'enrolled' | 'not_enrolled';
+  /**
+   * Name-search workflow only: the scanned/typed term that resolved to this device.
+   * Lets the user verify each device was matched from the expected input.
+   */
+  matchedName?: string | null;
+  /**
+   * Name-search workflow only: how the device name was matched.
+   * 'contains' is a fuzzy/partial match and should be scrutinised before destructive actions.
+   */
+  matchType?: 'exact' | 'contains';
 }
 
 /**
