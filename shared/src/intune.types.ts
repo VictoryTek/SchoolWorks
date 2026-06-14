@@ -350,6 +350,43 @@ export interface ReconciliationReport {
 }
 
 // ---------------------------------------------------------------------------
+// Reconciliation → Add to Inventory
+// ---------------------------------------------------------------------------
+
+/** One Intune device to import into inventory. */
+export interface ReconciliationAddToInventoryDevice {
+  intuneDeviceId: string;
+  deviceName:     string | null;
+  serialNumber:   string | null;
+  model:          string | null;
+  manufacturer:   string | null;
+}
+
+/** POST /api/intune/reconciliation/add-to-inventory request body. */
+export interface ReconciliationAddToInventoryRequest {
+  devices:          ReconciliationAddToInventoryDevice[];
+  /** Shared fields applied to every created record. */
+  categoryId?:      string | null;
+  locationId?:      string | null;
+  officeLocationId?: string | null;
+  brandId?:         string | null;
+  modelId?:         string | null;
+  vendorId?:        string | null;
+  poNumber?:        string | null;
+  fundingSourceId?: string | null;
+  purchaseDate?:    string | null;
+  purchasePrice?:   number | null;
+  condition?:       string | null;
+  notes?:           string | null;
+}
+
+export interface ReconciliationAddToInventoryResponse {
+  created: number;
+  items:   Array<{ id: string; assetTag: string; name: string }>;
+  errors:  Array<{ intuneDeviceId: string; deviceName: string | null; error: string }>;
+}
+
+// ---------------------------------------------------------------------------
 // BitLocker key lookup
 // ---------------------------------------------------------------------------
 

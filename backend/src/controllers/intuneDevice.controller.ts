@@ -12,6 +12,7 @@ import type {
   SearchByModelSchema,
   DeviceListActionSchema,
   ActionLogsQuerySchema,
+  AddToInventoryFromReconciliationSchema,
 } from '../validators/intuneDevice.validators';
 import type { IntuneAction } from '@mgspe/shared-types';
 
@@ -192,6 +193,24 @@ export const getBitLockerKeys = async (
     const { deviceName } = req.params as { deviceName: string };
     const result = await service.getBitLockerKeys(deviceName, req.user!.id);
     res.json(result);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Reconciliation → Add to Inventory
+// ---------------------------------------------------------------------------
+
+export const addToInventoryFromReconciliation = async (
+  req: AuthRequest,
+  res: Response,
+): Promise<void> => {
+  try {
+    const payload = req.body as z.infer<typeof AddToInventoryFromReconciliationSchema>;
+    const user = { id: req.user!.id, email: req.user!.email, name: req.user!.name };
+    const result = await service.addReconciliationDevicesToInventory(payload, user);
+    res.status(201).json(result);
   } catch (error) {
     handleControllerError(error, res);
   }

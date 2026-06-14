@@ -45,7 +45,9 @@ import {
 } from '@mgspe/shared-types';
 import { intuneService } from '../../services/intuneService';
 import DeviceActionConfirmDialog from '../../components/DeviceActionConfirmDialog';
+import IntuneToInventoryDialog from '../../components/IntuneToInventoryDialog';
 import IntuneScanWizardTab, { type IntuneHistoryEntry, loadHistory, buildDryRunResult } from './IntuneScanWizardTab';
+import type { IntuneOnlyDevice } from '@mgspe/shared-types';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
@@ -331,6 +333,10 @@ export default function IntuneDeviceActionsPage() {
   const [recoPage0, setRecoPage0] = useState(0); // stale devices
   const [recoPage1, setRecoPage1] = useState(0); // intune-only
   const [recoPage2, setRecoPage2] = useState(0); // inventory-only
+  const [selectedForInventory, setSelectedForInventory] = useState<Set<string>>(new Set());
+  const [addToInventoryOpen, setAddToInventoryOpen]     = useState(false);
+  const [addToInventorySuccess, setAddToInventorySuccess] = useState<string | null>(null);
+  const [inIntuneOnlyFilter, setInIntuneOnlyFilter]     = useState('');
 
   const {
     data:       recoReport,
@@ -975,55 +981,145 @@ export default function IntuneDeviceActionsPage() {
 
               {/* In Intune, not in inventory */}
               <Paper sx={{ p: 2, mb: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  In Intune, Not in Inventory ({recoReport.inIntuneOnly.length})
-                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="h6">
+                    In Intune, Not in Inventory ({recoReport.inIntuneOnly.length})
+                  </Typography>
+                  {selectedForInventory.size > 0 && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={() => { setAddToInventorySuccess(null); setAddToInventoryOpen(true); }}
+                    >
+                      Add {selectedForInventory.size} to Inventory
+                    </Button>
+                  )}
+                </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                  Enrolled in Intune but no matching serial in active inventory. May be untagged or unregistered hardware.
-                  Devices with no serial number cannot be matched and are always listed here.
+                  Enrolled in Intune but no matching record in active inventory. Select devices to add them to inventory.
                 </Typography>
+                {addToInventorySuccess && (
+                  <Alert severity="success" sx={{ mb: 1.5 }} onClose={() => setAddToInventorySuccess(null)}>
+                    {addToInventorySuccess}
+                  </Alert>
+                )}
                 {recoReport.inIntuneOnly.length === 0 ? (
                   <Typography variant="body2" color="text.secondary">All enrolled devices have matching inventory records.</Typography>
-                ) : (
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Device Name</TableCell>
-                          <TableCell>Serial</TableCell>
-                          <TableCell>Model</TableCell>
-                          <TableCell>OS</TableCell>
-                          <TableCell>Last Sync</TableCell>
-                          <TableCell>Enrolled</TableCell>
-                          <TableCell>Compliance</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {recoReport.inIntuneOnly
-                          .slice(recoPage1 * 25, recoPage1 * 25 + 25)
-                          .map((d) => (
-                            <TableRow key={d.intuneDeviceId}>
-                              <TableCell>{d.deviceName ?? '—'}</TableCell>
-                              <TableCell>{d.serialNumber ?? '—'}</TableCell>
-                              <TableCell>{d.model ?? '—'}</TableCell>
-                              <TableCell>{d.operatingSystem ?? '—'}</TableCell>
-                              <TableCell>{d.lastSyncDateTime ? new Date(d.lastSyncDateTime).toLocaleDateString() : '—'}</TableCell>
-                              <TableCell>{d.enrolledDateTime ? new Date(d.enrolledDateTime).toLocaleDateString() : '—'}</TableCell>
-                              <TableCell>{d.complianceState ?? '—'}</TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                    <TablePagination
-                      component="div"
-                      count={recoReport.inIntuneOnly.length}
-                      page={recoPage1}
-                      onPageChange={(_, p) => setRecoPage1(p)}
-                      rowsPerPage={25}
-                      rowsPerPageOptions={[25]}
+                ) : (() => {
+                  const filterLower = inIntuneOnlyFilter.trim().toLowerCase();
+                  const filteredInIntuneOnly = filterLower
+                    ? recoReport.inIntuneOnly.filter((d) =>
+                        [d.deviceName, d.serialNumber, d.model, d.manufacturer, d.operatingSystem]
+                          .some((v) => v?.toLowerCase().includes(filterLower)),
+                      )
+                    : recoReport.inIntuneOnly;
+                  return (
+                  <>
+                    <TextField
+                      size="small"
+                      placeholder="Filter by device name, serial, model, manufacturer…"
+                      value={inIntuneOnlyFilter}
+                      onChange={(e) => { setInIntuneOnlyFilter(e.target.value); setRecoPage1(0); }}
+                      slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
+                      sx={{ mb: 1.5, width: 380 }}
                     />
-                  </TableContainer>
-                )}
+                    {filteredInIntuneOnly.length === 0 ? (
+                      <Typography variant="body2" color="text.secondary">No devices match the filter.</Typography>
+                    ) : (
+                    <TableContainer>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                size="small"
+                                indeterminate={
+                                  selectedForInventory.size > 0 &&
+                                  !filteredInIntuneOnly.every((d) => selectedForInventory.has(d.intuneDeviceId))
+                                }
+                                checked={
+                                  filteredInIntuneOnly.length > 0 &&
+                                  filteredInIntuneOnly.every((d) => selectedForInventory.has(d.intuneDeviceId))
+                                }
+                                onChange={(e) => {
+                                  setSelectedForInventory((prev) => {
+                                    const next = new Set(prev);
+                                    if (e.target.checked) {
+                                      filteredInIntuneOnly.forEach((d) => next.add(d.intuneDeviceId));
+                                    } else {
+                                      filteredInIntuneOnly.forEach((d) => next.delete(d.intuneDeviceId));
+                                    }
+                                    return next;
+                                  });
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>Device Name</TableCell>
+                            <TableCell>Serial</TableCell>
+                            <TableCell>Model</TableCell>
+                            <TableCell>OS</TableCell>
+                            <TableCell>Last Sync</TableCell>
+                            <TableCell>Enrolled</TableCell>
+                            <TableCell>Compliance</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {filteredInIntuneOnly
+                            .slice(recoPage1 * 25, recoPage1 * 25 + 25)
+                            .map((d) => (
+                              <TableRow
+                                key={d.intuneDeviceId}
+                                selected={selectedForInventory.has(d.intuneDeviceId)}
+                                hover
+                                onClick={() => {
+                                  setSelectedForInventory((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(d.intuneDeviceId)) next.delete(d.intuneDeviceId);
+                                    else next.add(d.intuneDeviceId);
+                                    return next;
+                                  });
+                                }}
+                                sx={{ cursor: 'pointer' }}
+                              >
+                                <TableCell padding="checkbox">
+                                  <Checkbox
+                                    size="small"
+                                    checked={selectedForInventory.has(d.intuneDeviceId)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={() => {
+                                      setSelectedForInventory((prev) => {
+                                        const next = new Set(prev);
+                                        if (next.has(d.intuneDeviceId)) next.delete(d.intuneDeviceId);
+                                        else next.add(d.intuneDeviceId);
+                                        return next;
+                                      });
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell>{d.deviceName ?? '—'}</TableCell>
+                                <TableCell>{d.serialNumber ?? '—'}</TableCell>
+                                <TableCell>{d.model ?? '—'}</TableCell>
+                                <TableCell>{d.operatingSystem ?? '—'}</TableCell>
+                                <TableCell>{d.lastSyncDateTime ? new Date(d.lastSyncDateTime).toLocaleDateString() : '—'}</TableCell>
+                                <TableCell>{d.enrolledDateTime ? new Date(d.enrolledDateTime).toLocaleDateString() : '—'}</TableCell>
+                                <TableCell>{d.complianceState ?? '—'}</TableCell>
+                              </TableRow>
+                            ))}
+                        </TableBody>
+                      </Table>
+                      <TablePagination
+                        component="div"
+                        count={filteredInIntuneOnly.length}
+                        page={recoPage1}
+                        onPageChange={(_, p) => setRecoPage1(p)}
+                        rowsPerPage={25}
+                        rowsPerPageOptions={[25]}
+                      />
+                    </TableContainer>
+                    )}
+                  </>
+                  );
+                })()}
               </Paper>
 
               {/* In inventory, not enrolled */}
@@ -1306,6 +1402,20 @@ export default function IntuneDeviceActionsPage() {
           </TableContainer>
         </Paper>
       )}
+
+      {/* Add to Inventory dialog */}
+      <IntuneToInventoryDialog
+        open={addToInventoryOpen}
+        devices={recoReport
+          ? (recoReport.inIntuneOnly.filter((d) => selectedForInventory.has(d.intuneDeviceId)) as IntuneOnlyDevice[])
+          : []}
+        onClose={() => setAddToInventoryOpen(false)}
+        onSuccess={(count) => {
+          setAddToInventoryOpen(false);
+          setSelectedForInventory(new Set());
+          setAddToInventorySuccess(`Successfully added ${count} device${count !== 1 ? 's' : ''} to inventory.`);
+        }}
+      />
 
       {/* Confirmation dialog */}
       {!!selectedAction && (

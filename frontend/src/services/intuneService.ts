@@ -13,6 +13,8 @@ import type {
   IntuneActionLogsResponse,
   ReconciliationReport,
   BitLockerKeyResponse,
+  ReconciliationAddToInventoryRequest,
+  ReconciliationAddToInventoryResponse,
 } from '@mgspe/shared-types';
 
 const BASE = '/intune';
@@ -53,4 +55,7 @@ export const intuneService = {
 
   getBitLockerKeys: (deviceName: string): Promise<BitLockerKeyResponse> =>
     api.get(`${BASE}/bitlocker/by-name/${encodeURIComponent(deviceName)}`).then((r) => r.data),
+
+  addToInventory: (data: ReconciliationAddToInventoryRequest): Promise<ReconciliationAddToInventoryResponse> =>
+    api.post(`${BASE}/reconciliation/add-to-inventory`, data).then((r) => r.data),
 };

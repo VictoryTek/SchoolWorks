@@ -28,6 +28,8 @@ import type {
   StaleIntuneDevice,
   BitLockerKeyEntry,
   BitLockerKeyResponse,
+  ReconciliationAddToInventoryRequest,
+  ReconciliationAddToInventoryResponse,
 } from '@mgspe/shared-types';
 
 const log = createLogger('IntuneDeviceService');
@@ -1222,33 +1224,65 @@ export async function getReconciliationReport(): Promise<ReconciliationReport> {
     url = page['@odata.nextLink'] ?? '';
   }
 
-  // Fetch all active inventory equipment that has a serial number
-  const inventoryRows = await prisma.equipment.findMany({
-    where: { isDisposed: false, serialNumber: { not: null } },
+  // Fetch ALL inventory equipment (active + disposed) for matching.
+  // Disposed records must be included so that decommissioned devices don't
+  // falsely appear as "in Intune but not in inventory".
+  const allInventoryRows = await prisma.equipment.findMany({
     select: {
-      assetTag: true,
+      assetTag:    true,
       serialNumber: true,
-      name: true,
+      name:        true,
+      isDisposed:  true,
       models: { select: { name: true } },
       brands: { select: { name: true } },
     },
   });
 
+  const activeInventoryRows = allInventoryRows.filter((r) => !r.isDisposed);
+
   // Build lookup maps keyed by normalised serial (trimmed + uppercased)
   const normalize = (s: string | null | undefined): string | null =>
     s ? s.trim().toUpperCase() : null;
 
+  // OCS-named devices (e.g. "OCS-57804") have no serial in Intune;
+  // their asset tag is the number after "OCS-".
+  const OCS_RE = /^OCS-(\d+)$/i;
+
   const intuneBySerial = new Map<string, IntuneDevice>();
+  const intuneByAssetTag = new Map<string, IntuneDevice>(); // keyed by OCS asset tag
   for (const d of allIntuneDevices) {
     const k = normalize(d.serialNumber);
     if (k) intuneBySerial.set(k, d);
+    if (d.deviceName) {
+      const m = OCS_RE.exec(d.deviceName);
+      if (m) intuneByAssetTag.set(m[1], d);
+    }
   }
 
-  const inventoryBySerial = new Map<string, (typeof inventoryRows)[0]>();
-  for (const d of inventoryRows) {
+  const inventoryBySerial = new Map<string, (typeof allInventoryRows)[0]>();
+  const inventoryByAssetTag = new Map<string, (typeof allInventoryRows)[0]>();
+  for (const d of allInventoryRows) {
     const k = normalize(d.serialNumber);
     if (k) inventoryBySerial.set(k, d);
+    inventoryByAssetTag.set(d.assetTag, d);
   }
+
+  // Resolve the inventory record for an Intune device: serial first,
+  // then OCS asset-tag fallback (always tried when serial lookup misses,
+  // because OCS-named devices carry the OPS serial — not the device's own
+  // inventory serial — so serial can be present but simply not match).
+  const findInventoryMatch = (d: IntuneDevice) => {
+    const k = normalize(d.serialNumber);
+    if (k) {
+      const bySerial = inventoryBySerial.get(k);
+      if (bySerial) return bySerial;
+    }
+    if (d.deviceName) {
+      const m = OCS_RE.exec(d.deviceName);
+      if (m) return inventoryByAssetTag.get(m[1]);
+    }
+    return undefined;
+  };
 
   // Compute categories
   const STALE_DAYS = 60;
@@ -1256,8 +1290,11 @@ export async function getReconciliationReport(): Promise<ReconciliationReport> {
   const staleDevices: StaleIntuneDevice[] = [];
 
   for (const d of allIntuneDevices) {
-    const k = normalize(d.serialNumber);
-    const inventoryMatch = k ? inventoryBySerial.get(k) : undefined;
+    const inventoryMatch = findInventoryMatch(d);
+    // Only flag as "in Intune only" when genuinely absent from inventory
+    // (active AND disposed records are checked — a disposed match means it was
+    // intentionally decommissioned and should not appear here).
+    const activeMatch = inventoryMatch && !inventoryMatch.isDisposed ? inventoryMatch : undefined;
 
     if (!inventoryMatch) {
       inIntuneOnly.push({
@@ -1282,33 +1319,35 @@ export async function getReconciliationReport(): Promise<ReconciliationReport> {
           intuneDeviceId:  d.id,
           deviceName:      d.deviceName,
           serialNumber:    d.serialNumber,
-          assetTag:        inventoryMatch?.assetTag ?? null,
+          assetTag:        activeMatch?.assetTag ?? inventoryMatch?.assetTag ?? null,
           model:           d.model,
           operatingSystem: d.operatingSystem,
           lastSyncDateTime: d.lastSyncDateTime,
           daysSinceSync,
-          inInventory:     !!inventoryMatch,
+          inInventory:     !!activeMatch,
         });
       }
     }
   }
 
-  const inInventoryOnly: InventoryOnlyDevice[] = inventoryRows
+  const inInventoryOnly: InventoryOnlyDevice[] = activeInventoryRows
     .filter((d) => {
       const k = normalize(d.serialNumber);
-      return k ? !intuneBySerial.has(k) : false;
+      if (k && intuneBySerial.has(k)) return false;
+      if (intuneByAssetTag.has(d.assetTag)) return false;
+      return true;
     })
     .map((d) => ({
-      assetTag:   d.assetTag,
+      assetTag:     d.assetTag,
       serialNumber: d.serialNumber!,
-      name:       d.name,
-      modelName:  d.models?.name ?? null,
-      brandName:  d.brands?.name ?? null,
+      name:         d.name,
+      modelName:    d.models?.name ?? null,
+      brandName:    d.brands?.name ?? null,
     }));
 
   log.info('Reconciliation report generated', {
     totalIntune:          allIntuneDevices.length,
-    totalInventoryActive: inventoryRows.length,
+    totalInventoryActive: activeInventoryRows.length,
     inIntuneOnly:         inIntuneOnly.length,
     inInventoryOnly:      inInventoryOnly.length,
     stale60Days:          staleDevices.length,
@@ -1319,7 +1358,7 @@ export async function getReconciliationReport(): Promise<ReconciliationReport> {
     generatedAt: now.toISOString(),
     summary: {
       totalIntune:          allIntuneDevices.length,
-      totalInventoryActive: inventoryRows.length,
+      totalInventoryActive: activeInventoryRows.length,
       inIntuneOnly:         inIntuneOnly.length,
       inInventoryOnly:      inInventoryOnly.length,
       stale60Days:          staleDevices.length,
@@ -1437,6 +1476,72 @@ export async function getBitLockerKeys(
     entraObjectId: azureADDeviceId,
     keys,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Reconciliation → Add to Inventory
+// ---------------------------------------------------------------------------
+
+const OCS_ASSET_TAG_RE = /^OCS-(\d+)$/i;
+
+export async function addReconciliationDevicesToInventory(
+  payload: ReconciliationAddToInventoryRequest,
+  performedBy: { id: string; email: string; name: string },
+): Promise<ReconciliationAddToInventoryResponse> {
+  const items: ReconciliationAddToInventoryResponse['items'] = [];
+  const errors: ReconciliationAddToInventoryResponse['errors'] = [];
+
+  for (const d of payload.devices) {
+    try {
+      const ocsMatch = d.deviceName ? OCS_ASSET_TAG_RE.exec(d.deviceName) : null;
+      const assetTag = ocsMatch
+        ? ocsMatch[1]
+        : (d.deviceName ?? d.intuneDeviceId).substring(0, 50);
+
+      const nameParts = [d.manufacturer, d.model].filter(Boolean);
+      const name = nameParts.length > 0 ? nameParts.join(' ') : (d.deviceName ?? 'Unknown Device');
+
+      // eslint-disable-next-line no-await-in-loop
+      const item = await prisma.equipment.create({
+        data: {
+          assetTag,
+          serialNumber:    d.serialNumber || null,
+          name,
+          categoryId:      payload.categoryId      ?? null,
+          locationId:      payload.locationId      ?? null,
+          officeLocationId: payload.officeLocationId ?? null,
+          brandId:         payload.brandId         ?? null,
+          modelId:         payload.modelId         ?? null,
+          vendorId:        payload.vendorId        ?? null,
+          poNumber:        payload.poNumber        ?? null,
+          fundingSourceId: payload.fundingSourceId ?? null,
+          purchaseDate:    payload.purchaseDate    ? new Date(payload.purchaseDate) : null,
+          purchasePrice:   payload.purchasePrice   ?? null,
+          condition:       payload.condition       ?? null,
+          notes:           payload.notes           ?? null,
+          status:          'active',
+        },
+        select: { id: true, assetTag: true, name: true },
+      });
+
+      items.push(item);
+      log.info('Reconciliation: device added to inventory', {
+        performedBy: performedBy.email,
+        assetTag,
+        intuneDeviceId: d.intuneDeviceId,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      log.warn('Reconciliation: failed to add device to inventory', {
+        intuneDeviceId: d.intuneDeviceId,
+        deviceName: d.deviceName,
+        error: message,
+      });
+      errors.push({ intuneDeviceId: d.intuneDeviceId, deviceName: d.deviceName, error: message });
+    }
+  }
+
+  return { created: items.length, items, errors };
 }
 
 export async function getActionLogs(params: {

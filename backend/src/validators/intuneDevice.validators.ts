@@ -71,6 +71,33 @@ export const DeviceListActionSchema = z.object({
   confirmText: z.string().max(50).optional(),
 });
 
+export const AddToInventoryFromReconciliationSchema = z.object({
+  devices: z
+    .array(
+      z.object({
+        intuneDeviceId: z.string().min(1).max(300),
+        deviceName:     z.string().max(300).nullable(),
+        serialNumber:   z.string().max(200).nullable(),
+        model:          z.string().max(200).nullable(),
+        manufacturer:   z.string().max(200).nullable(),
+      }),
+    )
+    .min(1, 'At least one device is required')
+    .max(200, 'Maximum 200 devices per request'),
+  categoryId:       z.string().uuid().optional().nullable(),
+  locationId:       z.string().uuid().optional().nullable(),
+  officeLocationId: z.string().uuid().optional().nullable(),
+  brandId:          z.string().uuid().optional().nullable(),
+  modelId:          z.string().uuid().optional().nullable(),
+  vendorId:         z.string().uuid().optional().nullable(),
+  poNumber:         z.string().max(50).optional().nullable(),
+  fundingSourceId:  z.string().uuid().optional().nullable(),
+  purchaseDate:     z.string().datetime().optional().nullable(),
+  purchasePrice:    z.number().optional().nullable(),
+  condition:        z.string().max(50).optional().nullable(),
+  notes:            z.string().max(2000).optional().nullable(),
+});
+
 export const ActionLogsQuerySchema = z.object({
   page: z
     .preprocess(

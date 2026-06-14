@@ -14,6 +14,7 @@ import {
   SearchByModelSchema,
   DeviceListActionSchema,
   ActionLogsQuerySchema,
+  AddToInventoryFromReconciliationSchema,
 } from '../validators/intuneDevice.validators';
 
 const router = Router();
@@ -101,6 +102,14 @@ router.post(
   requireDeviceManagementAccess(),
   validateRequest(DeviceListActionSchema),
   controller.executeDeviceListAction,
+);
+
+router.post(
+  '/reconciliation/add-to-inventory',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  validateRequest(AddToInventoryFromReconciliationSchema),
+  controller.addToInventoryFromReconciliation,
 );
 
 export default router;
