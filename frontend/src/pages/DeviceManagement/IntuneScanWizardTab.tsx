@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Alert,
   Box,
@@ -184,8 +184,9 @@ interface IntuneScanWizardTabProps {
 // ─── IntuneScanWizardTab ──────────────────────────────────────────────────────
 
 export default function IntuneScanWizardTab({ initialLookupResult, initialAction, onActionComplete }: IntuneScanWizardTabProps = {}) {
-  const isMobile          = useIsMobile();
-  const scanningNamesRef  = useRef(new Set<string>());
+  const isMobile           = useIsMobile();
+  const scanningNamesRef   = useRef(new Set<string>());
+  const tableContainerRef  = useRef<HTMLDivElement>(null);
 
   // Pre-populate scanned entries when loaded from history
   const initialEntries: ScannedEntry[] = initialLookupResult
@@ -220,6 +221,12 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
   const foundDevices  = scannedEntries.filter((e) => e.status === 'found').map((e) => e.device!);
   const hasPending    = scannedEntries.some((e) => e.status === 'pending');
   const pendingCount  = scannedEntries.filter((e) => e.status === 'pending').length;
+
+  // Scroll the table to the bottom each time a new entry is appended
+  useEffect(() => {
+    const el = tableContainerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [scannedEntries.length]);
 
   // ─── Mutation ────────────────────────────────────────────────────────────────
 
@@ -418,7 +425,7 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
                 </Tooltip>
               </Stack>
 
-              <TableContainer sx={{ maxHeight: 360, mb: 2 }}>
+              <TableContainer ref={tableContainerRef} sx={{ maxHeight: 360, mb: 2 }}>
                 <Table size="small" stickyHeader>
                   <TableHead>
                     <TableRow>
