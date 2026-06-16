@@ -27,6 +27,7 @@ import transportationDashboardRoutes from './routes/transportationDashboard.rout
 import fuelConsumptionRoutes from './routes/fuelConsumption.routes';
 import { stationTankRouter, tankRouter } from './routes/fuelTank.routes';
 import dotPhysicalRoutes from './routes/dotPhysical.routes';
+import dotPhysicianRoutes from './routes/dotPhysician.routes';
 import driverLicenseRoutes from './routes/driverLicense.routes';
 import workOrderCategoryRoutes from './routes/workOrderCategory.routes';
 import deviceAssignmentRoutes from './routes/deviceAssignment.routes';
@@ -206,6 +207,7 @@ app.use('/api/transportation/stations/:stationId/tanks', stationTankRouter);
 app.use('/api/transportation/tanks/:tankId', tankRouter);
 app.use('/api/fuel-entries', fuelConsumptionRoutes);
 app.use('/api/dot-physicals', dotPhysicalRoutes);
+app.use('/api/dot-physicians', dotPhysicianRoutes);
 app.use('/api/driver-licenses', driverLicenseRoutes);
 app.use('/api/transportation/reports', transportationReportRoutes);
 app.use('/api/transportation/settings', transportationSettingsRoutes);

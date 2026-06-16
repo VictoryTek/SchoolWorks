@@ -76,6 +76,7 @@ export class DotPhysicalService {
         include: {
           driver:    { select: { id: true, firstName: true, lastName: true, displayName: true, email: true, jobTitle: true } },
           createdBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+          physician: { select: { id: true, name: true, certNumber: true, nationalRegistryNumber: true, state: true } },
         },
       }),
       this.prisma.dotPhysical.count({ where }),
@@ -106,6 +107,7 @@ export class DotPhysicalService {
       include: {
         driver:    { select: { id: true, firstName: true, lastName: true, displayName: true, email: true, jobTitle: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true, displayName: true } },
+        physician: { select: { id: true, name: true, certNumber: true, nationalRegistryNumber: true, state: true } },
       },
     });
     if (!physical) throw new NotFoundError('DotPhysical', id);
@@ -140,6 +142,7 @@ export class DotPhysicalService {
         examinerCertNumber: data.examinerCertNumber ? sanitizeText(data.examinerCertNumber) : null,
         certificateNumber:  data.certificateNumber  ? sanitizeText(data.certificateNumber)  : null,
         documentUrl:        data.documentUrl        ?? null,
+        physicianId:        data.physicianId        ?? null,
         notes:              data.notes              ? sanitizeText(data.notes)              : null,
         remindersSent:      [],
         createdById,
@@ -171,6 +174,7 @@ export class DotPhysicalService {
     if (data.examinerCertNumber !== undefined) updateData['examinerCertNumber'] = data.examinerCertNumber ? sanitizeText(data.examinerCertNumber) : null;
     if (data.certificateNumber !== undefined)  updateData['certificateNumber'] = data.certificateNumber ? sanitizeText(data.certificateNumber) : null;
     if (data.documentUrl !== undefined)        updateData['documentUrl'] = data.documentUrl ?? null;
+    if (data.physicianId !== undefined)        updateData['physicianId'] = data.physicianId ?? null;
     if (data.isActive !== undefined)           updateData['isActive'] = data.isActive;
     if (data.notes !== undefined)              updateData['notes'] = data.notes ? sanitizeText(data.notes) : null;
 

@@ -13,6 +13,8 @@ import type {
   TransportationFuelStation,
   FuelConsumptionEntry,
   DotPhysical,
+  DotPhysician,
+  CreateDotPhysicianPayload,
   TransportationSettings,
   TransportationDashboard,
   MonthlyFuelReport,
@@ -265,6 +267,7 @@ export const dotPhysicalApi = {
     examinerCertNumber?: string | null;
     certificateNumber?: string | null;
     documentUrl?: string | null;
+    physicianId?: string | null;
     notes?: string | null;
   }): Promise<DotPhysical> => {
     const res = await api.post<DotPhysical>('/dot-physicals', data);
@@ -278,6 +281,7 @@ export const dotPhysicalApi = {
     examinerCertNumber: string | null;
     certificateNumber: string | null;
     documentUrl: string | null;
+    physicianId: string | null;
     isActive: boolean;
     notes: string | null;
   }>): Promise<DotPhysical> => {
@@ -509,5 +513,30 @@ export const fuelTankApi = {
   getDeliveries: async (tankId: string): Promise<FuelTankDelivery[]> => {
     const res = await api.get<FuelTankDelivery[]>(`/transportation/tanks/${tankId}/deliveries`);
     return res.data;
+  },
+};
+
+// ---------------------------------------------------------------------------
+// DOT Physicians (reference table)
+// ---------------------------------------------------------------------------
+
+export const dotPhysicianApi = {
+  list: async (q?: string): Promise<DotPhysician[]> => {
+    const res = await api.get<DotPhysician[]>('/dot-physicians', { params: q ? { q } : undefined });
+    return res.data ?? [];
+  },
+
+  create: async (data: CreateDotPhysicianPayload): Promise<DotPhysician> => {
+    const res = await api.post<DotPhysician>('/dot-physicians', data);
+    return res.data;
+  },
+
+  update: async (id: string, data: Partial<CreateDotPhysicianPayload>): Promise<DotPhysician> => {
+    const res = await api.put<DotPhysician>(`/dot-physicians/${id}`, data);
+    return res.data;
+  },
+
+  deactivate: async (id: string): Promise<void> => {
+    await api.delete(`/dot-physicians/${id}`);
   },
 };

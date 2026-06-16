@@ -562,6 +562,7 @@ model User {
   fuelEntries                  FuelConsumptionEntry[]
   dotPhysicals                 DotPhysical[] @relation("DotPhysicalDriver")
   dotPhysicalsCreated          DotPhysical[] @relation("DotPhysicalCreator")
+  dotPhysiciansCreated         DotPhysician[] @relation("DotPhysicianCreator")
   transportationFuelStationsAdded TransportationFuelStation[]
   fuelTanksCreated             FuelTank[]         @relation("FuelTankCreator")
   fuelTankDeliveries           FuelTankDelivery[] @relation("FuelTankDeliveryEnteredBy")
@@ -1881,6 +1882,7 @@ model DotPhysical {
   examinerCertNumber String?
   certificateNumber String?
   documentUrl       String?
+  physicianId       String?
   isActive          Boolean  @default(true)
   remindersSent     Json     @default("[]")
   notes             String?  @db.Text
@@ -1888,15 +1890,37 @@ model DotPhysical {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  driver    User @relation("DotPhysicalDriver", fields: [userId], references: [id])
-  createdBy User @relation("DotPhysicalCreator", fields: [createdById], references: [id])
+  driver    User          @relation("DotPhysicalDriver", fields: [userId], references: [id])
+  createdBy User          @relation("DotPhysicalCreator", fields: [createdById], references: [id])
+  physician DotPhysician? @relation(fields: [physicianId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([expirationDate])
   @@index([isActive])
   @@index([userId, isActive])
   @@index([expirationDate, isActive])
+  @@index([physicianId])
   @@map("dot_physicals")
+}
+
+model DotPhysician {
+  id                     String   @id @default(uuid())
+  name                   String   @db.VarChar(200)
+  certNumber             String?  @db.VarChar(100)
+  nationalRegistryNumber String?  @db.VarChar(100)
+  state                  String?  @db.VarChar(2)
+  notes                  String?  @db.Text
+  isActive               Boolean  @default(true)
+  createdById            String
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  createdBy    User          @relation("DotPhysicianCreator", fields: [createdById], references: [id])
+  dotPhysicals DotPhysical[]
+
+  @@index([name])
+  @@index([isActive])
+  @@map("dot_physicians")
 }
 
 model TransportationSettings {

@@ -156,6 +156,30 @@ export interface FuelConsumptionEntry {
 }
 
 // ---------------------------------------------------------------------------
+// DOT Physician (reference table)
+// ---------------------------------------------------------------------------
+export interface DotPhysician {
+  id:                     string;
+  name:                   string;
+  certNumber?:            string | null;
+  nationalRegistryNumber?: string | null;
+  state?:                 string | null;
+  notes?:                 string | null;
+  isActive:               boolean;
+  createdById:            string;
+  createdAt:              string;
+  updatedAt:              string;
+}
+
+export interface CreateDotPhysicianPayload {
+  name:                   string;
+  certNumber?:            string | null;
+  nationalRegistryNumber?: string | null;
+  state?:                 string | null;
+  notes?:                 string | null;
+}
+
+// ---------------------------------------------------------------------------
 // DOT Physical
 // ---------------------------------------------------------------------------
 export interface DotPhysical {
@@ -167,6 +191,8 @@ export interface DotPhysical {
   examinerCertNumber?: string | null;
   certificateNumber?:  string | null;
   documentUrl?:        string | null;
+  physicianId?:        string | null;
+  physician?:          Pick<DotPhysician, 'id' | 'name' | 'certNumber' | 'nationalRegistryNumber' | 'state'> | null;
   isActive:            boolean;
   remindersSent:       number[];
   notes?:              string | null;

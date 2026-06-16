@@ -221,6 +221,7 @@ export const CreateDotPhysicalSchema = z.object({
   examinerCertNumber: z.string().max(100).optional().nullable(),
   certificateNumber:  z.string().max(100).optional().nullable(),
   documentUrl:        z.string().max(100).optional().nullable(),
+  physicianId:        z.string().uuid().optional().nullable(),
   notes:              z.string().max(5000).optional().nullable(),
 }).refine(
   (data) => new Date(data.expirationDate) > new Date(data.examDate),
@@ -236,6 +237,7 @@ export const UpdateDotPhysicalSchema = z.object({
   examinerCertNumber: z.string().max(100).optional().nullable(),
   certificateNumber:  z.string().max(100).optional().nullable(),
   documentUrl:        z.string().max(100).optional().nullable(),
+  physicianId:        z.string().uuid().optional().nullable(),
   isActive:           z.boolean().optional(),
   notes:              z.string().max(5000).optional().nullable(),
 }).refine(
@@ -249,6 +251,30 @@ export const UpdateDotPhysicalSchema = z.object({
 );
 
 export type UpdateDotPhysicalDto = z.infer<typeof UpdateDotPhysicalSchema>;
+
+// ---------------------------------------------------------------------------
+// DOT Physicians (reference table)
+// ---------------------------------------------------------------------------
+
+export const CreateDotPhysicianSchema = z.object({
+  name:                   z.string().min(1).max(200),
+  certNumber:             z.string().max(100).optional().nullable(),
+  nationalRegistryNumber: z.string().max(100).optional().nullable(),
+  state:                  z.string().max(2).optional().nullable(),
+  notes:                  z.string().max(5000).optional().nullable(),
+});
+
+export type CreateDotPhysicianDto = z.infer<typeof CreateDotPhysicianSchema>;
+
+export const UpdateDotPhysicianSchema = CreateDotPhysicianSchema.partial();
+
+export type UpdateDotPhysicianDto = z.infer<typeof UpdateDotPhysicianSchema>;
+
+export const ListDotPhysiciansQuerySchema = z.object({
+  q:     z.string().optional(),
+  page:  z.string().optional().transform(v => (v ? parseInt(v, 10) : 1)),
+  limit: z.string().optional().transform(v => (v ? Math.min(parseInt(v, 10), 100) : 25)),
+});
 
 export const ListDotPhysicalsQuerySchema = z.object({
   userId:              z.string().uuid().optional(),
