@@ -12,7 +12,6 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  TextField,
   Typography,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -45,19 +44,6 @@ const RISK_COLOURS: Record<string, string> = {
   critical: '#c62828',
 };
 
-/**
- * For high/critical (non-fullDecommission) actions the user must type the action
- * name uppercased.  For fullDecommission the user must type 'DECOMMISSION'.
- */
-function requiredConfirmText(action: IntuneAction): string | null {
-  const risk = INTUNE_ACTION_RISK[action];
-  if (risk === 'low') return null;
-  if (risk === 'medium') return null; // checkbox only
-  if (action === 'fullDecommission') return 'DECOMMISSION';
-  // high / critical: action name uppercased and stripped of camelCase
-  return action.replace(/([A-Z])/g, '_$1').toUpperCase().replace(/^_/, '');
-}
-
 export default function DeviceActionConfirmDialog({
   open,
   action,
@@ -69,27 +55,23 @@ export default function DeviceActionConfirmDialog({
   isLoading = false,
   isDryRun = false,
 }: DeviceActionConfirmDialogProps) {
-  const [typedText, setTypedText]   = useState('');
-  const [checked,   setChecked]     = useState(false);
+  const [checked, setChecked] = useState(false);
 
-  const risk       = INTUNE_ACTION_RISK[action];
-  const label      = INTUNE_ACTION_LABELS[action];
-  const required   = requiredConfirmText(action);
+  const risk         = INTUNE_ACTION_RISK[action];
+  const label        = INTUNE_ACTION_LABELS[action];
   const borderColour = RISK_COLOURS[risk] ?? '#1565c0';
 
   const isConfirmed = () => {
-    if (risk === 'low')    return true;
-    if (risk === 'medium') return checked;
-    // high / critical
-    return required ? typedText.trim() === required : true;
+    if (risk === 'low') return true;
+    return checked;
   };
 
   const handleConfirm = () => {
-    onConfirm(required ? typedText.trim() === 'DECOMMISSION' ? 'DECOMMISSION' : undefined : undefined);
+    // Backend requires confirmText === 'DECOMMISSION' for fullDecommission at the service layer
+    onConfirm(action === 'fullDecommission' ? 'DECOMMISSION' : undefined);
   };
 
   const handleClose = () => {
-    setTypedText('');
     setChecked(false);
     onCancel();
   };
@@ -167,41 +149,24 @@ export default function DeviceActionConfirmDialog({
           </>
         )}
 
-        {risk === 'medium' && (
+        {risk !== 'low' && (
           <FormControlLabel
-            sx={{ mt: 1 }}
+            sx={{ mt: 1.5 }}
             control={
               <Checkbox
                 checked={checked}
                 onChange={(e) => setChecked(e.target.checked)}
-                color="warning"
+                color={risk === 'medium' ? 'warning' : 'error'}
               />
             }
-            label={`I understand this will ${action === 'rebootNow' ? 'immediately reboot' : 'affect'} ${enrolledCount} device${enrolledCount !== 1 ? 's' : ''}`}
+            label={
+              risk === 'medium'
+                ? `I understand this will ${action === 'rebootNow' ? 'immediately reboot' : 'affect'} ${enrolledCount} device${enrolledCount !== 1 ? 's' : ''}`
+                : risk === 'high'
+                  ? `I understand this action is destructive and will permanently affect ${enrolledCount} device${enrolledCount !== 1 ? 's' : ''}. This cannot be undone.`
+                  : `I understand this action is irreversible and will permanently affect ${enrolledCount} device${enrolledCount !== 1 ? 's' : ''}. This cannot be undone.`
+            }
           />
-        )}
-
-        {(risk === 'high' || risk === 'critical') && required && (
-          <>
-            <Typography variant="body2" sx={{ mt: 2 }}>
-              Type <strong>{required}</strong> to confirm:
-            </Typography>
-            <TextField
-              autoFocus
-              fullWidth
-              size="small"
-              sx={{ mt: 1 }}
-              value={typedText}
-              onChange={(e) => setTypedText(e.target.value)}
-              placeholder={required}
-              error={typedText.length > 0 && typedText !== required}
-              helperText={
-                typedText.length > 0 && typedText !== required
-                  ? `Must match exactly: ${required}`
-                  : undefined
-              }
-            />
-          </>
         )}
       </DialogContent>
 

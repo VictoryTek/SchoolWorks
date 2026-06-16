@@ -213,7 +213,7 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
   const [keepUserData,      setKeepUserData]      = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [actionResults,     setActionResults]     = useState<BulkDeviceActionResponse | null>(null);
-  const [isDryRun,          setIsDryRun]          = useState(true);
+  const [isDryRun,          setIsDryRun]          = useState(false);
   const [resultsPage,       setResultsPage]       = useState(0);
   const [resultsRowsPerPage, setResultsRowsPerPage] = useState(25);
 
@@ -281,7 +281,7 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
     setKeepUserData(false);
     setConfirmDialogOpen(false);
     setActionResults(null);
-    setIsDryRun(true);
+    setIsDryRun(false);
     setResultsPage(0);
     setResultsRowsPerPage(25);
     scanningNamesRef.current.clear();
@@ -686,11 +686,26 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
               rowsPerPageOptions={[10, 25, 50, 100]}
             />
           </TableContainer>
-          <Box sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
             <Button variant="outlined" onClick={handleReset}>
               Start Over
             </Button>
-          </Box>
+            {actionResults.logId === 'DRY_RUN' && (
+              <Button
+                variant="contained"
+                color="warning"
+                startIcon={<PlayArrowIcon />}
+                onClick={() => {
+                  setIsDryRun(false);
+                  setActionResults(null);
+                  deviceListMutation.reset();
+                  setActiveStep(1);
+                }}
+              >
+                Turn Off Test Mode &amp; Run for Real
+              </Button>
+            )}
+          </Stack>
         </Paper>
       )}
 
