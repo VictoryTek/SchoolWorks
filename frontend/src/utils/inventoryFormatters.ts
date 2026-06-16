@@ -3,9 +3,15 @@
  * Extracted from EquipmentSearch.tsx and EquipmentDetailDrawer.tsx to avoid duplication.
  */
 
+// Parses a YYYY-MM-DD (or ISO datetime) string as local midnight, avoiding UTC-offset date shifts.
+export function parseDateLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
 export const formatDate = (dateStr: string | null | undefined): string => {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString();
+  return parseDateLocal(dateStr).toLocaleDateString();
 };
 
 export const formatCurrency = (value: number | string | null | undefined): string => {

@@ -29,6 +29,7 @@ import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
 import LocalGasStationIcon from '@mui/icons-material/LocalGasStation';
 import WarningIcon from '@mui/icons-material/Warning';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import { parseDateLocal } from '@/utils/inventoryFormatters';
 import { useAuthStore } from '@/store/authStore';
 import { transportationDashboardApi } from '@/services/transportation.service';
 import {
@@ -209,7 +210,7 @@ export default function TransportationDashboardPage() {
                       {dashboard.myRecentEntries.slice(0, 5).map((entry) => (
                         <TableRow key={entry.id}>
                           <TableCell>
-                            {new Date(entry.entryDate).toLocaleDateString('en-US', {
+                            {parseDateLocal(entry.entryDate).toLocaleDateString('en-US', {
                               month: 'short', day: 'numeric', year: 'numeric',
                             })}
                           </TableCell>
@@ -358,7 +359,7 @@ export default function TransportationDashboardPage() {
                         `${p.driver?.firstName ?? ''} ${p.driver?.lastName ?? ''}`}
                     </TableCell>
                     <TableCell>
-                      {new Date(p.expirationDate).toLocaleDateString('en-US', {
+                      {parseDateLocal(p.expirationDate).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric', year: 'numeric',
                       })}
                     </TableCell>

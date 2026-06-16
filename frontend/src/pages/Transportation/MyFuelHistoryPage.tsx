@@ -34,6 +34,7 @@ import { PageBackButton } from '@/components/layout/PageBackButton';
 import { ResponsiveTable } from '@/components/responsive/ResponsiveTable';
 import type { Column } from '@/components/responsive/ResponsiveTable';
 import { useIsMobile } from '@/hooks/useResponsive';
+import { parseDateLocal } from '@/utils/inventoryFormatters';
 
 export default function MyFuelHistoryPage() {
   const navigate = useNavigate();
@@ -102,7 +103,7 @@ export default function MyFuelHistoryPage() {
       key: 'entryDate',
       label: 'Date',
       isPrimary: true,
-      render: (e) => new Date(e.entryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      render: (e) => parseDateLocal(e.entryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     },
     {
       key: 'unit',

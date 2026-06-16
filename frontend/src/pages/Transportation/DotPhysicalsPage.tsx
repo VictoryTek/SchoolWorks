@@ -35,6 +35,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { parseDateLocal } from '@/utils/inventoryFormatters';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import { ResponsiveTable } from '@/components/responsive/ResponsiveTable';
 import type { Column } from '@/components/responsive/ResponsiveTable';
@@ -226,19 +227,19 @@ export default function DotPhysicalsPage() {
       key: 'expirationDate',
       label: 'Expires',
       isSecondary: true,
-      render: (p) => new Date(p.expirationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      render: (p) => parseDateLocal(p.expirationDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     },
     {
       key: 'examDate',
       label: 'Exam Date',
       hideOnMobile: true,
-      render: (p) => new Date(p.examDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      render: (p) => parseDateLocal(p.examDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     },
     {
       key: 'daysRemaining',
       label: 'Days Left',
       render: (p) => {
-        const days = Math.ceil((new Date(p.expirationDate).getTime() - Date.now()) / 86400000);
+        const days = Math.ceil((parseDateLocal(p.expirationDate).getTime() - Date.now()) / 86400000);
         return days > 0 ? `${days}d` : 'Expired';
       },
     },

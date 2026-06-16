@@ -32,6 +32,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import BlockIcon from '@mui/icons-material/Block';
 import DeleteIcon from '@mui/icons-material/Delete';
+import { parseDateLocal } from '@/utils/inventoryFormatters';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import { ResponsiveTable } from '@/components/responsive/ResponsiveTable';
 import type { Column } from '@/components/responsive/ResponsiveTable';
@@ -211,7 +212,7 @@ export default function DriverLicensePage() {
       label:       'Expires',
       isSecondary: true,
       render:      (r) =>
-        new Date(r.expirationDate).toLocaleDateString('en-US', {
+        parseDateLocal(r.expirationDate).toLocaleDateString('en-US', {
           month: 'short', day: 'numeric', year: 'numeric',
         }),
     },
