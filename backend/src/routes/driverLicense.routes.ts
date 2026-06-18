@@ -106,15 +106,6 @@ router.put(
   controller.updateLicense,
 );
 
-// DELETE /api/driver-licenses/:id  — soft deactivate (level 2+)
-router.delete(
-  '/:id',
-  authenticate,
-  validateCsrfToken,
-  requireModule('TRANSPORTATION', 2),
-  controller.deactivateLicense,
-);
-
 // DELETE /api/driver-licenses/:id/hard  — permanent hard delete (level 2+, secretary/director/admin)
 router.delete(
   '/:id/hard',

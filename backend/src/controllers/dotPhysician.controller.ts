@@ -44,11 +44,3 @@ export const update = async (req: AuthRequest, res: Response): Promise<void> => 
   }
 };
 
-export const deactivate = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    await service.deactivate(req.params['id'] as string);
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res);
-  }
-};

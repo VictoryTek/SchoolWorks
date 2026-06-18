@@ -2,7 +2,7 @@
  * Driver's Licenses Page — /transportation/driver-licenses
  *
  * Staff-only (TRANSPORTATION level >= 2) table of driver license records.
- * Upload dialog, inline edit, deactivate, view image.
+ * Upload dialog, inline edit, view image.
  */
 
 import { useState, useCallback } from 'react';
@@ -30,7 +30,6 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import BlockIcon from '@mui/icons-material/Block';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { parseDateLocal } from '@/utils/inventoryFormatters';
 import { PageBackButton } from '@/components/layout/PageBackButton';
@@ -116,11 +115,6 @@ export default function DriverLicensePage() {
     onError: (err: unknown) => {
       setEditError(err instanceof Error ? err.message : 'Failed to update record.');
     },
-  });
-
-  const deactivateMutation = useMutation({
-    mutationFn: driverLicenseApi.deactivate,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['driver-licenses'] }),
   });
 
   const hardDeleteMutation = useMutation({
@@ -325,24 +319,6 @@ export default function DriverLicensePage() {
                     <EditIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-
-                {/* Deactivate */}
-                {r.isActive && (
-                  <Tooltip title="Deactivate">
-                    <IconButton
-                      size="small"
-                      color="warning"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (window.confirm('Deactivate this driver\'s license record?')) {
-                          deactivateMutation.mutate(r.id);
-                        }
-                      }}
-                    >
-                      <BlockIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
 
                 {/* Hard delete — secretary / level 2+ */}
                 {permLevel >= 2 && (

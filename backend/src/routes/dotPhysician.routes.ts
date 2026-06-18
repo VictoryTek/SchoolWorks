@@ -43,13 +43,5 @@ router.put(
   controller.update,
 );
 
-// DELETE /api/dot-physicians/:id  (soft-delete / deactivate)
-router.delete(
-  '/:id',
-  authenticate,
-  validateCsrfToken,
-  requireModule('TRANSPORTATION', 3),
-  controller.deactivate,
-);
 
 export default router;

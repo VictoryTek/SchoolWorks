@@ -193,11 +193,6 @@ export default function DotPhysicalsPage() {
     onError: (err: unknown) => setPhysicianFormError(err instanceof Error ? err.message : 'Failed to update physician'),
   });
 
-  const deactivatePhysicianMutation = useMutation({
-    mutationFn: dotPhysicianApi.deactivate,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dot-physicians'] }),
-  });
-
   // DOT physical dialog helpers
   function openCreate() {
     setEditRecord(null);
@@ -675,21 +670,6 @@ export default function DotPhysicalsPage() {
                         <Tooltip title="Edit">
                           <IconButton size="small" onClick={() => openPhysicianEdit(p)}>
                             <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {permLevel >= 3 && (
-                        <Tooltip title="Deactivate">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => {
-                              if (window.confirm(`Deactivate physician "${p.name}"?`)) {
-                                deactivatePhysicianMutation.mutate(p.id);
-                              }
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       )}

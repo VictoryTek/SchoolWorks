@@ -154,12 +154,6 @@ export class DriverLicenseService {
     return this.prisma.driverLicense.update({ where: { id }, data: updateData });
   }
 
-  async deactivate(id: string) {
-    const existing = await this.prisma.driverLicense.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundError('DriverLicense', id);
-    await this.prisma.driverLicense.update({ where: { id }, data: { isActive: false } });
-  }
-
   async hardDelete(id: string) {
     const existing = await this.prisma.driverLicense.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('DriverLicense', id);

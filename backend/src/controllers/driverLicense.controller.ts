@@ -83,15 +83,6 @@ export const updateLicense = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-export const deactivateLicense = async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    await service.deactivate(req.params['id'] as string);
-    res.status(204).send();
-  } catch (error) {
-    handleControllerError(error, res);
-  }
-};
-
 export const deleteLicense = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     await service.hardDelete(req.params['id'] as string);

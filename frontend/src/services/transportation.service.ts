@@ -424,10 +424,6 @@ export const driverLicenseApi = {
     return res.data;
   },
 
-  deactivate: async (id: string): Promise<void> => {
-    await api.delete(`/driver-licenses/${id}`);
-  },
-
   hardDelete: async (id: string): Promise<void> => {
     await api.delete(`/driver-licenses/${id}/hard`);
   },
@@ -536,7 +532,4 @@ export const dotPhysicianApi = {
     return res.data;
   },
 
-  deactivate: async (id: string): Promise<void> => {
-    await api.delete(`/dot-physicians/${id}`);
-  },
 };

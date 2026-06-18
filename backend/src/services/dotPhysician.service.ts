@@ -64,9 +64,4 @@ export class DotPhysicianService {
     return this.prisma.dotPhysician.update({ where: { id }, data: updateData });
   }
 
-  async deactivate(id: string) {
-    const existing = await this.prisma.dotPhysician.findUnique({ where: { id } });
-    if (!existing) throw new NotFoundError('DotPhysician', id);
-    return this.prisma.dotPhysician.update({ where: { id }, data: { isActive: false } });
-  }
 }
