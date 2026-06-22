@@ -1326,6 +1326,7 @@ const ReferenceDataManagement = () => {
   const tabParam = searchParams.get('tab') as TabName | null;
   const tabIndex = TAB_NAMES.indexOf(tabParam as TabName);
   const tab = tabIndex >= 0 ? tabIndex : 0;
+  const isMobile = useIsMobile();
 
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
     setSearchParams({ tab: TAB_NAMES[newValue] });
@@ -1340,25 +1341,45 @@ const ReferenceDataManagement = () => {
         </div>
       </div>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs
-          value={tab}
-          onChange={handleTabChange}
-          aria-label="reference data tabs"
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
-        >
-          <Tab label="Brands" />
-          <Tab label="Vendors" />
-          <Tab label="Categories" />
-          <Tab label="Models" />
-          <Tab label="Funding Sources" />
-          <Tab label="Locations" />
-          <Tab label="Rooms" />
-          <Tab label="WO Categories" />
-        </Tabs>
-      </Box>
+      {isMobile ? (
+        <Box sx={{ mb: 2 }}>
+          <select
+            value={tab}
+            onChange={(e) => setSearchParams({ tab: TAB_NAMES[Number(e.target.value)] })}
+            className="form-select"
+            style={{ width: '100%' }}
+          >
+            <option value={0}>Brands</option>
+            <option value={1}>Vendors</option>
+            <option value={2}>Categories</option>
+            <option value={3}>Models</option>
+            <option value={4}>Funding Sources</option>
+            <option value={5}>Locations</option>
+            <option value={6}>Rooms</option>
+            <option value={7}>WO Categories</option>
+          </select>
+        </Box>
+      ) : (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs
+            value={tab}
+            onChange={handleTabChange}
+            aria-label="reference data tabs"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label="Brands" />
+            <Tab label="Vendors" />
+            <Tab label="Categories" />
+            <Tab label="Models" />
+            <Tab label="Funding Sources" />
+            <Tab label="Locations" />
+            <Tab label="Rooms" />
+            <Tab label="WO Categories" />
+          </Tabs>
+        </Box>
+      )}
 
       <TabPanel value={tab} index={0}><BrandsTab /></TabPanel>
       <TabPanel value={tab} index={1}><VendorsTab /></TabPanel>

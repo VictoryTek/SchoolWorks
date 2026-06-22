@@ -12,11 +12,13 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Divider,
   FormControl,
   IconButton,
   InputAdornment,
   InputLabel,
   MenuItem,
+  Paper,
   Select,
   Snackbar,
   Stack,
@@ -31,6 +33,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import { useIsMobile } from '@/hooks/useResponsive';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ReplayIcon from '@mui/icons-material/Replay';
 import SearchIcon from '@mui/icons-material/Search';
@@ -70,6 +73,8 @@ export default function AdminEmailQueueTab() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [searchInput, setSearchInput] = useState('');
+
+  const isMobile = useIsMobile();
 
   // Confirm dialog for bulk retry
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -212,95 +217,155 @@ export default function AdminEmailQueueTab() {
 
       {!listLoading && !listError && listData && (
         <>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Recipients</TableCell>
-                  <TableCell>Subject</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Context</TableCell>
-                  <TableCell align="center">Attempts</TableCell>
-                  <TableCell>Last Error</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>Sent</TableCell>
-                  <TableCell align="center">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {listData.items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={9} align="center">
-                      <Typography variant="body2" color="text.secondary" py={2}>
-                        No emails found.
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
+          {isMobile ? (
+            listData.items.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" py={2} textAlign="center">
+                No emails found.
+              </Typography>
+            ) : (
+              <Stack spacing={1}>
                 {listData.items.map((item) => (
-                  <TableRow key={item.id} hover>
-                    <TableCell sx={{ maxWidth: 180 }}>
-                      <Tooltip title={item.recipients.join(', ')}>
-                        <Typography variant="body2" noWrap>
-                          {item.recipients[0]}
-                          {item.recipients.length > 1 && ` +${item.recipients.length - 1}`}
+                  <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
+                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={1} mb={0.5}>
+                      <Typography variant="body2" fontWeight={600} noWrap sx={{ flex: 1, minWidth: 0 }}>
+                        {item.recipients[0]}{item.recipients.length > 1 && ` +${item.recipients.length - 1}`}
+                      </Typography>
+                      <Chip label={item.status} size="small" color={STATUS_COLORS[item.status] ?? 'default'} />
+                    </Box>
+                    <Typography variant="body2" noWrap color="text.secondary" mb={0.5}>
+                      {item.subject}
+                    </Typography>
+                    <Divider sx={{ my: 0.5 }} />
+                    <Box display="flex" gap={2} flexWrap="wrap">
+                      {item.context && (
+                        <Typography variant="caption" color="text.secondary">
+                          {item.context}
                         </Typography>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell sx={{ maxWidth: 200 }}>
-                      <Typography variant="body2" noWrap>
-                        {item.subject}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={item.status}
-                        size="small"
-                        color={STATUS_COLORS[item.status] ?? 'default'}
-                      />
-                    </TableCell>
-                    <TableCell>
+                      )}
                       <Typography variant="caption" color="text.secondary">
-                        {item.context ?? '—'}
+                        Attempts: {item.attempts}
                       </Typography>
-                    </TableCell>
-                    <TableCell align="center">{item.attempts}</TableCell>
-                    <TableCell sx={{ maxWidth: 200 }}>
-                      {item.lastError ? (
-                        <Tooltip title={item.lastError}>
-                          <Typography variant="caption" color="error" noWrap>
-                            {item.lastError}
+                      <Typography variant="caption" color="text.secondary">
+                        Created: {formatDate(item.createdAt)}
+                      </Typography>
+                      {item.sentAt && (
+                        <Typography variant="caption" color="text.secondary">
+                          Sent: {formatDate(item.sentAt)}
+                        </Typography>
+                      )}
+                    </Box>
+                    {item.lastError && (
+                      <Typography variant="caption" color="error" display="block" mt={0.5} noWrap>
+                        {item.lastError}
+                      </Typography>
+                    )}
+                    {item.status === 'failed' && (
+                      <Box mt={0.75}>
+                        <IconButton
+                          size="small"
+                          color="warning"
+                          onClick={() => handleRetry(item.id)}
+                          disabled={retryMutation.isPending}
+                        >
+                          <RefreshIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Paper>
+                ))}
+              </Stack>
+            )
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Recipients</TableCell>
+                    <TableCell>Subject</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Context</TableCell>
+                    <TableCell align="center">Attempts</TableCell>
+                    <TableCell>Last Error</TableCell>
+                    <TableCell>Created</TableCell>
+                    <TableCell>Sent</TableCell>
+                    <TableCell align="center">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {listData.items.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={9} align="center">
+                        <Typography variant="body2" color="text.secondary" py={2}>
+                          No emails found.
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {listData.items.map((item) => (
+                    <TableRow key={item.id} hover>
+                      <TableCell sx={{ maxWidth: 180 }}>
+                        <Tooltip title={item.recipients.join(', ')}>
+                          <Typography variant="body2" noWrap>
+                            {item.recipients[0]}
+                            {item.recipients.length > 1 && ` +${item.recipients.length - 1}`}
                           </Typography>
                         </Tooltip>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption">{formatDate(item.createdAt)}</Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="caption">{formatDate(item.sentAt)}</Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      {item.status === 'failed' && (
-                        <Tooltip title="Retry">
-                          <IconButton
-                            size="small"
-                            color="warning"
-                            onClick={() => handleRetry(item.id)}
-                            disabled={retryMutation.isPending}
-                          >
-                            <RefreshIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                      </TableCell>
+                      <TableCell sx={{ maxWidth: 200 }}>
+                        <Typography variant="body2" noWrap>
+                          {item.subject}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          label={item.status}
+                          size="small"
+                          color={STATUS_COLORS[item.status] ?? 'default'}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption" color="text.secondary">
+                          {item.context ?? '—'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="center">{item.attempts}</TableCell>
+                      <TableCell sx={{ maxWidth: 200 }}>
+                        {item.lastError ? (
+                          <Tooltip title={item.lastError}>
+                            <Typography variant="caption" color="error" noWrap>
+                              {item.lastError}
+                            </Typography>
+                          </Tooltip>
+                        ) : (
+                          '—'
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption">{formatDate(item.createdAt)}</Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography variant="caption">{formatDate(item.sentAt)}</Typography>
+                      </TableCell>
+                      <TableCell align="center">
+                        {item.status === 'failed' && (
+                          <Tooltip title="Retry">
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              onClick={() => handleRetry(item.id)}
+                              disabled={retryMutation.isPending}
+                            >
+                              <RefreshIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
 
           <TablePagination
             component="div"

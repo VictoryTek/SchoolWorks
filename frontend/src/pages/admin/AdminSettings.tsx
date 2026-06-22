@@ -207,6 +207,7 @@ export default function AdminSettings() {
 
   // ── Tab state with hash sync ──
   const [activeTab, setActiveTab] = useState(() => hashToTab(location.hash));
+  const isMobile = useIsMobile();
 
   const handleTabChange = (_: SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
@@ -298,22 +299,44 @@ export default function AdminSettings() {
         Configure global system behaviour, requisition settings, and fiscal year management.
       </Typography>
 
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs
-          value={activeTab}
-          onChange={handleTabChange}
-          variant="scrollable"
-          scrollButtons="auto"
-          allowScrollButtonsMobile
-        >
-          <Tab label="General" />
-          <Tab label="Requisitions & POs" />
-          <Tab label="Fiscal Year" />
-          <Tab label="Jobs" icon={<SyncIcon />} iconPosition="start" />
-          <Tab label="Email Queue" icon={<EmailIcon />} iconPosition="start" />
-          <Tab label="Backup" icon={<BackupIcon />} iconPosition="start" />
-        </Tabs>
-      </Box>
+      {isMobile ? (
+        <Box sx={{ mb: 3 }}>
+          <select
+            value={activeTab}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              setActiveTab(v);
+              navigate({ hash: TAB_HASHES[v] }, { replace: true });
+            }}
+            className="form-select"
+            style={{ width: '100%' }}
+          >
+            <option value={0}>General</option>
+            <option value={1}>Requisitions &amp; POs</option>
+            <option value={2}>Fiscal Year</option>
+            <option value={3}>Jobs</option>
+            <option value={4}>Email Queue</option>
+            <option value={5}>Backup</option>
+          </select>
+        </Box>
+      ) : (
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab label="General" />
+            <Tab label="Requisitions & POs" />
+            <Tab label="Fiscal Year" />
+            <Tab label="Jobs" icon={<SyncIcon />} iconPosition="start" />
+            <Tab label="Email Queue" icon={<EmailIcon />} iconPosition="start" />
+            <Tab label="Backup" icon={<BackupIcon />} iconPosition="start" />
+          </Tabs>
+        </Box>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════ */}
       {/*  Tab 1: General                                              */}

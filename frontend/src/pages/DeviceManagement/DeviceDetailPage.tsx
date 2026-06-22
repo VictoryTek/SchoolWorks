@@ -226,7 +226,7 @@ export default function DeviceDetailPage() {
 
   // ─────────────────────────────────────────────────────────────────────
   return (
-    <Box sx={{ p: { xs: 1, sm: 3 }, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ p: { xs: 1, sm: 3 } }}>
 
       {/* Back button */}
       <Button
