@@ -75,10 +75,24 @@ services:
       DB_USER: ${DB_USER:-techv2}
       DB_PASSWORD: ${DB_PASSWORD}
       MAINTENANCE_MODE: ${MAINTENANCE_MODE:-false}
+      PROVISIONING_SYNC_SCHEDULE: ${PROVISIONING_SYNC_SCHEDULE:-0 */2 * * *}
+      SIS_STAFF_CSV: ${SIS_STAFF_CSV:-/sis-data/staff.csv}
+      SIS_STUDENT_CSV: ${SIS_STUDENT_CSV:-/sis-data/students.csv}
+      SIS_SMB_SHARE: ${SIS_SMB_SHARE:-}
+      PROVISIONING_REPORT_EMAIL: ${PROVISIONING_REPORT_EMAIL:-}
+      PROVISIONING_TEST_MODE: ${PROVISIONING_TEST_MODE:-true}
+      PROVISIONING_DEFAULT_STAFF_PASSWORD: ${PROVISIONING_DEFAULT_STAFF_PASSWORD:-}
+      PROVISIONING_DEFAULT_STUDENT_PASSWORD: ${PROVISIONING_DEFAULT_STUDENT_PASSWORD:-}
+      PROVISIONING_TENANT_ID: ${PROVISIONING_TENANT_ID:-}
+      PROVISIONING_CLIENT_ID: ${PROVISIONING_CLIENT_ID:-}
+      PROVISIONING_CLIENT_SECRET: ${PROVISIONING_CLIENT_SECRET:-}
+      PROVISIONING_STAFF_GROUP_ID: ${PROVISIONING_STAFF_GROUP_ID:-}
+      PROVISIONING_STUDENT_GROUP_ID: ${PROVISIONING_STUDENT_GROUP_ID:-}
     volumes:
       - backend_logs:/workspace/backend/logs
       - backend_uploads:/workspace/backend/public/uploads
       - backup_smb:/backups
+      - sis_data:/sis-data:ro
     expose:
       - "3000"
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
@@ -153,3 +167,9 @@ volumes:
       type: cifs
       o: "username=${SMB_USER},password=${SMB_PASS},uid=70,gid=70,file_mode=0660,dir_mode=0770"
       device: "//10.0.10.83/homes/technology"
+  sis_data:
+    driver: local
+    driver_opts:
+      type: cifs
+      device: "${SIS_SMB_SHARE:-//10.0.10.83/homes/edupoint}"
+      o: "username=${SMB_USER:-},password=${SMB_PASS:-},vers=3.0,ro"
