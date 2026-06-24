@@ -306,6 +306,7 @@ async function getOrSeedConfig(): Promise<{
   targetTenant:     'PRODUCTION' | 'TEST';
   disableThreshold: number;
   adminEmails:      string[] | undefined;
+  testMode:         boolean;
 }> {
   let config = await prisma.provisioningConfig.findUnique({ where: { id: 'singleton' } });
 
@@ -347,6 +348,7 @@ async function getOrSeedConfig(): Promise<{
     targetTenant,
     disableThreshold: config.disableThreshold ?? Number(process.env.PROVISIONING_DISABLE_THRESHOLD ?? '50'),
     adminEmails,
+    testMode:         config.testMode,
   };
 }
 
@@ -420,15 +422,14 @@ export async function runProvisioningJob(
   triggeredBy: string,
   testMode?:   boolean,
 ): Promise<ProvisioningResult> {
-  const isTestMode = testMode ?? process.env.PROVISIONING_TEST_MODE !== 'false';
+  const config     = await getOrSeedConfig();
+  const isTestMode = testMode ?? config.testMode;
   const startedAt  = Date.now();
 
   const result: ProvisioningResult = {
     created: [], deprovisioned: [], reEnabled: [], updated: 0, errors: 0, errorMessages: [],
     durationMs: 0, triggeredBy, testMode: isTestMode,
   };
-
-  const config = await getOrSeedConfig();
   const { client, isTestTenant } = buildProvisioningGraphClient(config.targetTenant);
 
   // Guard: TEST tenant selected but credentials are incomplete — buildProvisioningGraphClient
