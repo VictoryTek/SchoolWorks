@@ -292,7 +292,7 @@ class SchedulerService {
           created:       result.created.length,
           deprovisioned: result.deprovisioned.length,
           reEnabled:     result.reEnabled.length,
-          updated:       result.updated,
+          updated:       result.updated.length,
           errors:        result.errors,
           durationMs:    result.durationMs,
           testMode:      result.testMode,

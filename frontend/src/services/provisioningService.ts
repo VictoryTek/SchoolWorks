@@ -123,7 +123,7 @@ const provisioningService = {
     return res.data;
   },
 
-  getAuditLog: async (params: { page?: number; limit?: number; testMode?: boolean | null; userType?: 'STAFF' | 'STUDENT' | null }): Promise<ProvisioningAuditResponse> => {
+  getAuditLog: async (params: { page?: number; limit?: number; testMode?: boolean | null; userType?: 'STAFF' | 'STUDENT' | null; search?: string }): Promise<ProvisioningAuditResponse> => {
     const query: Record<string, unknown> = {
       page: params.page ?? 1,
       limit: params.limit ?? 50,
@@ -133,6 +133,9 @@ const provisioningService = {
     }
     if (params.userType) {
       query['userType'] = params.userType;
+    }
+    if (params.search) {
+      query['search'] = params.search;
     }
     const res = await api.get<ProvisioningAuditResponse>('/provisioning/audit', { params: query });
     return res.data;

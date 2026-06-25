@@ -1456,7 +1456,7 @@ export async function sendProvisioningReport(result: {
   created:       Array<{ displayName: string; upn: string; school: string; userType: 'STAFF' | 'STUDENT' }>;
   deprovisioned: Array<{ displayName: string; upn: string; school: string; userType: 'STAFF' | 'STUDENT' }>;
   reEnabled:     Array<{ displayName: string; upn: string; school: string; userType: 'STAFF' | 'STUDENT' }>;
-  updated:       number;
+  updated:       Array<{ displayName: string; upn: string; school: string; userType: 'STAFF' | 'STUDENT'; changes: string[] }>;
   errors:        number;
   durationMs:    number;
   triggeredBy:   string;
@@ -1474,7 +1474,7 @@ export async function sendProvisioningReport(result: {
     result.deprovisioned.length === 0 &&
     result.reEnabled.length === 0 &&
     result.errors === 0 &&
-    result.updated === 0
+    result.updated.length === 0
   ) return;
 
   const { created, deprovisioned, reEnabled, updated, errors, durationMs, triggeredBy, testMode } = result;
@@ -1499,6 +1499,19 @@ export async function sendProvisioningReport(result: {
         <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.upn)}</td>
         <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.school)}</td>
         <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.userType)}</td>
+      </tr>`
+    ).join('');
+  }
+
+  function updatedTableRows(users: typeof updated): string {
+    if (users.length === 0) return '<tr><td colspan="5" style="padding:8px;color:#666;">None</td></tr>';
+    return users.map((u) =>
+      `<tr>
+        <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.displayName)}</td>
+        <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.upn)}</td>
+        <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.school)}</td>
+        <td style="padding:4px 8px;border:1px solid #ddd;">${escapeHtml(u.userType)}</td>
+        <td style="padding:4px 8px;border:1px solid #ddd;">${u.changes.map(escapeHtml).join(', ')}</td>
       </tr>`
     ).join('');
   }
@@ -1549,9 +1562,21 @@ export async function sendProvisioningReport(result: {
       <tbody>${userTableRows(reEnabled)}</tbody>
     </table>
 
+    <h3 style="color:#F57F17;margin-top:24px;">Updated Accounts (${updated.length})</h3>
+    <table style="border-collapse:collapse;width:100%;">
+      <thead><tr style="background:#FFF8E1;">
+        <th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">Name</th>
+        <th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">UPN</th>
+        <th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">School</th>
+        <th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">Type</th>
+        <th style="padding:4px 8px;border:1px solid #ddd;text-align:left;">Fields Changed</th>
+      </tr></thead>
+      <tbody>${updatedTableRows(updated)}</tbody>
+    </table>
+
     <h3 style="margin-top:24px;">Summary</h3>
     <table style="border-collapse:collapse;width:100%;">
-      <tr><td style="padding:4px 8px;font-weight:bold;">Updated (field changes):</td>    <td style="padding:4px 8px;">${updated}</td></tr>
+      <tr><td style="padding:4px 8px;font-weight:bold;">Updated (field changes):</td>    <td style="padding:4px 8px;">${updated.length}</td></tr>
       <tr><td style="padding:4px 8px;font-weight:bold;">Errors:</td>                     <td style="padding:4px 8px;color:${errors > 0 ? '#C62828' : 'inherit'};">${errors}</td></tr>
       <tr><td style="padding:4px 8px;font-weight:bold;">Run duration:</td>               <td style="padding:4px 8px;">${escapeHtml(durationSec)}s</td></tr>
       <tr><td style="padding:4px 8px;font-weight:bold;">Triggered by:</td>               <td style="padding:4px 8px;">${escapeHtml(triggeredBy)}</td></tr>

@@ -35,7 +35,7 @@ export const runProvisioning = async (req: AuthRequest, res: Response): Promise<
       created:       result.created.length,
       deprovisioned: result.deprovisioned.length,
       reEnabled:     result.reEnabled.length,
-      updated:       result.updated,
+      updated:       result.updated.length,
       errors:        result.errors,
       durationMs:    result.durationMs,
       testMode:      result.testMode,
@@ -57,7 +57,7 @@ export const runProvisioning = async (req: AuthRequest, res: Response): Promise<
       created:             result.created.length,
       deprovisioned:       result.deprovisioned.length,
       reEnabled:           result.reEnabled.length,
-      updated:             result.updated,
+      updated:             result.updated.length,
       errors:              result.errors,
       errorMessages:       result.errorMessages,
       durationMs:          result.durationMs,
@@ -89,9 +89,18 @@ export const getAuditLog = async (req: AuthRequest, res: Response): Promise<void
     const userTypeParam = req.query['userType'];
     const userTypeFilter = userTypeParam === 'STAFF' || userTypeParam === 'STUDENT' ? userTypeParam : undefined;
 
+    const searchRaw = req.query['search'];
+    const search = typeof searchRaw === 'string' && searchRaw.trim() ? searchRaw.trim() : undefined;
+
     const where = {
-      ...(actionFilter ? { action: { in: actionFilter } } : {}),
-      ...(userTypeFilter ? { userType: userTypeFilter } : {}),
+      ...(actionFilter   ? { action:   { in: actionFilter } }   : {}),
+      ...(userTypeFilter ? { userType: userTypeFilter }          : {}),
+      ...(search ? {
+        OR: [
+          { upn:        { contains: search, mode: 'insensitive' as const } },
+          { employeeId: { contains: search, mode: 'insensitive' as const } },
+        ],
+      } : {}),
     };
 
     const [rows, total] = await Promise.all([

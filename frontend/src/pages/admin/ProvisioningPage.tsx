@@ -1597,15 +1597,26 @@ function AuditLogSection() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState<number>(50);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const testModeParam: boolean | null =
     filter === 'real' ? false : filter === 'test' ? true : null;
   const userTypeParam: 'STAFF' | 'STUDENT' | null =
     userTypeFilter === 'ALL' ? null : userTypeFilter;
+  const searchParam = search || undefined;
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: queryKeys.provisioning.audit({ page, limit, testMode: testModeParam, userType: userTypeParam }),
-    queryFn: () => provisioningService.getAuditLog({ page, limit, testMode: testModeParam, userType: userTypeParam }),
+    queryKey: queryKeys.provisioning.audit({ page, limit, testMode: testModeParam, userType: userTypeParam, search: searchParam }),
+    queryFn: () => provisioningService.getAuditLog({ page, limit, testMode: testModeParam, userType: userTypeParam, search: searchParam }),
     placeholderData: (prev) => prev,
   });
 
@@ -1666,6 +1677,15 @@ function AuditLogSection() {
               />
             ))}
           </Stack>
+
+          <TextField
+            size="small"
+            placeholder="Search by UPN or Employee ID…"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            sx={{ maxWidth: 360 }}
+            slotProps={{ input: { inputProps: { 'aria-label': 'Search audit log' } } }}
+          />
 
           {isLoading && (
             <Stack spacing={1}>

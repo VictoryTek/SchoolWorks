@@ -52,11 +52,19 @@ export interface StudentRow {
   grade:       string;
 }
 
+export interface UpdatedAccount {
+  displayName: string;
+  upn:         string;
+  school:      string;
+  userType:    UserType;
+  changes:     string[];
+}
+
 export interface ProvisioningResult {
   created:             Array<{ displayName: string; upn: string; school: string; userType: UserType }>;
   deprovisioned:       Array<{ displayName: string; upn: string; school: string; userType: UserType }>;
   reEnabled:           Array<{ displayName: string; upn: string; school: string; userType: UserType }>;
-  updated:             number;
+  updated:             UpdatedAccount[];
   errors:              number;
   errorMessages:       string[];
   durationMs:          number;
@@ -94,6 +102,39 @@ const SKIP_DISPLAY_NAMES = new Set([
 ]);
 
 const MAX_CONCURRENT = 5;
+
+const FIELD_LABELS: Record<string, string> = {
+  givenName:      'First name',
+  surname:        'Last name',
+  displayName:    'Display name',
+  officeLocation: 'Office location',
+  jobTitle:       'Job title',
+  department:     'Department',
+  employeeType:   'Employee type',
+};
+
+// Role groups whose members are protected from deprovisioning.
+// Excludes base groups (ALL_STAFF, ALL_STUDENTS) and test-tenant aliases
+// (PROVISIONING_STAFF/STUDENT_GROUP_ID) — those are managed by the service itself.
+const ROLE_PROTECTION_GROUP_ENV_VARS = [
+  'ENTRA_ADMIN_GROUP_ID',
+  'ENTRA_PRINCIPALS_GROUP_ID',
+  'ENTRA_VICE_PRINCIPALS_GROUP_ID',
+  'ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID',
+  'ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID',
+  'ENTRA_FINANCE_DIRECTOR_GROUP_ID',
+  'ENTRA_FINANCE_PO_ENTRY_GROUP_ID',
+  'ENTRA_SPED_DIRECTOR_GROUP_ID',
+  'ENTRA_TECHNOLOGY_DIRECTOR_GROUP_ID',
+  'ENTRA_TECH_ASSISTANTS_GROUP_ID',
+  'ENTRA_MAINTENANCE_DIRECTOR_GROUP_ID',
+  'ENTRA_TRANSPORTATION_DIRECTOR_GROUP_ID',
+  'ENTRA_TRANSPORTATION_SECRETARY_GROUP_ID',
+  'ENTRA_PRE_K_DIRECTOR_GROUP_ID',
+  'ENTRA_CTE_DIRECTOR_GROUP_ID',
+  'ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID',
+  'ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID',
+] as const;
 
 // ---------------------------------------------------------------------------
 // Graph client factory
@@ -219,6 +260,47 @@ export function parseStudentCSV(filePath: string): Map<string, StudentRow> {
 // ---------------------------------------------------------------------------
 // Graph helpers
 // ---------------------------------------------------------------------------
+
+// Fetches UPNs of all members of the configured role groups from the production
+// tenant. Always uses graphClient (not the provisioning-tenant client) because
+// role-group members live in production regardless of targetTenant.
+// Throws on any Graph error — callers should let the error propagate to abort the run.
+async function fetchProtectedUpns(): Promise<Set<string>> {
+  const groupIds = ROLE_PROTECTION_GROUP_ENV_VARS
+    .map((v) => process.env[v])
+    .filter((id): id is string => Boolean(id));
+
+  if (groupIds.length === 0) return new Set();
+
+  const uniqueIds = [...new Set(groupIds)];
+
+  const perGroupSets = await Promise.all(
+    uniqueIds.map(async (groupId) => {
+      const upns = new Set<string>();
+      let url: string | null = `/groups/${groupId}/members?$select=userPrincipalName`;
+      while (url) {
+        const resp: { value: Array<{ userPrincipalName?: string }>; '@odata.nextLink'?: string } =
+          await graphClient.api(url).get();
+        for (const m of resp.value) {
+          if (m.userPrincipalName) upns.add(m.userPrincipalName.toLowerCase());
+        }
+        url = resp['@odata.nextLink']
+          ? resp['@odata.nextLink'].replace('https://graph.microsoft.com/v1.0', '')
+          : null;
+      }
+      return upns;
+    }),
+  );
+
+  const union = new Set<string>();
+  for (const s of perGroupSets) for (const upn of s) union.add(upn);
+
+  loggers.server.info('Provisioning: fetched protected UPNs from role groups', {
+    groupCount: uniqueIds.length,
+    protectedCount: union.size,
+  });
+  return union;
+}
 
 async function fetchEntraUsersByUpnDomain(domain: string, client: Client): Promise<EntraUser[]> {
   const users: EntraUser[] = [];
@@ -449,7 +531,7 @@ export async function runProvisioningJob(
   const startedAt  = Date.now();
 
   const result: ProvisioningResult = {
-    created: [], deprovisioned: [], reEnabled: [], updated: 0, errors: 0, errorMessages: [],
+    created: [], deprovisioned: [], reEnabled: [], updated: [], errors: 0, errorMessages: [],
     durationMs: 0, triggeredBy, testMode: isTestMode,
   };
   const { client, isTestTenant } = buildProvisioningGraphClient(config.targetTenant);
@@ -477,11 +559,18 @@ export async function runProvisioningJob(
     loggers.server.info('Provisioning: TEST MODE — no Graph writes will occur');
   }
 
+  // Fetch role-group members from the production tenant before any type loop.
+  // If this fails, the error propagates and the run aborts before any Graph writes.
+  const protectedUpns = await fetchProtectedUpns();
+  if (protectedUpns.size > 0) {
+    loggers.server.info('Provisioning: role-group protection active', { count: protectedUpns.size });
+  }
+
   const types: UserType[] = userType === 'ALL' ? ['STAFF', 'STUDENT'] : [userType];
 
   for (const type of types) {
     try {
-      await runForType(type, triggeredBy, isTestMode, config, result, client, isTestTenant);
+      await runForType(type, triggeredBy, isTestMode, config, result, client, isTestTenant, protectedUpns);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       loggers.server.error(`Provisioning: fatal error for ${type}`, { err });
@@ -503,13 +592,14 @@ export async function runProvisioningJob(
 }
 
 async function runForType(
-  type:         UserType,
-  triggeredBy:  string,
-  testMode:     boolean,
-  config:       { staffPassword: string; studentPassword: string; staffUpnDomain: string; studentUpnDomain: string; disableThreshold: number; adminEmails?: string[] },
-  result:       ProvisioningResult,
-  client:       Client,
-  isTestTenant: boolean,
+  type:           UserType,
+  triggeredBy:    string,
+  testMode:       boolean,
+  config:         { staffPassword: string; studentPassword: string; staffUpnDomain: string; studentUpnDomain: string; disableThreshold: number; adminEmails?: string[] },
+  result:         ProvisioningResult,
+  client:         Client,
+  isTestTenant:   boolean,
+  protectedUpns:  Set<string>,
 ): Promise<void> {
   const csvPath = type === 'STAFF'
     ? (process.env.SIS_STAFF_CSV ?? '/sis-data/staff.csv')
@@ -613,8 +703,19 @@ async function runForType(
         }
 
         await writeAudit({ triggeredBy, userType: type, upn: entraUser.userPrincipalName, employeeId: empId, action, details: { patch } });
-        if (wasDisabled) result.reEnabled.push({ displayName: entraUser.displayName, upn: entraUser.userPrincipalName, school: sisRow.school, userType: type });
-        else             result.updated++;
+        if (wasDisabled) {
+          result.reEnabled.push({ displayName: entraUser.displayName, upn: entraUser.userPrincipalName, school: sisRow.school, userType: type });
+        } else {
+          result.updated.push({
+            displayName: entraUser.displayName,
+            upn:         entraUser.userPrincipalName,
+            school:      sisRow.school,
+            userType:    type,
+            changes:     Object.keys(patch)
+              .filter((k) => k !== 'accountEnabled')
+              .map((k) => FIELD_LABELS[k] ?? k),
+          });
+        }
 
         loggers.server.debug('Provisioning: updated user', { upn: entraUser.userPrincipalName, patch, testMode });
       } catch (err) {
@@ -718,7 +819,7 @@ async function runForType(
   // Build candidate list first so we can count before executing.
   // Guard against cross-type disables when staff/student share a UPN domain.
   // Student employeeIds always start with 's'; staff employeeIds are numeric badge numbers.
-  const toBeDisabled = allEntraUsers.filter((m) => {
+  const disableCandidates = allEntraUsers.filter((m) => {
     if (!m.employeeId) return false;
     if (type === 'STUDENT' && !m.employeeId.startsWith('s')) return false;
     if (type === 'STAFF'   &&  m.employeeId.startsWith('s')) return false;
@@ -726,6 +827,22 @@ async function runForType(
     if (!m.accountEnabled) return false;
     return true;
   });
+
+  // Remove role-group members — they are protected from deprovisioning regardless
+  // of whether they appear in the SIS CSV.
+  const skippedProtected = disableCandidates.filter(
+    (m) => protectedUpns.has(m.userPrincipalName.toLowerCase()),
+  );
+  const toBeDisabled = disableCandidates.filter(
+    (m) => !protectedUpns.has(m.userPrincipalName.toLowerCase()),
+  );
+
+  if (skippedProtected.length > 0) {
+    loggers.server.warn(
+      'Provisioning: Pass 3 — skipping role-group members (protected from deprovisioning)',
+      { count: skippedProtected.length, upns: skippedProtected.map((m) => m.userPrincipalName) },
+    );
+  }
 
   const DISABLE_THRESHOLD = config.disableThreshold;
 
