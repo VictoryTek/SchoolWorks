@@ -13,6 +13,7 @@ import { AuthRequest } from '../middleware/auth';
 import { WorkOrderService, WorkOrderListResponse } from '../services/work-orders.service';
 import { handleControllerError } from '../utils/errorHandler';
 import { prisma } from '../lib/prisma';
+import { isCountyWideMaintenance, isSchoolMaintenanceWorker } from '../utils/groupAuth';
 import {
   WorkOrderQuerySchema,
   CreateWorkOrderSchema,
@@ -41,6 +42,16 @@ function mapTicket<T extends { ticketNumber: string }>(ticket: T | null): (Omit<
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function getMaintenanceRole(groups: string[]): 'county_wide' | 'school_only' | undefined {
+  if (isCountyWideMaintenance(groups)) return 'county_wide';
+  if (isSchoolMaintenanceWorker(groups)) return 'school_only';
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
 
@@ -52,8 +63,9 @@ export const getWorkOrders = async (req: AuthRequest, res: Response): Promise<vo
     const query    = WorkOrderQuerySchema.parse(req.query);
     const userId   = req.user!.id;
     const permLevel = req.user!.permLevel ?? 1;
+    const maintenanceRole = getMaintenanceRole(req.user!.groups ?? []);
 
-    const result = await service.getWorkOrders(query, userId, permLevel);
+    const result = await service.getWorkOrders(query, userId, permLevel, maintenanceRole);
     res.json({ ...result, items: result.items.map(mapTicket) });
   } catch (error) {
     handleControllerError(error, res);
@@ -81,8 +93,9 @@ export const getWorkOrderById = async (req: AuthRequest, res: Response): Promise
     const userId    = req.user!.id;
     const permLevel = req.user!.permLevel ?? 1;
     const includeInternal = permLevel >= 3;
+    const maintenanceRole = getMaintenanceRole(req.user!.groups ?? []);
 
-    const ticket = await service.getWorkOrderById(req.params.id as string, userId, permLevel, includeInternal);
+    const ticket = await service.getWorkOrderById(req.params.id as string, userId, permLevel, includeInternal, maintenanceRole);
     res.json(mapTicket(ticket));
   } catch (error) {
     handleControllerError(error, res);
@@ -149,8 +162,9 @@ export const updateWorkOrder = async (req: AuthRequest, res: Response): Promise<
     const data      = UpdateWorkOrderSchema.parse(req.body);
     const userId    = req.user!.id;
     const permLevel = req.user!.permLevel ?? 1;
+    const maintenanceRole = getMaintenanceRole(req.user!.groups ?? []);
 
-    const ticket = await service.updateWorkOrder(req.params.id as string, data, userId, permLevel);
+    const ticket = await service.updateWorkOrder(req.params.id as string, data, userId, permLevel, maintenanceRole);
     res.json(mapTicket(ticket));
   } catch (error) {
     handleControllerError(error, res);
@@ -165,8 +179,9 @@ export const updateStatus = async (req: AuthRequest, res: Response): Promise<voi
     const data      = UpdateStatusSchema.parse(req.body);
     const userId    = req.user!.id;
     const permLevel = req.user!.permLevel ?? 1;
+    const maintenanceRole = getMaintenanceRole(req.user!.groups ?? []);
 
-    const ticket = await service.updateStatus(req.params.id as string, data, userId, permLevel);
+    const ticket = await service.updateStatus(req.params.id as string, data, userId, permLevel, maintenanceRole);
     res.json(mapTicket(ticket));
   } catch (error) {
     handleControllerError(error, res);

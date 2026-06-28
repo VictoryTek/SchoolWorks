@@ -23,6 +23,12 @@ import type {
 } from '../validators/work-orders.validators';
 
 // ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type MaintenanceRole = 'county_wide' | 'school_only' | undefined;
+
+// ---------------------------------------------------------------------------
 // Valid status transitions (state machine)
 // ---------------------------------------------------------------------------
 
@@ -197,9 +203,10 @@ export class WorkOrderService {
    * access apply identical rules.
    */
   private async assertTicketAccess(
-    ticket: { reportedById: string | null; assignedToId: string | null; officeLocationId: string | null },
+    ticket: { reportedById: string | null; assignedToId: string | null; officeLocationId: string | null; department: string },
     userId: string,
     permLevel: number,
+    maintenanceRole?: MaintenanceRole,
   ): Promise<void> {
     if (permLevel >= 5) return;
 
@@ -210,9 +217,22 @@ export class WorkOrderService {
       return;
     }
 
-    const locationIds = await this.getSupervisedLocationIds(userId);
-
     if (permLevel === 3) {
+      if (maintenanceRole === 'county_wide') {
+        if (ticket.department !== 'MAINTENANCE') {
+          throw new AuthorizationError('You do not have access to this work order');
+        }
+        return;
+      }
+
+      const locationIds = await this.getSupervisedLocationIds(userId);
+
+      if (maintenanceRole === 'school_only') {
+        if (ticket.officeLocationId && locationIds.includes(ticket.officeLocationId)) return;
+        throw new AuthorizationError('You do not have access to this work order');
+      }
+
+      // Default level-3 (principals, VP, etc.)
       const inScope =
         ticket.reportedById === userId ||
         ticket.assignedToId  === userId ||
@@ -222,6 +242,7 @@ export class WorkOrderService {
     }
 
     // permLevel === 4
+    const locationIds = await this.getSupervisedLocationIds(userId);
     if (locationIds.length === 0) return; // no location assignments → unrestricted (mirrors getWorkOrders)
     if (ticket.officeLocationId && locationIds.includes(ticket.officeLocationId)) return;
     throw new AuthorizationError('You do not have access to this work order');
@@ -260,6 +281,7 @@ export class WorkOrderService {
     query: WorkOrderQueryDto,
     userId: string,
     permLevel: number,
+    maintenanceRole?: MaintenanceRole,
   ): Promise<WorkOrderListResponse> {
     const page  = query.page  ?? 1;
     const limit = query.limit ?? 25;
@@ -267,7 +289,12 @@ export class WorkOrderService {
 
     // Build base where clause from explicit query params
     const baseWhere: Prisma.TicketWhereInput = {};
-    if (query.department)       baseWhere.department       = query.department;
+    // County-wide maintenance workers are restricted to MAINTENANCE tickets regardless of query param
+    if (maintenanceRole === 'county_wide') {
+      baseWhere.department = 'MAINTENANCE' as any;
+    } else if (query.department) {
+      baseWhere.department = query.department;
+    }
     if (query.status)           baseWhere.status           = query.status;
     if (query.statuses && query.statuses.length > 0) baseWhere.status = { in: query.statuses };
     if (query.priority)         baseWhere.priority         = query.priority;
@@ -289,22 +316,30 @@ export class WorkOrderService {
       // Own work orders only
       scopeWhere = { reportedById: userId };
     } else if (permLevel === 3) {
-      // Own location(s) — user is staff at specific locations
-      const locRows = await this.prisma.locationSupervisor.findMany({
-        where: { userId },
-        select: { locationId: true },
-      });
-      const locationIds = locRows.map((r) => r.locationId);
-      if (locationIds.length > 0) {
-        scopeWhere = {
-          OR: [
-            { reportedById: userId },
-            { officeLocationId: { in: locationIds } },
-            { assignedToId: userId },
-          ],
-        };
+      if (maintenanceRole === 'county_wide') {
+        // No location restriction — department already forced to MAINTENANCE in baseWhere
       } else {
-        scopeWhere = { OR: [{ reportedById: userId }, { assignedToId: userId }] };
+        const locRows = await this.prisma.locationSupervisor.findMany({
+          where: { userId },
+          select: { locationId: true },
+        });
+        const locationIds = locRows.map((r: { locationId: string }) => r.locationId);
+
+        if (maintenanceRole === 'school_only') {
+          // Strict location-only — no own/assigned fallback
+          scopeWhere = { officeLocationId: { in: locationIds } };
+        } else if (locationIds.length > 0) {
+          // Default level-3: own + supervised location + assigned
+          scopeWhere = {
+            OR: [
+              { reportedById: userId },
+              { officeLocationId: { in: locationIds } },
+              { assignedToId: userId },
+            ],
+          };
+        } else {
+          scopeWhere = { OR: [{ reportedById: userId }, { assignedToId: userId }] };
+        }
       }
     } else if (permLevel === 4) {
       // Supervisor scope — all supervised locations
@@ -349,6 +384,7 @@ export class WorkOrderService {
     userId: string,
     permLevel: number,
     includeInternal = false,
+    maintenanceRole?: MaintenanceRole,
   ) {
     const ticket = await this.prisma.ticket.findUnique({
       where: { id },
@@ -366,7 +402,7 @@ export class WorkOrderService {
       throw new NotFoundError('Work order', id);
     }
 
-    await this.assertTicketAccess(ticket, userId, permLevel);
+    await this.assertTicketAccess(ticket, userId, permLevel, maintenanceRole);
 
     return ticket;
   }
@@ -479,11 +515,11 @@ export class WorkOrderService {
   // updateWorkOrder
   // -------------------------------------------------------------------------
 
-  async updateWorkOrder(id: string, data: UpdateWorkOrderDto, userId: string, permLevel: number) {
+  async updateWorkOrder(id: string, data: UpdateWorkOrderDto, userId: string, permLevel: number, maintenanceRole?: MaintenanceRole) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundError('Work order', id);
 
-    await this.assertTicketAccess(ticket, userId, permLevel);
+    await this.assertTicketAccess(ticket, userId, permLevel, maintenanceRole);
 
     const updated = await this.prisma.ticket.update({
       where: { id },
@@ -515,12 +551,13 @@ export class WorkOrderService {
     data: UpdateStatusDto,
     userId: string,
     permLevel: number,
+    maintenanceRole?: MaintenanceRole,
   ) {
     const ticket = await this.prisma.ticket.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundError('Work order', id);
 
     this.assertValidTransition(ticket.status, data.status, permLevel);
-    await this.assertTicketAccess(ticket, userId, permLevel);
+    await this.assertTicketAccess(ticket, userId, permLevel, maintenanceRole);
 
     const now = new Date();
     const timestamps: { resolvedAt?: Date | null; closedAt?: Date | null } = {};

@@ -78,6 +78,7 @@ const GROUP_MODULE_MAP: Record<PermissionModuleType, Array<[string, number]>> = 
     ['ENTRA_PRINCIPALS_GROUP_ID', 3],
     ['ENTRA_VICE_PRINCIPALS_GROUP_ID', 3],
     ['ENTRA_SCHOOL_MAINTENANCE_GROUP_ID', 3],
+    ['ENTRA_COUNTY_WIDE_MAINTENANCE_GROUP_ID', 3],
     ['ENTRA_FINANCE_DIRECTOR_GROUP_ID', 2],
     ['ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID', 2],
     ['ENTRA_ALL_STAFF_GROUP_ID', 2],
@@ -239,6 +240,16 @@ export function requireModule(
     req.user.permLevel = level;
     next();
   };
+}
+
+export function isCountyWideMaintenance(groups: string[]): boolean {
+  const gid = process.env.ENTRA_COUNTY_WIDE_MAINTENANCE_GROUP_ID;
+  return Boolean(gid && groups.includes(gid));
+}
+
+export function isSchoolMaintenanceWorker(groups: string[]): boolean {
+  const gid = process.env.ENTRA_SCHOOL_MAINTENANCE_GROUP_ID;
+  return Boolean(gid && groups.includes(gid));
 }
 
 export function requireDeviceManagementAccess() {
