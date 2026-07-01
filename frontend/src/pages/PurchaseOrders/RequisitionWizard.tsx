@@ -708,7 +708,7 @@ export default function RequisitionWizard() {
                   <TableCell sx={{ width: '25%' }}>Item Number</TableCell>
                   <TableCell sx={{ width: '25%' }}>Description *</TableCell>
                   <TableCell align="right" sx={{ width: 90 }}>Qty *</TableCell>
-                  <TableCell align="right" sx={{ width: 120 }}>Unit Price *</TableCell>
+                  <TableCell align="right" sx={{ width: 140 }}>Unit Price *</TableCell>
                   <TableCell align="right" sx={{ width: 110 }}>Line Total</TableCell>
                   <TableCell sx={{ width: 40 }} />
                 </TableRow>
@@ -758,7 +758,7 @@ export default function RequisitionWizard() {
                         {...register(`items.${index}.unitPrice`, { valueAsNumber: true })}
                         onFocus={(e) => e.target.select()}
                         inputProps={{ min: 0, step: '0.01', style: { textAlign: 'right' } }}
-                        sx={{ width: 100, ml: 'auto', display: 'block' }}
+                        sx={{ width: 120, ml: 'auto', display: 'block' }}
                         error={!!errors.items?.[index]?.unitPrice}
                         helperText={errors.items?.[index]?.unitPrice?.message ?? ''}
                       />

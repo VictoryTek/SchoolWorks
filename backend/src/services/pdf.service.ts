@@ -24,6 +24,7 @@ interface POItem {
 interface POForPdf {
   id:           string;
   poNumber:     string | null;
+  reqNumber:    string | null;
   description:  string;
   status:       string;
   amount:       any;
@@ -122,6 +123,13 @@ export async function generatePurchaseOrderPdf(po: POForPdf): Promise<Buffer> {
       const hdrLeftX  = MARGIN;
       const hdrRightX = MARGIN + COL_W / 2 + 10;
       const hdrLabelW = 110;
+
+      // Requisition Number (own row, directly above PO Number)
+      doc.font(FONT_BLD).fontSize(10)
+        .text('Requisition Number:', hdrLeftX, doc.y, { continued: true, width: hdrLabelW })
+        .font(FONT_REG)
+        .text(po.reqNumber ?? 'N/A', { continued: false });
+      doc.moveDown(0.3);
 
       // Row 1: PO Number (left) | Date Requested (right)
       const row1Y = doc.y;

@@ -357,7 +357,7 @@ export default function PurchaseOrderDetail() {
           Purchase Orders
         </Link>
         <Typography color="text.primary">
-          {po.poNumber ?? `REQ-${po.id.slice(0, 8).toUpperCase()}`}
+          {po.poNumber ?? po.reqNumber ?? `REQ-${po.id.slice(0, 8).toUpperCase()}`}
         </Typography>
       </Breadcrumbs>
 
