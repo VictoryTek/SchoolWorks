@@ -452,6 +452,25 @@ export class WorkOrderService {
       resolvedEquipmentId = equipment?.id ?? null;
     }
 
+    // Enforce the selected category's asset-tag requirement (Technology only).
+    // Fails closed: an asset tag is required unless a resolvable Technology
+    // category explicitly waives it via requiresAssetTag = false.
+    if (data.department === 'TECHNOLOGY' && !resolvedEquipmentId) {
+      let requiresAssetTag = true;
+      if (data.categoryId) {
+        const category = await this.prisma.workOrderCategory.findUnique({
+          where: { id: data.categoryId },
+          select: { module: true, requiresAssetTag: true },
+        });
+        if (category?.module === 'TECHNOLOGY') {
+          requiresAssetTag = category.requiresAssetTag;
+        }
+      }
+      if (requiresAssetTag) {
+        throw new ValidationError('An asset tag is required for this category', 'equipmentId');
+      }
+    }
+
     // Resolve auto-assignee before the transaction
     const autoAssigneeId = await this.resolveAutoAssignee(
       data.department,

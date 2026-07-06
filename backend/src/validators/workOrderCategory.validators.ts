@@ -47,19 +47,21 @@ export const WorkOrderCategoryIdParamSchema = z.object({
  * Body for POST /work-order-categories
  */
 export const CreateWorkOrderCategorySchema = z.object({
-  name:      z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or less').trim(),
-  module:    WorkOrderCategoryModuleSchema,
-  isActive:  z.boolean().optional().default(true),
-  sortOrder: z.number().int().min(0).optional().default(0),
+  name:             z.string().min(1, 'Name is required').max(100, 'Name must be 100 characters or less').trim(),
+  module:           WorkOrderCategoryModuleSchema,
+  isActive:         z.boolean().optional().default(true),
+  requiresAssetTag: z.boolean().optional().default(true),
+  sortOrder:        z.number().int().min(0).optional().default(0),
 });
 
 /**
  * Body for PUT /work-order-categories/:id
  */
 export const UpdateWorkOrderCategorySchema = z.object({
-  name:      z.string().min(1).max(100).trim().optional(),
-  isActive:  z.boolean().optional(),
-  sortOrder: z.number().int().min(0).optional(),
+  name:             z.string().min(1).max(100).trim().optional(),
+  isActive:         z.boolean().optional(),
+  requiresAssetTag: z.boolean().optional(),
+  sortOrder:        z.number().int().min(0).optional(),
 });
 
 export type GetWorkOrderCategoriesQuery = z.infer<typeof GetWorkOrderCategoriesQuerySchema>;

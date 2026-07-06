@@ -79,14 +79,14 @@ interface FormErrors {
   inventoryId?: string;
 }
 
-function validate(form: FormState): FormErrors {
+function validate(form: FormState, assetTagRequired: boolean): FormErrors {
   const errors: FormErrors = {};
   if (!form.description.trim()) {
     errors.description = 'Description is required.';
   } else if (form.description.trim().length < 10) {
     errors.description = 'Description must be at least 10 characters.';
   }
-  if (form.department === 'TECHNOLOGY' && !form.inventoryId.trim()) {
+  if (assetTagRequired && !form.inventoryId.trim()) {
     errors.inventoryId = 'Select an equipment item from the search results.';
   }
   return errors;
@@ -149,8 +149,6 @@ export default function NewWorkOrderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount
 
-  const errors = validate(form);
-
   const { data: inventoryOptions = [], isFetching: inventoryFetching } = useQuery({
     queryKey: ['inventory-search', inventorySearch],
     queryFn:  () => inventoryService.searchItems(inventorySearch, {
@@ -188,6 +186,12 @@ export default function NewWorkOrderPage() {
   });
   const dbCategories      = categoriesData?.items ?? [];
   const fallbackCategories = form.department === 'TECHNOLOGY' ? TECH_CATEGORIES : MAINT_CATEGORIES;
+
+  const selectedCategory = dbCategories.find((c) => c.id === form.categoryId);
+  const assetTagRequired =
+    form.department === 'TECHNOLOGY' && (selectedCategory ? selectedCategory.requiresAssetTag : true);
+
+  const errors = validate(form, assetTagRequired);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -421,7 +425,7 @@ export default function NewWorkOrderPage() {
                       {...params}
                       label="Asset Tag / Inventory ID"
                       size="small"
-                      required={form.department === 'TECHNOLOGY'}
+                      required={assetTagRequired}
                       error={touched.inventoryId && !!errors.inventoryId}
                       helperText={
                         touched.inventoryId && errors.inventoryId

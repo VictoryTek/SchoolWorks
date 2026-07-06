@@ -46,6 +46,7 @@ function CategorySection({ module, label }: CategorySectionProps) {
   const [fName, setFName]             = useState('');
   const [fSortOrder, setFSortOrder]   = useState('0');
   const [fIsActive, setFIsActive]     = useState(true);
+  const [fRequiresAssetTag, setFRequiresAssetTag] = useState(true);
   const [formError, setFormError]     = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
@@ -74,6 +75,7 @@ function CategorySection({ module, label }: CategorySectionProps) {
     setFName('');
     setFSortOrder('0');
     setFIsActive(true);
+    setFRequiresAssetTag(true);
     setFormError(null);
     setModalOpen(true);
   };
@@ -83,6 +85,7 @@ function CategorySection({ module, label }: CategorySectionProps) {
     setFName(cat.name);
     setFSortOrder(String(cat.sortOrder));
     setFIsActive(cat.isActive);
+    setFRequiresAssetTag(cat.requiresAssetTag);
     setFormError(null);
     setModalOpen(true);
   };
@@ -97,16 +100,18 @@ function CategorySection({ module, label }: CategorySectionProps) {
     try {
       if (editing) {
         await workOrderCategoryService.update(editing.id, {
-          name:      fName.trim(),
-          isActive:  fIsActive,
-          sortOrder: sortOrderVal,
+          name:             fName.trim(),
+          isActive:         fIsActive,
+          requiresAssetTag: fRequiresAssetTag,
+          sortOrder:        sortOrderVal,
         });
       } else {
         await workOrderCategoryService.create({
-          name:      fName.trim(),
+          name:             fName.trim(),
           module,
-          isActive:  fIsActive,
-          sortOrder: sortOrderVal,
+          isActive:         fIsActive,
+          requiresAssetTag: fRequiresAssetTag,
+          sortOrder:        sortOrderVal,
         });
       }
       setModalOpen(false);
@@ -182,6 +187,11 @@ function CategorySection({ module, label }: CategorySectionProps) {
                     {cat.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
+                {module === 'TECHNOLOGY' && !cat.requiresAssetTag && (
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <span className="badge badge-secondary">No asset tag required</span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '0.75rem', color: 'var(--slate-500)' }}>Sort: {cat.sortOrder}</span>
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -199,6 +209,7 @@ function CategorySection({ module, label }: CategorySectionProps) {
                 <tr>
                   <th>Name</th>
                   <th>Status</th>
+                  {module === 'TECHNOLOGY' && <th>Asset Tag</th>}
                   <th>Sort Order</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -212,6 +223,13 @@ function CategorySection({ module, label }: CategorySectionProps) {
                         {cat.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </td>
+                    {module === 'TECHNOLOGY' && (
+                      <td>
+                        {cat.requiresAssetTag
+                          ? <span style={{ color: 'var(--slate-500)' }}>Required</span>
+                          : <span className="badge badge-secondary">Not required</span>}
+                      </td>
+                    )}
                     <td style={{ color: 'var(--slate-600)' }}>{cat.sortOrder}</td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
@@ -260,6 +278,19 @@ function CategorySection({ module, label }: CategorySectionProps) {
             }
             label="Active"
           />
+          {module === 'TECHNOLOGY' && (
+            <FormControlLabel
+              sx={{ display: 'flex', mt: 1 }}
+              control={
+                <Switch
+                  checked={fRequiresAssetTag}
+                  onChange={(e) => setFRequiresAssetTag(e.target.checked)}
+                  disabled={formLoading}
+                />
+              }
+              label="Requires asset tag"
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModalOpen(false)} disabled={formLoading}>Cancel</Button>

@@ -1,26 +1,29 @@
 export type WorkOrderCategoryModule = 'TECHNOLOGY' | 'MAINTENANCE';
 
 export interface WorkOrderCategory {
-  id:        string;
-  name:      string;
-  module:    WorkOrderCategoryModule;
-  isActive:  boolean;
-  sortOrder: number;
-  createdAt: string;
-  updatedAt: string;
+  id:               string;
+  name:             string;
+  module:           WorkOrderCategoryModule;
+  isActive:         boolean;
+  requiresAssetTag: boolean;
+  sortOrder:        number;
+  createdAt:        string;
+  updatedAt:        string;
 }
 
 export interface CreateWorkOrderCategoryDto {
-  name:       string;
-  module:     WorkOrderCategoryModule;
-  isActive?:  boolean;
-  sortOrder?: number;
+  name:              string;
+  module:            WorkOrderCategoryModule;
+  isActive?:         boolean;
+  requiresAssetTag?: boolean;
+  sortOrder?:        number;
 }
 
 export interface UpdateWorkOrderCategoryDto {
-  name?:      string;
-  isActive?:  boolean;
-  sortOrder?: number;
+  name?:              string;
+  isActive?:          boolean;
+  requiresAssetTag?:  boolean;
+  sortOrder?:         number;
 }
 
 export interface WorkOrderCategoryListResponse {
