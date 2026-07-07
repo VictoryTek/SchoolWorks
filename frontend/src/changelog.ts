@@ -12,6 +12,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Replaced supervisor/worker/delegate dropdowns with a staff-only searchable picker on Edit Location',
       'Work Orders list now defaults to Technology or Maintenance based on your role',
       'Purchase Orders list now defaults to "Pending My Approval" for Director of Schools approvers',
+      'Tech Assistants now only see their own Purchase Order requests, not all requests at their location',
     ],
   },
   {
