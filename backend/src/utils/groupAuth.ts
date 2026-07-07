@@ -268,6 +268,30 @@ export function canChangeTicketPriority(groupIds: string[]): boolean {
   return allowlist.some((id) => groupIds.includes(id));
 }
 
+const WORK_ORDER_DEFAULT_TECHNOLOGY_GROUP_ENV_VARS = [
+  'ENTRA_ADMIN_GROUP_ID',
+  'ENTRA_TECH_ASSISTANTS_GROUP_ID',
+  'ENTRA_TECHNOLOGY_DIRECTOR_GROUP_ID',
+] as const;
+
+const WORK_ORDER_DEFAULT_MAINTENANCE_GROUP_ENV_VARS = [
+  'ENTRA_COUNTY_WIDE_MAINTENANCE_GROUP_ID',
+  'ENTRA_SCHOOL_MAINTENANCE_GROUP_ID',
+  'ENTRA_MAINTENANCE_DIRECTOR_GROUP_ID',
+] as const;
+
+export function getDefaultWorkOrderDepartment(groupIds: string[]): 'TECHNOLOGY' | 'MAINTENANCE' | null {
+  const inAllowlist = (envVars: readonly string[]) =>
+    envVars.some((envVar) => {
+      const gid = process.env[envVar];
+      return gid && groupIds.includes(gid);
+    });
+
+  if (inAllowlist(WORK_ORDER_DEFAULT_TECHNOLOGY_GROUP_ENV_VARS)) return 'TECHNOLOGY';
+  if (inAllowlist(WORK_ORDER_DEFAULT_MAINTENANCE_GROUP_ENV_VARS)) return 'MAINTENANCE';
+  return null;
+}
+
 export function requireDeviceManagementAccess() {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {

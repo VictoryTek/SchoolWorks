@@ -90,6 +90,8 @@ export interface AuthUserInfo {
     isTransportationSecretary: boolean;
     /** True if user is in one of the 6 groups permitted to change work order (ticket) priority */
     canChangeWorkOrderPriority?: boolean;
+    /** Department the Work Orders list should default to for this user's groups, or null for no default */
+    defaultWorkOrderDepartment?: 'TECHNOLOGY' | 'MAINTENANCE' | null;
   };
   /** True if user belongs to at least ALL_STAFF or ALL_STUDENTS base groups */
   hasBaseAccess: boolean;

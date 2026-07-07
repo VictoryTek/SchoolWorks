@@ -34,6 +34,7 @@ interface User {
     isFoodServicePoEntry: boolean;
     isTransportationSecretary: boolean;
     canChangeWorkOrderPriority?: boolean;
+    defaultWorkOrderDepartment?: 'TECHNOLOGY' | 'MAINTENANCE' | null;
   };
 }
 

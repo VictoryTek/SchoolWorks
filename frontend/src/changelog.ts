@@ -10,6 +10,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Added priority permissions for Technology and Maintenance Work Orders (Admin, Tech Assistants, County-Wide Maintenance, School Maintenance, Maintenance Director, Technology Director)',
       'Added priority change history to Work Orders',
       'Replaced supervisor/worker/delegate dropdowns with a staff-only searchable picker on Edit Location',
+      'Work Orders list now defaults to Technology or Maintenance based on your role',
     ],
   },
   {

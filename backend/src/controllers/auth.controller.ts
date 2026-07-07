@@ -9,7 +9,7 @@ import { getCookieConfig } from '../config/cookies';
 import { rotateCsrfToken, clearCsrfToken } from '../middleware/csrf';
 import { loggers } from '../lib/logger';
 import { redactEmail, redactEntraId } from '../utils/redact';
-import { derivePermLevelFromGroups, hasDeviceManagementAccess, canSeeAllLocations, isPrincipalOrVP, canChangeTicketPriority } from '../utils/groupAuth';
+import { derivePermLevelFromGroups, hasDeviceManagementAccess, canSeeAllLocations, isPrincipalOrVP, canChangeTicketPriority, getDefaultWorkOrderDepartment } from '../utils/groupAuth';
 import { 
   GraphUser, 
   isGraphUser,
@@ -391,7 +391,7 @@ export const callback = async (
         officeLocation: user.officeLocation ?? null,
         roles: roles,
         groups: groupIds,
-        permLevels: { ...permLevels, isFinanceDirectorApprover, isStrictFinanceDirector, isDosApprover, isPoEntryUser, isFoodServiceSupervisor, isFoodServicePoEntry, isTransportationSecretary, canChangeWorkOrderPriority: canChangeTicketPriority(groupIds) },
+        permLevels: { ...permLevels, isFinanceDirectorApprover, isStrictFinanceDirector, isDosApprover, isPoEntryUser, isFoodServiceSupervisor, isFoodServicePoEntry, isTransportationSecretary, canChangeWorkOrderPriority: canChangeTicketPriority(groupIds), defaultWorkOrderDepartment: getDefaultWorkOrderDepartment(groupIds) },
         hasBaseAccess,
         canAccessDeviceManagement,
         canSeeAllLocations: canSeeAllLocations(groupIds),
@@ -749,6 +749,7 @@ export const getMe = async (
     isFoodServicePoEntry:    !!(process.env.ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID && groupIds.includes(process.env.ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID)),
     isTransportationSecretary: !!(process.env.ENTRA_TRANSPORTATION_SECRETARY_GROUP_ID && groupIds.includes(process.env.ENTRA_TRANSPORTATION_SECRETARY_GROUP_ID)),
     canChangeWorkOrderPriority: canChangeTicketPriority(groupIds),
+    defaultWorkOrderDepartment: getDefaultWorkOrderDepartment(groupIds),
   };
 
   const configuredGroupIds = Object.entries(process.env)

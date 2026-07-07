@@ -34,6 +34,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useQuery } from '@tanstack/react-query';
 import { useWorkOrderList } from '@/hooks/queries/useWorkOrders';
 import { useLocations } from '@/hooks/queries/useLocations';
+import { useAuthStore } from '@/store/authStore';
 import { WorkOrderStatusChip } from '@/components/work-orders/WorkOrderStatusChip';
 import { WorkOrderPriorityChip } from '@/components/work-orders/WorkOrderPriorityChip';
 import settingsService from '@/services/settingsService';
@@ -56,10 +57,13 @@ const formatDate = (iso: string) =>
 
 export default function WorkOrderListPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
   // Filter state
   const [search, setSearch] = useState('');
-  const [department, setDepartment] = useState<WorkOrderDepartment | ''>('');
+  const [department, setDepartment] = useState<WorkOrderDepartment | ''>(
+    user?.permLevels?.defaultWorkOrderDepartment ?? ''
+  );
   const [statusBucket, setStatusBucket] = useState<'open' | 'closed'>('open');
   const [priority, setPriority] = useState<WorkOrderPriority | ''>('');
   const [locationFilter, setLocationFilter] = useState<string>('');
