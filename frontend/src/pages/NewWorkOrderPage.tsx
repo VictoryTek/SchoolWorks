@@ -268,11 +268,20 @@ export default function NewWorkOrderPage() {
               <Select
                 label="Category"
                 value={dbCategories.length > 0 ? form.categoryId : form.category}
-                onChange={(e) =>
-                  dbCategories.length > 0
-                    ? set('categoryId', e.target.value)
-                    : set('category', e.target.value)
-                }
+                onChange={(e) => {
+                  if (dbCategories.length === 0) {
+                    set('category', e.target.value);
+                    return;
+                  }
+                  const newCategoryId = e.target.value;
+                  set('categoryId', newCategoryId);
+                  const newCategory = dbCategories.find((c) => c.id === newCategoryId);
+                  if (newCategory && !newCategory.requiresAssetTag) {
+                    setSelectedEquipment(null);
+                    setInventorySearch('');
+                    set('inventoryId', '');
+                  }
+                }}
                 disabled={createWorkOrder.isPending || categoriesLoading}
               >
                 {dbCategories.length > 0
@@ -381,7 +390,7 @@ export default function NewWorkOrderPage() {
             <Divider />
 
             {/* Technology-specific fields */}
-            {form.department === 'TECHNOLOGY' && (
+            {form.department === 'TECHNOLOGY' && assetTagRequired && (
               <>
                 <Typography variant="subtitle2" color="text.secondary">
                   Equipment Details
