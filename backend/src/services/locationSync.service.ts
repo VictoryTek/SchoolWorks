@@ -248,15 +248,15 @@ export class LocationSyncService {
 
     this.logger.info('Supervisor assignment sync started');
 
-    // Only delete Entra-managed supervisor types; preserve manually assigned ones
-    // (e.g. TECHNOLOGY_ASSISTANT, MAINTENANCE_WORKER) that are not in SUPERVISOR_GROUPS
+    // Only delete assignments this sync previously created (assignedBy: 'SYSTEM_SYNC').
+    // Manually assigned supervisors (assignedBy set to a real user id) are never touched,
+    // regardless of supervisorType or whether the location has a resolvable Entra mapping.
     const entraManagedTypes = SUPERVISOR_GROUPS.map((g) => g.supervisorType);
     const deleted = await this.prisma.locationSupervisor.deleteMany({
-      where: { supervisorType: { in: entraManagedTypes } },
+      where: { supervisorType: { in: entraManagedTypes }, assignedBy: 'SYSTEM_SYNC' },
     });
-    this.logger.info('Cleared Entra-managed supervisor assignments (manual assignments preserved)', {
+    this.logger.info('Cleared sync-managed supervisor assignments (manual assignments preserved)', {
       count: deleted.count,
-      preservedTypes: ['TECHNOLOGY_ASSISTANT', 'MAINTENANCE_WORKER'],
     });
 
     for (const group of SUPERVISOR_GROUPS) {
