@@ -18,6 +18,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Photo upload on incidents is now a clearly labeled button instead of a plain drop zone',
       'Fixed the repair ticket status stepper not showing a checkmark once a ticket is marked Returned',
       'Repair Tickets can now be searched by asset tag, device name, or vendor across all tickets, not just the current page',
+      'Add Reports page to view and generate various reports for incidents and work orders',
     ],
   },
   {

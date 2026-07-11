@@ -27,6 +27,7 @@ interface NavItem {
   requireFieldTripApprover?: boolean;
   staffOnly?: boolean;  // Hidden from students (ALL_STUDENTS group)
   requireTransportationLevel?: number;
+  requireReports?: boolean;
 }
 
 interface NavSection {
@@ -38,6 +39,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Dashboard', icon: '🏠', path: '/dashboard' },
+      { label: 'Reports', icon: '📊', path: '/reports', requireReports: true },
       { label: 'My Equipment', icon: '💻', path: '/my-equipment', staffOnly: true },
     ],
   },
@@ -123,6 +125,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const hasFieldTripApproverAccess = isAdmin || (user?.permLevels?.FIELD_TRIPS ?? 0) >= 3;
   const isStaff = isAdmin || (user?.permLevels?.REQUISITIONS ?? 0) >= 2;
   const transportationLevel = isAdmin ? 6 : (user?.permLevels?.TRANSPORTATION ?? 0);
+  const hasReportsAccess = isAdmin || (user?.permLevels?.REPORTS ?? 0) >= 1;
   const { canAccess: canAccessRoomAssignments } = useRoomAssignmentAccess();
 
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -168,7 +171,8 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           (!item.requireFieldTripApprover || hasFieldTripApproverAccess) &&
           (!item.staffOnly || isStaff) &&
           (!item.requireRoomAssignment || canAccessRoomAssignments) &&
-          (item.requireTransportationLevel === undefined || transportationLevel >= item.requireTransportationLevel)
+          (item.requireTransportationLevel === undefined || transportationLevel >= item.requireTransportationLevel) &&
+          (!item.requireReports || hasReportsAccess)
         );
         if (visibleItems.length === 0) return null;
         return (

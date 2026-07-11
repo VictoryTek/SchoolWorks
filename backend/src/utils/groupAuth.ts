@@ -12,7 +12,7 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middleware/auth';
 
-type PermissionModuleType = 'TECHNOLOGY' | 'MAINTENANCE' | 'REQUISITIONS' | 'WORK_ORDERS' | 'FIELD_TRIPS' | 'TRANSPORTATION_REQUESTS' | 'CHECKOUT' | 'INVOICING' | 'TRANSPORTATION';
+type PermissionModuleType = 'TECHNOLOGY' | 'MAINTENANCE' | 'REQUISITIONS' | 'WORK_ORDERS' | 'FIELD_TRIPS' | 'TRANSPORTATION_REQUESTS' | 'CHECKOUT' | 'INVOICING' | 'TRANSPORTATION' | 'REPORTS';
 
 const DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS = [
   'ENTRA_ADMIN_GROUP_ID',
@@ -133,6 +133,12 @@ const GROUP_MODULE_MAP: Record<PermissionModuleType, Array<[string, number]>> = 
     ['ENTRA_TRANSPORTATION_SECRETARY_GROUP_ID',       2],
     ['ENTRA_BUS_DRIVERS_GROUP_ID',                   1],
     ['ENTRA_ALL_STAFF_GROUP_ID',                     1],
+  ],
+  // Binary can-view gate for the district-wide Reports dashboard — DOS + Admin only.
+  REPORTS: [
+    ['ENTRA_ADMIN_GROUP_ID',                    1],
+    ['ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID',      1],
+    ['ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID', 1],
   ],
 };
 

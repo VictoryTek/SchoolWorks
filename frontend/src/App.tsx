@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useAuthStore } from './store/authStore'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
+import ReportsOverviewPage from './pages/ReportsPage'
 import Users from './pages/Users'
 import SupervisorManagement from './pages/SupervisorManagement'
 import { InventoryManagement } from './pages/InventoryManagement'
@@ -102,6 +103,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <Dashboard />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reports"
+          element={
+            <ProtectedRoute requireReports>
+              <AppLayout>
+                <ReportsOverviewPage />
               </AppLayout>
             </ProtectedRoute>
           }

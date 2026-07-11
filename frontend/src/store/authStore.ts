@@ -28,6 +28,7 @@ interface User {
     CHECKOUT: number;
     TRANSPORTATION: number;
     WORK_ORDERS: number;
+    REPORTS: number;
     isFinanceDirectorApprover: boolean;
     isStrictFinanceDirector: boolean;
     isDosApprover: boolean;

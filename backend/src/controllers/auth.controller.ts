@@ -327,17 +327,18 @@ export const callback = async (
     rotateCsrfToken(res);
 
     // Build permLevels map from roleMapping for the response
-    const permLevels = { TECHNOLOGY: 0, MAINTENANCE: 0, REQUISITIONS: 0, FIELD_TRIPS: 0, CHECKOUT: 0, TRANSPORTATION: 0, WORK_ORDERS: 0 };
+    const permLevels = { TECHNOLOGY: 0, MAINTENANCE: 0, REQUISITIONS: 0, FIELD_TRIPS: 0, CHECKOUT: 0, TRANSPORTATION: 0, WORK_ORDERS: 0, REPORTS: 0 };
     for (const p of roleMapping.permissions) {
       if (p.module in permLevels) {
         permLevels[p.module as keyof typeof permLevels] = p.level;
       }
     }
-    // FIELD_TRIPS, CHECKOUT and TRANSPORTATION levels are derived directly from groups (not via roleMapping)
+    // FIELD_TRIPS, CHECKOUT, TRANSPORTATION, WORK_ORDERS and REPORTS levels are derived directly from groups (not via roleMapping)
     permLevels.FIELD_TRIPS = derivePermLevelFromGroups(groupIds, 'FIELD_TRIPS');
     permLevels.CHECKOUT = derivePermLevelFromGroups(groupIds, 'CHECKOUT');
     permLevels.TRANSPORTATION = derivePermLevelFromGroups(groupIds, 'TRANSPORTATION');
     permLevels.WORK_ORDERS = derivePermLevelFromGroups(groupIds, 'WORK_ORDERS');
+    permLevels.REPORTS = derivePermLevelFromGroups(groupIds, 'REPORTS');
 
     // Compute explicit group-based approval flags (mirrors backend service checks)
     const fdGroupId     = process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID;
@@ -742,6 +743,7 @@ export const getMe = async (
     CHECKOUT:     derivePermLevelFromGroups(groupIds, 'CHECKOUT'),
     TRANSPORTATION: derivePermLevelFromGroups(groupIds, 'TRANSPORTATION'),
     WORK_ORDERS:  derivePermLevelFromGroups(groupIds, 'WORK_ORDERS'),
+    REPORTS:      derivePermLevelFromGroups(groupIds, 'REPORTS'),
     isFinanceDirectorApprover: !!(process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID && groupIds.includes(process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID)),
     isStrictFinanceDirector:   !!(process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID && groupIds.includes(process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID)),
     isDosApprover:      !!(process.env.ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID && groupIds.includes(process.env.ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID)),
