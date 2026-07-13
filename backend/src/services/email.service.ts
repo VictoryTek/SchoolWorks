@@ -432,7 +432,7 @@ function fieldTripDetailHtml(trip: {
   purpose:        string;
 }): string {
   const dateStr = new Date(trip.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
   return `
     <table style="border-collapse:collapse;width:100%;margin-top:16px;">
@@ -472,7 +472,7 @@ export async function sendFieldTripToSupervisor(
 ): Promise<void> {
   await sendMail({
     to:      supervisorEmail,
-    subject: `Field Trip Approval Required: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US')}`,
+    subject: `Field Trip Approval Required: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
     context: 'field_trip_submitted',
     relatedEntityId: trip.id,
     html: `
@@ -526,7 +526,7 @@ export async function sendFieldTripFinalApproved(
 ): Promise<void> {
   await sendMail({
     to:      submitterEmail,
-    subject: `Field Trip Approved: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US')}`,
+    subject: `Field Trip Approved: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
     context: 'field_trip_approved',
     relatedEntityId: trip.id,
     html: `
@@ -553,7 +553,7 @@ export async function sendFieldTripDenied(
 ): Promise<void> {
   await sendMail({
     to:      submitterEmail,
-    subject: `Field Trip Denied: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US')}`,
+    subject: `Field Trip Denied: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
     context: 'field_trip_denied',
     relatedEntityId: trip.id,
     html: `
@@ -585,7 +585,7 @@ export async function sendFieldTripSentBack(
   const appUrl = process.env.APP_URL ?? '';
   await sendMail({
     to:      submitterEmail,
-    subject: `Field Trip Sent Back for Revision: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US')}`,
+    subject: `Field Trip Sent Back for Revision: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
     context: 'field_trip_sent_back',
     relatedEntityId: trip.id,
     html: `
@@ -618,7 +618,7 @@ export async function sendFieldTripTransportationNotice(
   if (emails.length === 0) return;
 
   const dateStr = new Date(trip.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   await sendMail({
@@ -666,7 +666,7 @@ export async function sendTransportationStep2SubmittedNotice(
   if (emails.length === 0) return;
 
   const dateStr = new Date(trip.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   await sendMail({
@@ -816,7 +816,7 @@ export async function sendTransportationRequestSubmitted(
   if (emails.length === 0) return;
 
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   await sendMail({
@@ -867,7 +867,7 @@ export async function sendTransportationRequestApproved(
   },
 ): Promise<void> {
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   const driversHtml = request.assignedDriverNames && request.assignedDriverNames.length > 0
@@ -921,7 +921,7 @@ export async function sendTransportationRequestDenied(
   denialReason: string,
 ): Promise<void> {
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   await sendMail({
@@ -969,7 +969,7 @@ export async function sendTransportationRequestPendingSupervisor(
   submitterName: string,
 ): Promise<void> {
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   await sendMail({
@@ -1021,7 +1021,7 @@ export async function sendTransportationRequestSupervisorApproved(
   },
 ): Promise<void> {
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   const approverName = request.supervisorApprovedBy
@@ -1071,7 +1071,7 @@ export async function sendTransportationRequestSupervisorDenied(
   denialReason: string,
 ): Promise<void> {
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   const denierName = request.supervisorDeniedBy
@@ -1123,7 +1123,7 @@ export async function sendTransportationRequestReadyForReview(
   if (emails.length === 0) return;
 
   const dateStr = new Date(request.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 
   await sendMail({
