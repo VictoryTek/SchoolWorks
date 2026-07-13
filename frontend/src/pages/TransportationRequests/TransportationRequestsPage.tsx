@@ -41,7 +41,7 @@ const columns: Column<TransportationRequest>[] = [
     label: 'Trip Date',
     render: (row) =>
       new Date(row.tripDate).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
+        month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
       }),
   },
   {

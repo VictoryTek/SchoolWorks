@@ -5,6 +5,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.1',
+    changes: [
+      'Fixed the Trip Date on Transportation Requests showing one day earlier than what was submitted',
+      'Fixed the inventory search so that all users except certain roles (e.g., ALL_Students) can find items correctly',
+    ],
+  },
+  {
     version: '1.4.0',
     changes: [
       'Repair tickets now automatically close or advance the linked incident when resolved, instead of requiring a trip back through the incident wizard',

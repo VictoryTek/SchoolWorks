@@ -10,7 +10,7 @@ import multer from 'multer';
 import { authenticate } from '../middleware/auth';
 import { validateRequest } from '../middleware/validation';
 import { validateCsrfToken } from '../middleware/csrf';
-import { requireModule } from '../utils/groupAuth';
+import { requireModule, requireEquipmentSearchAccess } from '../utils/groupAuth';
 import {
   InventoryIdParamSchema,
   LocationIdParamSchema,
@@ -99,12 +99,14 @@ router.get(
 /**
  * GET /api/inventory/search
  * Lightweight typeahead search by asset tag, name, or serial number
- * Permission: TECHNOLOGY level 1+ (view access)
+ * Permission: TECHNOLOGY level 1+, or the equipment-search allowlist
+ * (Principals, VPs, School/County-Wide Maintenance, Transportation Director,
+ * All Staff) — see requireEquipmentSearchAccess for rationale.
  */
 router.get(
   '/inventory/search',
   validateRequest(InventorySearchQuerySchema, 'query'),
-  requireModule('TECHNOLOGY', 1),
+  requireEquipmentSearchAccess(),
   inventoryController.searchInventory
 );
 

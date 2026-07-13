@@ -303,6 +303,58 @@ export function getDefaultWorkOrderDepartment(groupIds: string[]): 'TECHNOLOGY' 
   return null;
 }
 
+const EQUIPMENT_SEARCH_GROUP_ENV_VARS = [
+  'ENTRA_PRINCIPALS_GROUP_ID',
+  'ENTRA_VICE_PRINCIPALS_GROUP_ID',
+  'ENTRA_SCHOOL_MAINTENANCE_GROUP_ID',
+  'ENTRA_COUNTY_WIDE_MAINTENANCE_GROUP_ID',
+  'ENTRA_TRANSPORTATION_DIRECTOR_GROUP_ID',
+  'ENTRA_ALL_STAFF_GROUP_ID',
+] as const;
+
+/**
+ * Additional roles allowed to use the equipment typeahead search (used to
+ * attach an asset tag when submitting a work order) without granting the
+ * full TECHNOLOGY module, which also exposes full inventory detail/pricing.
+ */
+export function canSearchEquipment(groupIds: string[]): boolean {
+  const allowlist = EQUIPMENT_SEARCH_GROUP_ENV_VARS
+    .map((envVar) => process.env[envVar])
+    .filter((id): id is string => Boolean(id));
+  return allowlist.some((id) => groupIds.includes(id));
+}
+
+/**
+ * requireEquipmentSearchAccess — gate for GET /api/inventory/search only.
+ *
+ * Allows: ADMIN role, existing TECHNOLOGY level 1+ groups, or the additional
+ * EQUIPMENT_SEARCH_GROUP_ENV_VARS allowlist (Principals, VPs, School/County-Wide
+ * Maintenance, Transportation Director, All Staff). Does not grant any other
+ * TECHNOLOGY-gated route.
+ */
+export function requireEquipmentSearchAccess() {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    const groups = req.user.groups ?? [];
+    const techLevel = derivePermLevelFromGroups(groups, 'TECHNOLOGY');
+
+    if (req.user.roles?.includes('ADMIN') || techLevel >= 1 || canSearchEquipment(groups)) {
+      req.user.permLevel = Math.max(techLevel, 1);
+      next();
+      return;
+    }
+
+    res.status(403).json({
+      error: 'Forbidden',
+      message: 'Requires equipment search access',
+    });
+  };
+}
+
 export function requireDeviceManagementAccess() {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {

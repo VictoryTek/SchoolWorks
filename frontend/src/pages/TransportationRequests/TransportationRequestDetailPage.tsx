@@ -52,7 +52,7 @@ function DetailRow({ label, value }: { label: string; value: string | number | n
 function formatDate(dt: string | null | undefined): string {
   if (!dt) return '—';
   return new Date(dt).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
   });
 }
 
