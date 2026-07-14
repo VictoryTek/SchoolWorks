@@ -517,6 +517,9 @@ export class WorkOrderService {
           categoryId:      data.categoryId ?? null,
           equipmentId:     data.department === 'TECHNOLOGY' ? resolvedEquipmentId : null,
           notInInventory:  data.department === 'TECHNOLOGY' ? (data.notInInventory ?? false) : false,
+          notInInventoryTag: data.department === 'TECHNOLOGY' && data.notInInventory
+            ? (data.notInInventoryTag?.trim() || null)
+            : null,
           equipmentMfg:    data.department === 'MAINTENANCE' ? (data.equipmentMfg ?? null) : null,
           equipmentModel:  data.department === 'MAINTENANCE' ? (data.equipmentModel ?? null) : null,
           equipmentSerial: data.department === 'MAINTENANCE' ? (data.equipmentSerial ?? null) : null,
@@ -568,7 +571,8 @@ export class WorkOrderService {
         categoryId:      data.categoryId,
         equipmentId:     data.equipmentId,
         // Equipment has now been found/added — clear the flag
-        notInInventory:  data.equipmentId ? false : undefined,
+        notInInventory:    data.equipmentId ? false : undefined,
+        notInInventoryTag: data.equipmentId ? null  : undefined,
         equipmentMfg:    data.equipmentMfg,
         equipmentModel:  data.equipmentModel,
         equipmentSerial: data.equipmentSerial,

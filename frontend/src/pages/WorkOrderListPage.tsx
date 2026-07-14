@@ -10,7 +10,7 @@
  * Route: /work-orders
  */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -34,6 +34,7 @@ import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import { useQuery } from '@tanstack/react-query';
 import { useWorkOrderList } from '@/hooks/queries/useWorkOrders';
 import { useLocations } from '@/hooks/queries/useLocations';
+import { locationService } from '@/services/location.service';
 import { useAuthStore } from '@/store/authStore';
 import { WorkOrderStatusChip } from '@/components/work-orders/WorkOrderStatusChip';
 import { WorkOrderPriorityChip } from '@/components/work-orders/WorkOrderPriorityChip';
@@ -71,6 +72,7 @@ export default function WorkOrderListPage() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const defaultLocationApplied = useRef(false);
 
   const isMobile = useIsMobile();
 
@@ -82,6 +84,25 @@ export default function WorkOrderListPage() {
 
   // Fetch locations for school filter dropdown
   const { data: locations = [] } = useLocations();
+
+  // Technology Assistants: default the school filter to their assigned location
+  const { data: supervisedLocations = [] } = useQuery({
+    queryKey: queryKeys.locations.supervisedByMe(),
+    queryFn: () => locationService.getUserSupervisedLocations(user?.id ?? ''),
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useEffect(() => {
+    if (supervisedLocations.length > 0 && !defaultLocationApplied.current) {
+      defaultLocationApplied.current = true;
+      const techAssignments = supervisedLocations.filter((a) => a.supervisorType === 'TECHNOLOGY_ASSISTANT');
+      if (techAssignments.length > 0) {
+        const match = techAssignments.find((a) => a.isPrimary) ?? techAssignments[0];
+        setLocationFilter(match.locationId);
+      }
+    }
+  }, [supervisedLocations]);
 
   // Fetch distinct work order fiscal years for dropdown
   const { data: workOrderFiscalYears = [] } = useQuery({

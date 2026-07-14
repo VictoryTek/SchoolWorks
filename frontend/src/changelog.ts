@@ -9,7 +9,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       'Field trips can now span multiple days without being marked "overnight" — Trip End Date is now independent of the overnight safety-precautions requirement, and the dashboard availability calendar, list/detail/approval views, PDF export, and email notifications all show the full date range',
       'Purchase order requisitions now require a Department before they can be submitted.',
-      ' Added support for "Not Listed" departments, allowing users to manually enter a department, program, or funding source along with a ship-to address if the desired location is not in the list.',
+      'Added support for "Not Listed" departments, allowing users to manually enter a department, program, or funding source along with a ship-to address if the desired location is not in the list.',
+      'Set the default location for Technology Assistants based on their supervised locations, if available',
+      'Added support for reporting tag numbers for items not in inventory, allowing users to manually enter a tag or serial number when the item is not found in the inventory.',
     ],
   },
   {

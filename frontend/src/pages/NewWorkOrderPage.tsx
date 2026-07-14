@@ -61,6 +61,7 @@ interface FormState {
   // TECHNOLOGY
   inventoryId: string;       // equipment.id (resolved UUID) — used in DTO
   notInInventory: boolean;  // equipment isn't recorded in inventory yet
+  notInInventoryTag: string; // optional tag number typed when not in inventory
 }
 
 const INITIAL: FormState = {
@@ -73,6 +74,7 @@ const INITIAL: FormState = {
   roomId: '',
   inventoryId: '',
   notInInventory: false,
+  notInInventoryTag: '',
 };
 
 // ─── Validation ───────────────────────────────────────────────────────────────
@@ -205,7 +207,7 @@ export default function NewWorkOrderPage() {
     setTouched((prev) => ({ ...prev, [key]: true }));
 
   const handleDepartmentChange = (dept: WorkOrderDepartment) => {
-    setForm((prev) => ({ ...prev, department: dept, category: '', categoryId: '', notInInventory: false }));
+    setForm((prev) => ({ ...prev, department: dept, category: '', categoryId: '', notInInventory: false, notInInventoryTag: '' }));
   };
 
   const handleSubmit = async () => {
@@ -223,6 +225,9 @@ export default function NewWorkOrderPage() {
       ...(form.department === 'TECHNOLOGY' && {
         equipmentId: form.notInInventory ? null : (form.inventoryId || null),
         notInInventory: form.notInInventory,
+        ...(form.notInInventory && form.notInInventoryTag.trim() && {
+          notInInventoryTag: form.notInInventoryTag.trim(),
+        }),
       }),
 
     };
@@ -286,6 +291,7 @@ export default function NewWorkOrderPage() {
                     setInventorySearch('');
                     set('inventoryId', '');
                     set('notInInventory', false);
+                    set('notInInventoryTag', '');
                   }
                 }}
                 disabled={createWorkOrder.isPending || categoriesLoading}
@@ -412,6 +418,8 @@ export default function NewWorkOrderPage() {
                           setSelectedEquipment(null);
                           setInventorySearch('');
                           set('inventoryId', '');
+                        } else {
+                          set('notInInventoryTag', '');
                         }
                       }}
                       disabled={createWorkOrder.isPending}
@@ -419,6 +427,17 @@ export default function NewWorkOrderPage() {
                   }
                   label="This equipment is not in my inventory"
                 />
+                {form.notInInventory && (
+                  <TextField
+                    label="Tag Number (if known)"
+                    size="small"
+                    fullWidth
+                    value={form.notInInventoryTag}
+                    onChange={(e) => set('notInInventoryTag', e.target.value)}
+                    helperText="Optional — if you can see a tag or serial number on the device, enter it here."
+                    disabled={createWorkOrder.isPending}
+                  />
+                )}
                 {!form.notInInventory && (
                   <>
                     <Autocomplete<InventorySearchResult>

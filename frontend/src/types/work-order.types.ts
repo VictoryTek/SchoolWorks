@@ -96,6 +96,7 @@ export interface WorkOrderDetail extends WorkOrderSummary {
   description: string;
   equipmentId: string | null;
   equipment: { id: string; assetTag: string; name: string } | null;
+  notInInventoryTag: string | null;
   equipmentMfg: string | null;
   equipmentModel: string | null;
   equipmentSerial: string | null;
@@ -117,6 +118,7 @@ export interface CreateWorkOrderDto {
   equipmentId?: string | null;
   assetTag?: string | null;
   notInInventory?: boolean;
+  notInInventoryTag?: string | null;
   equipmentMfg?: string | null;
   equipmentModel?: string | null;
   equipmentSerial?: string | null;

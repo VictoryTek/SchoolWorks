@@ -606,7 +606,16 @@ export default function WorkOrderDetailPage() {
                   </Typography>
                 </Box>
 
-
+                {workOrder.notInInventory && workOrder.notInInventoryTag && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Reported Tag Number
+                    </Typography>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                      {workOrder.notInInventoryTag}
+                    </Typography>
+                  </Box>
+                )}
 
                 <Divider />
 

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { userService } from '@/services/userService';
+import { locationService } from '@/services/location.service';
 import { queryKeys } from '@/lib/queryKeys';
 
 interface UserDefaultLocation {
@@ -13,8 +14,9 @@ interface UserDefaultLocation {
  *
  * Priority:
  *   1. primaryRoom → room.locationId + room.id
- *   2. /users/me/office-location → resolved OfficeLocation.id (no room)
- *   3. null / null
+ *   2. TECHNOLOGY_ASSISTANT assignment in Office Locations & Supervisors → assigned location.id (no room)
+ *   3. /users/me/office-location → resolved OfficeLocation.id (no room)
+ *   4. null / null
  */
 export function useUserDefaultLocation(): {
   data: UserDefaultLocation | null;
@@ -30,6 +32,18 @@ export function useUserDefaultLocation(): {
           officeLocationId: me.primaryRoom.locationId,
           roomId: me.primaryRoom.id,
         };
+      }
+
+      // Technology Assistants: default to the school they're assigned to service
+      try {
+        const assignments = await locationService.getUserSupervisedLocations(me.id);
+        const techAssignments = assignments.filter((a) => a.supervisorType === 'TECHNOLOGY_ASSISTANT');
+        if (techAssignments.length > 0) {
+          const match = techAssignments.find((a) => a.isPrimary) ?? techAssignments[0];
+          return { officeLocationId: match.locationId, roomId: null };
+        }
+      } catch {
+        // no supervisor assignments — fall through to officeLocation
       }
 
       // Fallback: resolve officeLocation string → OfficeLocation record

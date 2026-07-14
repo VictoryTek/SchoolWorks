@@ -1054,6 +1054,7 @@ model Ticket {
   equipmentId      String?
   equipment        equipment?         @relation("TicketEquipment", fields: [equipmentId], references: [id])
   notInInventory   Boolean            @default(false)
+  notInInventoryTag String?
 
   // Maintenance-specific (nullable, only populated for MAINTENANCE dept)
   equipmentMfg     String?

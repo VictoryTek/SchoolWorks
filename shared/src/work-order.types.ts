@@ -130,6 +130,7 @@ export interface WorkOrderDetail extends WorkOrderSummary {
   // Technology
   equipmentId: string | null;
   equipment: WorkOrderEquipment | null;
+  notInInventoryTag: string | null;
   // Maintenance
   equipmentMfg: string | null;
   equipmentModel: string | null;
@@ -150,6 +151,7 @@ export interface CreateWorkOrderDto {
   // Technology
   equipmentId?: string | null;
   notInInventory?: boolean;
+  notInInventoryTag?: string | null;
   // Maintenance
   equipmentMfg?: string | null;
   equipmentModel?: string | null;

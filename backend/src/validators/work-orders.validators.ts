@@ -83,6 +83,7 @@ export const CreateWorkOrderSchema = z
     equipmentId:     z.string().uuid('Invalid equipment ID').optional().nullable(),
     assetTag:        z.string().max(100, 'Asset tag too long').optional().nullable(),
     notInInventory:  z.boolean().optional().default(false),
+    notInInventoryTag: z.string().max(100, 'Tag number too long').optional().nullable(),
     // Maintenance-specific
     equipmentMfg:    z.string().max(200).optional().nullable(),
     equipmentModel:  z.string().max(200).optional().nullable(),
@@ -122,6 +123,13 @@ export const CreateWorkOrderSchema = z
         code: z.ZodIssueCode.custom,
         message: 'Cannot link existing equipment and flag it as not in inventory',
         path: ['assetTag'],
+      });
+    }
+    if (data.notInInventoryTag && !data.notInInventory) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Tag number is only valid when equipment is flagged as not in inventory',
+        path: ['notInInventoryTag'],
       });
     }
   });
