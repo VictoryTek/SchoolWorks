@@ -185,7 +185,11 @@ const FieldTripBodyShape = {
   returnDate: z
     .string()
     .nullable()
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || !isNaN(Date.parse(val)),
+      'Trip end date must be a valid date',
+    ),
   alternateTransportation: z
     .string()
     .nullable()
@@ -249,6 +253,14 @@ export const CreateFieldTripSchema = z
     },
   )
   .refine(
+    (data) =>
+      !data.returnDate || !data.tripDate || new Date(data.returnDate) > new Date(data.tripDate),
+    {
+      message: 'Trip end date must be after the trip date',
+      path: ['returnDate'],
+    },
+  )
+  .refine(
     (data) => data.transportationNeeded || (data.alternateTransportation && data.alternateTransportation.trim().length > 0),
     {
       message: 'Please describe how students will be transported',
@@ -307,7 +319,10 @@ export const UpdateFieldTripSchema = z
     preliminaryActivities: z.string().max(3000).nullable().optional(),
     followUpActivities: z.string().max(3000).nullable().optional(),
     isOvernightTrip: z.boolean().optional(),
-    returnDate: z.string().nullable().optional(),
+    returnDate: z.string().nullable().optional().refine(
+      (val) => !val || !isNaN(Date.parse(val)),
+      'Trip end date must be a valid date',
+    ),
     alternateTransportation: z.string().nullable().optional(),
     rainAlternateDate: z.string().nullable().optional().refine(
       (val) => !val || !isNaN(Date.parse(val)),
@@ -331,7 +346,15 @@ export const UpdateFieldTripSchema = z
       .optional()
       .default([]),
     overnightSafetyPrecautions: z.string().max(3000).nullable().optional(),
-  });
+  })
+  .refine(
+    (data) =>
+      !data.returnDate || !data.tripDate || new Date(data.returnDate) > new Date(data.tripDate),
+    {
+      message: 'Trip end date must be after the trip date',
+      path: ['returnDate'],
+    },
+  );
 
 export type UpdateFieldTripDto = z.infer<typeof UpdateFieldTripSchema>;
 

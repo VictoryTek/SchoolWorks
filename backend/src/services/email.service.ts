@@ -420,6 +420,30 @@ export async function buildFieldTripApproverSnapshot(
 }
 
 // ---------------------------------------------------------------------------
+// Field Trip date formatting (shared across templates)
+// ---------------------------------------------------------------------------
+
+/**
+ * Formats a field trip's date as a range when it spans more than one day
+ * (i.e. returnDate is set and differs from tripDate), or as a single date otherwise.
+ */
+function formatTripDateRange(
+  tripDate: Date | string,
+  returnDate: Date | string | null | undefined,
+  opts: Intl.DateTimeFormatOptions,
+): string {
+  const start = new Date(tripDate).toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' });
+  if (!returnDate) return start;
+
+  const startISO = new Date(tripDate).toISOString().slice(0, 10);
+  const endISO   = new Date(returnDate).toISOString().slice(0, 10);
+  if (startISO === endISO) return start;
+
+  const end = new Date(returnDate).toLocaleDateString('en-US', { ...opts, timeZone: 'UTC' });
+  return `${start} – ${end}`;
+}
+
+// ---------------------------------------------------------------------------
 // Field Trip detail HTML snippet (shared across templates)
 // ---------------------------------------------------------------------------
 
@@ -427,14 +451,15 @@ function fieldTripDetailHtml(trip: {
   id:             string;
   destination:    string;
   tripDate:       Date | string;
+  returnDate?:    Date | string | null;
   teacherName:    string;
   schoolBuilding: string;
   gradeClass:     string;
   studentCount:   number;
   purpose:        string;
 }): string {
-  const dateStr = new Date(trip.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+  const dateStr = formatTripDateRange(trip.tripDate, trip.returnDate, {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
   return `
     <table style="border-collapse:collapse;width:100%;margin-top:16px;">
@@ -466,7 +491,7 @@ function fieldTripDetailHtml(trip: {
 export async function sendFieldTripToSupervisor(
   supervisorEmail: string | string[],
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },
@@ -474,7 +499,7 @@ export async function sendFieldTripToSupervisor(
 ): Promise<void> {
   await sendMail({
     to:      supervisorEmail,
-    subject: `Field Trip Approval Required: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
+    subject: `Field Trip Approval Required: ${trip.destination} — ${formatTripDateRange(trip.tripDate, trip.returnDate, {})}`,
     context: 'field_trip_submitted',
     relatedEntityId: trip.id,
     html: `
@@ -493,7 +518,7 @@ export async function sendFieldTripToSupervisor(
 export async function sendFieldTripAdvancedToApprover(
   approverEmail: string | string[],
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },
@@ -521,14 +546,14 @@ export async function sendFieldTripAdvancedToApprover(
 export async function sendFieldTripFinalApproved(
   submitterEmail: string,
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },
 ): Promise<void> {
   await sendMail({
     to:      submitterEmail,
-    subject: `Field Trip Approved: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
+    subject: `Field Trip Approved: ${trip.destination} — ${formatTripDateRange(trip.tripDate, trip.returnDate, {})}`,
     context: 'field_trip_approved',
     relatedEntityId: trip.id,
     html: `
@@ -546,7 +571,7 @@ export async function sendFieldTripFinalApproved(
 export async function sendFieldTripDenied(
   submitterEmail: string,
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },
@@ -555,7 +580,7 @@ export async function sendFieldTripDenied(
 ): Promise<void> {
   await sendMail({
     to:      submitterEmail,
-    subject: `Field Trip Denied: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
+    subject: `Field Trip Denied: ${trip.destination} — ${formatTripDateRange(trip.tripDate, trip.returnDate, {})}`,
     context: 'field_trip_denied',
     relatedEntityId: trip.id,
     html: `
@@ -577,7 +602,7 @@ export async function sendFieldTripDenied(
 export async function sendFieldTripSentBack(
   submitterEmail: string,
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },
@@ -587,7 +612,7 @@ export async function sendFieldTripSentBack(
   const appUrl = process.env.APP_URL ?? '';
   await sendMail({
     to:      submitterEmail,
-    subject: `Field Trip Sent Back for Revision: ${trip.destination} — ${new Date(trip.tripDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}`,
+    subject: `Field Trip Sent Back for Revision: ${trip.destination} — ${formatTripDateRange(trip.tripDate, trip.returnDate, {})}`,
     context: 'field_trip_sent_back',
     relatedEntityId: trip.id,
     html: `
@@ -610,7 +635,7 @@ export async function sendFieldTripSentBack(
 export async function sendFieldTripTransportationNotice(
   emails: string[],
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string; transportationDetails?: string | null;
     departureTime: string; returnTime: string;
@@ -619,8 +644,8 @@ export async function sendFieldTripTransportationNotice(
 ): Promise<void> {
   if (emails.length === 0) return;
 
-  const dateStr = new Date(trip.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+  const dateStr = formatTripDateRange(trip.tripDate, trip.returnDate, {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
   await sendMail({
@@ -655,7 +680,7 @@ export async function sendFieldTripTransportationNotice(
 export async function sendTransportationStep2SubmittedNotice(
   emails: string[],
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
     departureTime: string; returnTime: string;
@@ -667,8 +692,8 @@ export async function sendTransportationStep2SubmittedNotice(
 ): Promise<void> {
   if (emails.length === 0) return;
 
-  const dateStr = new Date(trip.tripDate).toLocaleDateString('en-US', {
-    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+  const dateStr = formatTripDateRange(trip.tripDate, trip.returnDate, {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
   await sendMail({
@@ -704,7 +729,7 @@ export async function sendTransportationStep2SubmittedNotice(
 export async function sendTransportationApproved(
   submitterEmail: string,
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },
@@ -769,7 +794,7 @@ export async function sendTransportationApproved(
 export async function sendTransportationDenied(
   submitterEmail: string,
   trip: {
-    id: string; destination: string; tripDate: Date | string;
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
     teacherName: string; schoolBuilding: string; gradeClass: string;
     studentCount: number; purpose: string;
   },

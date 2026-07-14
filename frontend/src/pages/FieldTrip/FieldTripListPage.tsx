@@ -31,6 +31,7 @@ import {
   FIELD_TRIP_STATUS_COLORS,
 } from '@/types/fieldTrip.types';
 import { ResponsiveTable, MobileFilterBar, Column } from '@/components/responsive';
+import { formatTripDateRange } from '@/utils/fieldTripDateFormat';
 
 const columns: Column<FieldTripRequest>[] = [
   {
@@ -48,10 +49,7 @@ const columns: Column<FieldTripRequest>[] = [
   {
     key: 'tripDate',
     label: 'Trip Date',
-    render: (row) =>
-      new Date(row.tripDate).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-      }),
+    render: (row) => formatTripDateRange(row.tripDate, row.returnDate),
   },
   {
     key: 'schoolBuilding',

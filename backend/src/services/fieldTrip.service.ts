@@ -124,7 +124,7 @@ export class FieldTripService {
         preliminaryActivities: data.preliminaryActivities,
         followUpActivities:   data.followUpActivities,
         isOvernightTrip:      data.isOvernightTrip,
-        returnDate:           data.isOvernightTrip && data.returnDate ? new Date(data.returnDate) : null,
+        returnDate:           data.returnDate ? new Date(data.returnDate) : null,
         alternateTransportation: data.transportationNeeded ? null : (data.alternateTransportation ?? null),
         // Step 3 fields
         rainAlternateDate:           data.rainAlternateDate ? new Date(data.rainAlternateDate) : null,
@@ -679,21 +679,32 @@ export class FieldTripService {
 
   /**
    * Returns a map of { 'YYYY-MM-DD': count } for submitted (non-DRAFT, non-DENIED)
-   * field trip requests within the given date range.
+   * field trip requests within the given date range. Multi-day trips (returnDate set)
+   * increment every day of their span that falls within [from, to], not just tripDate.
    */
   async getDateCounts(from: Date, to: Date): Promise<Record<string, number>> {
     const trips = await prisma.fieldTripRequest.findMany({
       where: {
-        tripDate: { gte: from, lte: to },
-        status:   { notIn: ['DRAFT', 'DENIED'] },
+        status: { notIn: ['DRAFT', 'DENIED'] },
+        tripDate: { lte: to },
+        OR: [
+          { returnDate: null, tripDate: { gte: from } },
+          { returnDate: { gte: from } },
+        ],
       },
-      select: { tripDate: true },
+      select: { tripDate: true, returnDate: true },
     });
 
     const counts: Record<string, number> = {};
+    const fromTime = from.getTime();
+    const toTime   = to.getTime();
     for (const t of trips) {
-      const key = t.tripDate.toISOString().slice(0, 10);
-      counts[key] = (counts[key] ?? 0) + 1;
+      const start = Math.max(t.tripDate.getTime(), fromTime);
+      const end   = Math.min((t.returnDate ?? t.tripDate).getTime(), toTime);
+      for (let day = start; day <= end; day += 86_400_000) {
+        const key = new Date(day).toISOString().slice(0, 10);
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
     }
     return counts;
   }

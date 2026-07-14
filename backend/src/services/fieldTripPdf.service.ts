@@ -267,8 +267,8 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
         ['Number of Students',    String(trip.studentCount)],
         ['Trip Date',             formatDate(trip.tripDate)],
         ['Overnight Trip',        yesNo(trip.isOvernightTrip)],
-        ...(trip.isOvernightTrip && trip.returnDate
-          ? [['Return Date', formatDate(trip.returnDate)] as [string, string]]
+        ...(trip.returnDate
+          ? [['Trip End Date', formatDate(trip.returnDate)] as [string, string]]
           : []),
         ['Destination',           trip.destination],
         ...(trip.destinationAddress

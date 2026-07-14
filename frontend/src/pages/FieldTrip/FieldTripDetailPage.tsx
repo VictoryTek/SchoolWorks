@@ -387,8 +387,8 @@ export function FieldTripDetailPage() {
           )}
           <DetailField label="Number of Students"   value={String(trip.studentCount)} />
           <DetailField label="Overnight Trip"        value={trip.isOvernightTrip ? 'Yes' : 'No'} />
-          {trip.isOvernightTrip && trip.returnDate && (
-            <DetailField label="Return Date" value={new Date(trip.returnDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })} />
+          {trip.returnDate && (
+            <DetailField label="Trip End Date" value={new Date(trip.returnDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })} />
           )}
           <DetailField label="Trip Date"            value={tripDateStr} />
           <DetailField label="Destination"          value={trip.destination} />

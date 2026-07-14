@@ -13,7 +13,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -261,7 +261,7 @@ function formToDto(form: FormState): CreateFieldTripDto {
     followUpActivities:    form.followUpActivities.trim(),
     transportationNeeded:  form.transportationNeeded,
     isOvernightTrip:       form.isOvernightTrip,
-    returnDate:            form.isOvernightTrip ? new Date(form.returnDate + 'T12:00:00').toISOString() : null,
+    returnDate:            form.returnDate ? new Date(form.returnDate + 'T12:00:00').toISOString() : null,
     alternateTransportation: form.transportationNeeded ? null : (form.alternateTransportation.trim() || null),
     departureTime:         form.transportationNeeded ? (form.transportLoadingTime || '') : form.departureTime.trim(),
     returnTime:            form.transportationNeeded ? (form.transportReturnToSchoolTime || '') : form.returnTime.trim(),
@@ -321,9 +321,9 @@ function validateStep(step: number, form: FormState, isRevision = false): FieldE
     if (form.purpose.trim().length < 10) errors.purpose = 'Please provide at least 10 characters';
     if (!form.preliminaryActivities.trim()) errors.preliminaryActivities = 'Preliminary activities are required';
     if (!form.followUpActivities.trim()) errors.followUpActivities = 'Follow-up activities are required';
-    if (form.isOvernightTrip && !form.returnDate) errors.returnDate = 'Return date is required for overnight trips';
-    if (form.isOvernightTrip && form.returnDate && form.tripDate && form.returnDate <= form.tripDate)
-      errors.returnDate = 'Return date must be after the trip date';
+    if (form.isOvernightTrip && !form.returnDate) errors.returnDate = 'Trip end date is required for overnight trips';
+    if (form.returnDate && form.tripDate && form.returnDate <= form.tripDate)
+      errors.returnDate = 'Trip end date must be after the trip date';
     if (!form.transportationNeeded && !form.departureTime.trim()) errors.departureTime = 'Departure time is required';
     if (!form.transportationNeeded && !form.returnTime.trim())    errors.returnTime    = 'Return time is required';
     if (!form.transportationNeeded && !form.alternateTransportation.trim())
@@ -387,12 +387,21 @@ function validateStep(step: number, form: FormState, isRevision = false): FieldE
 export function FieldTripRequestPage() {
   const navigate    = useNavigate();
   const { id }      = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const { user }    = useAuthStore();
   const isMobile    = useIsMobile();
 
   const [activeStep, setActiveStep] = useState(0);
-  const [form, setForm]             = useState<FormState>({ ...EMPTY_FORM, teacherName: user?.name ?? '' });
+  const [form, setForm]             = useState<FormState>(() => {
+    const dateParam    = searchParams.get('date');
+    const isValidDate  = !!dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam);
+    return {
+      ...EMPTY_FORM,
+      teacherName: user?.name ?? '',
+      tripDate:    isValidDate ? dateParam! : '',
+    };
+  });
   const [errors, setErrors]         = useState<FieldErrors>({});
   const [savedId, setSavedId]       = useState<string | null>(id ?? null);
   const [saveError, setSaveError]   = useState<string | null>(null);
@@ -732,6 +741,26 @@ export function FieldTripRequestPage() {
               />
             </Grid>
 
+            {/* Trip End Date — optional, for trips spanning more than one day */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                fullWidth
+                label="Trip End Date"
+                type="date"
+                value={form.returnDate}
+                onChange={(e) => handleChange('returnDate', e.target.value)}
+                error={!!errors.returnDate}
+                helperText={
+                  errors.returnDate ??
+                  'Leave blank for a single-day trip. Enter the last day if the trip spans more than one day.'
+                }
+                disabled={isReadOnly}
+                required={form.isOvernightTrip}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ min: form.tripDate || undefined }}
+              />
+            </Grid>
+
             {/* Is this an overnight trip? */}
             <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl component="fieldset" disabled={isReadOnly}>
@@ -744,36 +773,13 @@ export function FieldTripRequestPage() {
                 <RadioGroup
                   row
                   value={form.isOvernightTrip ? 'yes' : 'no'}
-                  onChange={(e) => {
-                    const overnight = e.target.value === 'yes';
-                    handleChange('isOvernightTrip', overnight);
-                    if (!overnight) handleChange('returnDate', '');
-                  }}
+                  onChange={(e) => handleChange('isOvernightTrip', e.target.value === 'yes')}
                 >
                   <FormControlLabel value="yes" control={<Radio />} label="Yes" />
                   <FormControlLabel value="no"  control={<Radio />} label="No"  />
                 </RadioGroup>
               </FormControl>
             </Grid>
-
-            {/* Return Date — only when overnight */}
-            {form.isOvernightTrip && (
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  fullWidth
-                  label="Return Date"
-                  type="date"
-                  value={form.returnDate}
-                  onChange={(e) => handleChange('returnDate', e.target.value)}
-                  error={!!errors.returnDate}
-                  helperText={errors.returnDate ?? 'Date students return from the trip'}
-                  disabled={isReadOnly}
-                  required
-                  InputLabelProps={{ shrink: true }}
-                  inputProps={{ min: form.tripDate || undefined }}
-                />
-              </Grid>
-            )}
 
             {/* Destination */}
             <Grid size={12}>

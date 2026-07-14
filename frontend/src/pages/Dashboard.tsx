@@ -1,6 +1,7 @@
 import { useAuthStore } from '../store/authStore';
 import { useNavigate } from 'react-router-dom';
 import { Box } from '@mui/material';
+import { DashboardFieldTripCalendar } from '../components/DashboardFieldTripCalendar';
 import './Dashboard.css';
 
 const InventoryIcon = () => (
@@ -128,6 +129,12 @@ export const Dashboard = () => {
         )}
 
       </Box>
+
+      {isStaff && (
+        <Box sx={{ mt: 3, maxWidth: 420 }}>
+          <DashboardFieldTripCalendar />
+        </Box>
+      )}
     </Box>
   );
 };

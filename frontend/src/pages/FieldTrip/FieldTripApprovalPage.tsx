@@ -24,6 +24,7 @@ import { useIsMobile } from '@/hooks/useResponsive';
 import { ResponsiveTable, Column } from '@/components/responsive';
 import { fieldTripService }               from '@/services/fieldTrip.service';
 import { fieldTripTransportationService } from '@/services/fieldTripTransportation.service';
+import { formatTripDateRange }            from '@/utils/fieldTripDateFormat';
 import type {
   FieldTripRequest,
   FieldTripTransportationRequest,
@@ -172,10 +173,7 @@ const approvalColumns: Column<FieldTripRequest>[] = [
   {
     key: 'tripDate',
     label: 'Trip Date',
-    render: (row) =>
-      new Date(row.tripDate).toLocaleDateString('en-US', {
-        month: 'short', day: 'numeric', year: 'numeric',
-      }),
+    render: (row) => formatTripDateRange(row.tripDate, row.returnDate),
   },
   {
     key: 'submittedBy',
@@ -226,9 +224,7 @@ const transportColumns: Column<FieldTripTransportationRequest>[] = [
     label: 'Trip Date',
     render: (row) =>
       row.fieldTripRequest?.tripDate
-        ? new Date(row.fieldTripRequest.tripDate).toLocaleDateString('en-US', {
-            month: 'short', day: 'numeric', year: 'numeric',
-          })
+        ? formatTripDateRange(row.fieldTripRequest.tripDate, row.fieldTripRequest.returnDate)
         : '—',
   },
   {
