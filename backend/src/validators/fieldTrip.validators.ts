@@ -364,6 +364,7 @@ export type UpdateFieldTripDto = z.infer<typeof UpdateFieldTripSchema>;
 
 export const ApproveTripSchema = z.object({
   notes: z.string().max(2000, 'Notes must be 2000 characters or less').optional(),
+  boardApprovalAcknowledged: z.boolean().optional(),
 });
 
 export type ApproveTripDto = z.infer<typeof ApproveTripSchema>;

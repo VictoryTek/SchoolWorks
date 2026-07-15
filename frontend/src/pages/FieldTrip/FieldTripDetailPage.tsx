@@ -15,6 +15,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -22,6 +23,7 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
+  FormControlLabel,
   Grid,
   Paper,
   TextField,
@@ -88,6 +90,8 @@ export function FieldTripDetailPage() {
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [denyReason, setDenyReason]               = useState('');
   const [approveNotes, setApproveNotes]           = useState('');
+  const [boardApprovalAck, setBoardApprovalAck]   = useState(false);
+  const [showBoardApprovalNotice, setShowBoardApprovalNotice] = useState(false);
   const [actionError, setActionError]             = useState<string | null>(null);
   const [pdfLoading, setPdfLoading]               = useState(false);
   const [sendBackDialogOpen, setSendBackDialogOpen] = useState(false);
@@ -101,14 +105,18 @@ export function FieldTripDetailPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) =>
-      fieldTripService.approve(id, notes ? { notes } : undefined),
-    onSuccess: () => {
+    mutationFn: ({ id, notes, boardApprovalAcknowledged }: { id: string; notes?: string; boardApprovalAcknowledged?: boolean }) =>
+      fieldTripService.approve(id, { notes: notes || undefined, boardApprovalAcknowledged }),
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['field-trips', id] });
       queryClient.invalidateQueries({ queryKey: ['field-trips', 'pending-approvals'] });
       setApproveDialogOpen(false);
       setApproveNotes('');
+      setBoardApprovalAck(false);
       setActionError(null);
+      if (updated.status === 'PENDING_DIRECTOR' && updated.isOvernightTrip) {
+        setShowBoardApprovalNotice(true);
+      }
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : 'Failed to approve';
@@ -204,6 +212,9 @@ export function FieldTripDetailPage() {
 
   const showActionButtons = isPending && !isOwner && !isTerminal && !hasAlreadyApproved && isCorrectStageApprover;
 
+  // DOS (Director of Schools) must acknowledge Board approval before approving an overnight trip
+  const requiresBoardApprovalAck = trip.status === 'PENDING_DIRECTOR' && trip.isOvernightTrip;
+
   // ---------------------------------------------------------------------------
   // Render helpers
   // ---------------------------------------------------------------------------
@@ -272,6 +283,13 @@ export function FieldTripDetailPage() {
       </Box>
 
       {actionError && <Alert severity="error" sx={{ mb: 2 }}>{actionError}</Alert>}
+
+      {showBoardApprovalNotice && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setShowBoardApprovalNotice(false)}>
+          This is an overnight trip. It requires Board approval — please submit it to be placed on the
+          agenda for the next Board meeting. A reminder email has been sent to you.
+        </Alert>
+      )}
 
       {/* Transportation CTA — shown only to the trip owner once approved but before Part A is submitted */}
       {isOwner && trip.status === 'APPROVED' && trip.transportationNeeded && !trip.transportationRequest && (
@@ -549,14 +567,38 @@ export function FieldTripDetailPage() {
             onChange={(e) => setApproveNotes(e.target.value)}
             sx={{ mt: 2 }}
           />
+          {requiresBoardApprovalAck && (
+            <FormControlLabel
+              sx={{ mt: 1.5 }}
+              control={
+                <Checkbox
+                  checked={boardApprovalAck}
+                  onChange={(e) => setBoardApprovalAck(e.target.checked)}
+                  color="warning"
+                />
+              }
+              label="I acknowledge that this overnight trip request has Board approval."
+            />
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={() => {
+              setApproveDialogOpen(false);
+              setBoardApprovalAck(false);
+            }}
+          >
+            Cancel
+          </Button>
           <Button
             variant="contained"
             color="success"
-            onClick={() => approveMutation.mutate({ id: trip.id, notes: approveNotes || undefined })}
-            disabled={approveMutation.isPending}
+            onClick={() => approveMutation.mutate({
+              id: trip.id,
+              notes: approveNotes || undefined,
+              boardApprovalAcknowledged: boardApprovalAck,
+            })}
+            disabled={approveMutation.isPending || (requiresBoardApprovalAck && !boardApprovalAck)}
           >
             {approveMutation.isPending ? <CircularProgress size={20} /> : 'Approve'}
           </Button>

@@ -566,6 +566,34 @@ export async function sendFieldTripFinalApproved(
 }
 
 /**
+ * Remind the Assistant Director, right after they approve an overnight trip, that it
+ * requires Board approval and must be submitted for the next Board meeting.
+ */
+export async function sendFieldTripBoardApprovalReminder(
+  approverEmail: string,
+  trip: {
+    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
+    teacherName: string; schoolBuilding: string; gradeClass: string;
+    studentCount: number; purpose: string;
+  },
+): Promise<void> {
+  await sendMail({
+    to:      approverEmail,
+    subject: `Board Approval Required: Overnight Field Trip — ${trip.destination}`,
+    context: 'field_trip_board_approval_reminder',
+    relatedEntityId: trip.id,
+    html: `
+      <h2 style="color:#ED6C02;">Board Approval Reminder</h2>
+      <p>You approved an <strong>overnight</strong> field trip request to
+         <strong>${escapeHtml(trip.destination)}</strong>. Overnight trips require Board approval.
+         Please submit this request to be placed on the agenda for the next Board meeting.</p>
+      ${fieldTripDetailHtml(trip)}
+      <p style="margin-top:24px;"><a href="${escapeHtml(process.env.APP_URL ?? '')}/field-trips/${escapeHtml(trip.id)}" style="display:inline-block;padding:10px 20px;background-color:#ED6C02;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View Field Trip</a></p>
+    `,
+  });
+}
+
+/**
  * Notify the submitter that their field trip request has been denied.
  */
 export async function sendFieldTripDenied(

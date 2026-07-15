@@ -23,6 +23,7 @@ import {
   sendFieldTripDenied,
   sendFieldTripSentBack,
   sendFieldTripTransportationNotice,
+  sendFieldTripBoardApprovalReminder,
 } from '../services/email.service';
 import type { FieldTripApproverSnapshot } from '../services/email.service';
 import { handleControllerError } from '../utils/errorHandler';
@@ -211,7 +212,9 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
     const isAdmin   = req.user!.roles?.includes('ADMIN') ?? false;
     const id        = req.params.id as string;
 
-    const result = await fieldTripService.approve(userId, id, permLevel, isAdmin, data.notes);
+    const result = await fieldTripService.approve(
+      userId, id, permLevel, isAdmin, data.notes, data.boardApprovalAcknowledged,
+    );
 
     // Resolve submitter display name from snapshot for all notification branches
     const snapshot = result.approverEmailsSnapshot as FieldTripApproverSnapshot | null;
@@ -265,6 +268,18 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
           id,
           error: advanceErr instanceof Error ? advanceErr.message : String(advanceErr),
         });
+      }
+
+      // Remind the Assistant Director that overnight trips require Board approval (non-critical)
+      if (result.status === 'PENDING_DIRECTOR' && result.isOvernightTrip) {
+        try {
+          await sendFieldTripBoardApprovalReminder(req.user!.email, result);
+        } catch (boardReminderErr) {
+          loggers.fieldTrip.error('Failed to send field trip board-approval reminder email', {
+            id,
+            error: boardReminderErr instanceof Error ? boardReminderErr.message : String(boardReminderErr),
+          });
+        }
       }
     }
 

@@ -739,6 +739,7 @@ model FieldTripApproval {
   actedAt               DateTime          @default(now())
   notes                 String?           @db.Text
   denialReason          String?           @db.Text
+  boardApprovalAcknowledged Boolean       @default(false)
 
   fieldTripRequest      FieldTripRequest   @relation(fields: [fieldTripRequestId], references: [id], onDelete: Cascade)
   actedBy               User              @relation("FieldTripApprover", fields: [actedById], references: [id])

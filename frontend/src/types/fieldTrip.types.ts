@@ -42,6 +42,7 @@ export interface FieldTripApproval {
   actedAt:     string;
   notes?:      string | null;
   denialReason?: string | null;
+  boardApprovalAcknowledged: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -179,6 +180,7 @@ export type UpdateFieldTripDto = Partial<CreateFieldTripDto>;
 
 export interface ApproveTripDto {
   notes?: string;
+  boardApprovalAcknowledged?: boolean;
 }
 
 export interface DenyTripDto {

@@ -268,6 +268,7 @@ export class FieldTripService {
     permLevel: number,
     isAdmin:   boolean,
     notes?:    string,
+    boardApprovalAcknowledged?: boolean,
   ) {
     const trip = await this.findOrThrow(id);
 
@@ -286,6 +287,12 @@ export class FieldTripService {
 
     const stage      = STATUS_TO_STAGE[trip.status];
     const nextStatus = APPROVAL_CHAIN[trip.status];
+
+    if (stage === 'DIRECTOR' && trip.isOvernightTrip && !boardApprovalAcknowledged) {
+      throw new ValidationError(
+        'This is an overnight trip. You must acknowledge that the request has Board approval before approving.',
+      );
+    }
 
     // ── Duplicate-approver guard ──────────────────────────────────────────
     // Prevent the same user from approving at multiple stages of the same
@@ -327,6 +334,7 @@ export class FieldTripService {
           actedById:          userId,
           actedByName:        approverName,
           notes:              notes ?? null,
+          boardApprovalAcknowledged: stage === 'DIRECTOR' && trip.isOvernightTrip ? true : false,
         },
       });
 
