@@ -88,6 +88,37 @@ function hRule(doc: PDFKit.PDFDocument, y: number): void {
   doc.moveTo(MARGIN, y).lineTo(PAGE_W - MARGIN, y).strokeColor('#BDBDBD').lineWidth(0.5).stroke();
 }
 
+// ---------------------------------------------------------------------------
+// Line items table layout
+// ---------------------------------------------------------------------------
+
+const ITEM_COL = {
+  line:  { x: MARGIN,       w: 30  },
+  desc:  { x: MARGIN + 30,  w: 220 },
+  model: { x: MARGIN + 250, w: 100 },
+  qty:   { x: MARGIN + 350, w: 40  },
+  price: { x: MARGIN + 390, w: 60  },
+  total: { x: MARGIN + 450, w: 62  },
+};
+const ROW_MIN_H = 12; // single-line row height at 8pt body font
+
+// Draws the line-items table header (background band + column labels) at the
+// document's current y, leaving doc.y positioned for the first row below it.
+// Called before the loop and again after any page break mid-table so
+// continuation pages remain readable.
+function drawLineItemsHeader(doc: PDFKit.PDFDocument): void {
+  doc.rect(MARGIN, doc.y, COL_W, 16).fillAndStroke(LIGHT_BG, '#E0E0E0');
+  const headerY = doc.y + 4;
+  doc.font(FONT_BLD).fontSize(8).fillColor('#212121');
+  doc.text('#',           ITEM_COL.line.x,  headerY, { width: ITEM_COL.line.w  });
+  doc.text('Description', ITEM_COL.desc.x,  headerY, { width: ITEM_COL.desc.w  });
+  doc.text('Item Number', ITEM_COL.model.x, headerY, { width: ITEM_COL.model.w });
+  doc.text('Qty',         ITEM_COL.qty.x,   headerY, { width: ITEM_COL.qty.w   });
+  doc.text('Unit Price',  ITEM_COL.price.x, headerY, { width: ITEM_COL.price.w });
+  doc.text('Total',       ITEM_COL.total.x, headerY, { width: ITEM_COL.total.w });
+  doc.moveDown(1);
+}
+
 // Draws a bold label followed by a value at a fixed x offset, both pinned to
 // the same y with wrapping disabled — avoids PDFKit's `continued` chaining,
 // where a `width` on the first fragment constrains the whole label+value run
@@ -245,42 +276,35 @@ export async function generatePurchaseOrderPdf(po: POForPdf): Promise<Buffer> {
       doc.font(FONT_BLD).fontSize(10).fillColor(PRIMARY).text('LINE ITEMS');
       doc.moveDown(0.3);
 
-      // Table header
-      const col = {
-        line:  { x: MARGIN,       w: 30  },
-        desc:  { x: MARGIN + 30,  w: 220 },
-        model: { x: MARGIN + 250, w: 100 },
-        qty:   { x: MARGIN + 350, w: 40  },
-        price: { x: MARGIN + 390, w: 60  },
-        total: { x: MARGIN + 450, w: 62  },
-      };
+      drawLineItemsHeader(doc);
 
-      // Header background
-      doc
-        .rect(MARGIN, doc.y, COL_W, 16)
-        .fillAndStroke(LIGHT_BG, '#E0E0E0');
-
-      const headerY = doc.y + 4;
-      doc.font(FONT_BLD).fontSize(8).fillColor('#212121');
-      doc.text('#',             col.line.x,  headerY, { width: col.line.w  });
-      doc.text('Description',   col.desc.x,  headerY, { width: col.desc.w  });
-      doc.text('Item Number',   col.model.x, headerY, { width: col.model.w });
-      doc.text('Qty',           col.qty.x,   headerY, { width: col.qty.w   });
-      doc.text('Unit Price',  col.price.x, headerY, { width: col.price.w });
-      doc.text('Total',       col.total.x, headerY, { width: col.total.w });
-      doc.moveDown(1);
-
-      // Rows
+      // Rows — row height is measured up front (the description/model cells
+      // are the only ones that can wrap) so the whole row, including the
+      // separator rule, is placed on one page. If the row wouldn't fit in
+      // the remaining space, a page break (with a repeated header) happens
+      // BEFORE any cell is drawn, instead of letting pdfkit's per-cell
+      // auto-pagination split a single row's cells across two pages.
       doc.font(FONT_REG).fontSize(8).fillColor('#212121');
       for (const item of po.po_items) {
+        const descH = doc.heightOfString(item.description, { width: ITEM_COL.desc.w });
+        const modelH = doc.heightOfString(item.model ?? '', { width: ITEM_COL.model.w });
+        const rowH = Math.max(descH, modelH, ROW_MIN_H);
+
+        if (doc.y + rowH > doc.page.height - doc.page.margins.bottom) {
+          doc.addPage();
+          drawLineItemsHeader(doc);
+          doc.font(FONT_REG).fontSize(8).fillColor('#212121');
+        }
+
         const rowY = doc.y;
-        doc.text(String(item.lineNumber ?? ''),           col.line.x,  rowY, { width: col.line.w  });
-        doc.text(item.description,                        col.desc.x,  rowY, { width: col.desc.w  });
-        doc.text(item.model ?? '',                        col.model.x, rowY, { width: col.model.w });
-        doc.text(String(item.quantity),                   col.qty.x,   rowY, { width: col.qty.w   });
-        doc.text(`$${Number(item.unitPrice).toFixed(2)}`, col.price.x, rowY, { width: col.price.w });
-        doc.text(`$${Number(item.totalPrice).toFixed(2)}`, col.total.x, rowY, { width: col.total.w });
-        doc.moveDown(0.4);
+        doc.text(String(item.lineNumber ?? ''),            ITEM_COL.line.x,  rowY, { width: ITEM_COL.line.w  });
+        doc.text(item.description,                         ITEM_COL.desc.x,  rowY, { width: ITEM_COL.desc.w  });
+        doc.text(item.model ?? '',                         ITEM_COL.model.x, rowY, { width: ITEM_COL.model.w });
+        doc.text(String(item.quantity),                    ITEM_COL.qty.x,   rowY, { width: ITEM_COL.qty.w   });
+        doc.text(`$${Number(item.unitPrice).toFixed(2)}`,  ITEM_COL.price.x, rowY, { width: ITEM_COL.price.w });
+        doc.text(`$${Number(item.totalPrice).toFixed(2)}`, ITEM_COL.total.x, rowY, { width: ITEM_COL.total.w });
+
+        doc.y = rowY + rowH + 4;
         hRule(doc, doc.y);
         doc.moveDown(0.2);
       }
