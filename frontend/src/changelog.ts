@@ -10,6 +10,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Assistant Directors approving an overnight field trip now see an on-screen reminder (and receive an email) that the trip requires Board approval and must be submitted for the next Board meeting.',
       'The Director of Schools must now acknowledge that an overnight field trip request has Board approval before they can approve it.',
       'Added a daily limit of 8 field trips requiring a district bus/driver, due to the ongoing driver shortage. Dates at the limit remain bookable if the requester acknowledges they are arranging their own transportation.',
+      'Fixed so that all back buttons navigate to the previous page instead of going back to the bginning page of the list view.',
     ],
   },
   {
