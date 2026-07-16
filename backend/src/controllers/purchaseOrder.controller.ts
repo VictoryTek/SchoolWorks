@@ -55,6 +55,39 @@ type ApproverEmailSnapshot = {
 const service = new PurchaseOrderService(prisma);
 
 // ---------------------------------------------------------------------------
+// Notification helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Notify the Director of Schools group that a PO needs their approval.
+ * Logs (rather than silently dropping) both an empty recipient snapshot and
+ * a send failure, so a missing DOS notification is diagnosable.
+ */
+async function notifyDosApprovalRequired(
+  po: { id: string; workflowType?: string | null; description: string; amount: any; vendors?: { name: string } | null },
+  dosEmails: string[] | undefined,
+  context: string,
+): Promise<void> {
+  if (!dosEmails?.length) {
+    loggers.purchaseOrder.warn('DOS approval-required email skipped — no DOS recipients in approver snapshot', {
+      poId: po.id,
+      workflowType: po.workflowType,
+      context,
+    });
+    return;
+  }
+  try {
+    await sendApprovalActionRequired(po as any, dosEmails, 'Director of Schools Approval');
+  } catch (error) {
+    loggers.purchaseOrder.error('Failed to send DOS approval-required email', {
+      poId: po.id,
+      context,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Handlers
 // ---------------------------------------------------------------------------
 
@@ -209,9 +242,7 @@ export const submitPurchaseOrder = async (req: AuthRequest, res: Response): Prom
       // is a Finance Director themselves, the next stage after supervisor is
       // Director of Schools (skip FD).
       if (po.workflowType === 'food_service' || (po as any).skipFinanceDirectorApproval) {
-        if (snapshot.dos.length) {
-          sendApprovalActionRequired(po as any, snapshot.dos, 'Director of Schools Approval').catch(() => {});
-        }
+        await notifyDosApprovalRequired(po, snapshot.dos, 'submit_bypass');
       } else {
         if (snapshot.finance.length) {
           sendApprovalActionRequired(po as any, snapshot.finance, 'Finance Director Approval').catch(() => {});
@@ -278,9 +309,7 @@ export const approvePurchaseOrder = async (req: AuthRequest, res: Response): Pro
       // Supervisor approved — route to next approver based on workflow type.
       if (po.workflowType === 'food_service' || (po as any).skipFinanceDirectorApproval) {
         // Food service, or requestor is a Finance Director: supervisor approved → notify Director of Schools (skip FD)
-        if (snapshot?.dos?.length) {
-          sendApprovalActionRequired(po as any, snapshot.dos, 'Director of Schools Approval').catch(() => {});
-        }
+        await notifyDosApprovalRequired(po, snapshot?.dos, 'supervisor_approved');
       } else {
         // Standard: supervisor approved → notify Finance Director group.
         if (snapshot?.finance?.length) {
@@ -289,9 +318,7 @@ export const approvePurchaseOrder = async (req: AuthRequest, res: Response): Pro
       }
     } else if (po.status === 'finance_director_approved') {
       // Finance Director approved → notify Director of Schools group.
-      if (snapshot?.dos?.length) {
-        sendApprovalActionRequired(po as any, snapshot.dos, 'Director of Schools Approval').catch(() => {});
-      }
+      await notifyDosApprovalRequired(po, snapshot?.dos, 'finance_director_approved');
     } else if (po.status === 'dos_approved') {
       // Director of Schools approved → notify the correct PO Entry group.
       if (po.workflowType === 'food_service') {
