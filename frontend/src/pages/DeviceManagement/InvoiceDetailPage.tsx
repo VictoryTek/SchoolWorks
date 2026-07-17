@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Box,
@@ -195,7 +196,7 @@ function RecordPaymentDialog({
 
 export default function InvoiceDetailPage() {
   const { id }      = useParams<{ id: string }>();
-  const navigate    = useNavigate();
+  const goBack = useGoBack();
   const queryClient = useQueryClient();
 
   const [editMode,      setEditMode]      = useState(false);
@@ -287,7 +288,7 @@ export default function InvoiceDetailPage() {
       {/* Back button */}
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(-1)}
+        onClick={goBack}
         sx={{ mb: 2 }}
       >
         Back to Invoices

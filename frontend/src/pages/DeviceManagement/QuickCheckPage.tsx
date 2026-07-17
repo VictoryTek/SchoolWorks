@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Box,
@@ -80,6 +81,7 @@ function formatTime(date: Date): string {
 
 export default function QuickCheckPage() {
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const queryClient = useQueryClient();
 
   // Mode
@@ -331,7 +333,7 @@ export default function QuickCheckPage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} size="small">
+          <Button startIcon={<ArrowBackIcon />} onClick={goBack} size="small">
             Back
           </Button>
           <Typography variant="h5" fontWeight={600}>

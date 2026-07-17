@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Box,
@@ -73,7 +73,7 @@ const emptyForm: PriceFormData = {
 // ---------------------------------------------------------------------------
 
 export default function ComponentPricesPage() {
-  const navigate    = useNavigate();
+  const goBack = useGoBack();
   const queryClient = useQueryClient();
   const canWrite    = useAuthStore(selectCanAccessDeviceManagement);
 
@@ -241,7 +241,7 @@ export default function ComponentPricesPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
       {/* Page header */}

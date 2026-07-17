@@ -1,7 +1,7 @@
 import { Button } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 
 interface PageBackButtonProps {
   /** Button label. Defaults to "Back". */
@@ -13,13 +13,13 @@ interface PageBackButtonProps {
 }
 
 export function PageBackButton({ label = 'Back', onClick, sx }: PageBackButtonProps) {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
 
   const handleClick = () => {
     if (onClick) {
       onClick();
     } else {
-      navigate(-1);
+      goBack();
     }
   };
 

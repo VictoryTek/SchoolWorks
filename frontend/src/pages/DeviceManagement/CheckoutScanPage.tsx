@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Box,
@@ -25,8 +26,7 @@ import type { ScanResult, DeviceAssignmentUser } from '../../types/deviceAssignm
 // Scan / checkout-or-checkin page — /device-management/checkouts/scan
 export default function CheckoutScanPage() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-
+  const goBack = useGoBack();
   const code    = searchParams.get('code') ?? searchParams.get('barcode') ?? '';
   const qrCode  = searchParams.get('qrCode') ?? '';
   const assetTag = searchParams.get('assetTag') ?? '';
@@ -124,7 +124,7 @@ export default function CheckoutScanPage() {
 
   return (
     <Box sx={{ maxWidth: 700, mx: 'auto', mt: 3, px: { xs: 2, sm: 0 } }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
       <Typography variant="h5" fontWeight={600} gutterBottom>

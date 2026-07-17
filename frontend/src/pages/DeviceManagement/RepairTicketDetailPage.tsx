@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Box,
@@ -22,6 +23,7 @@ import type { RepairTicketStatus } from '@mgspe/shared-types';
 export default function RepairTicketDetailPage() {
   const { id }       = useParams<{ id: string }>();
   const navigate     = useNavigate();
+  const goBack = useGoBack();
   const queryClient  = useQueryClient();
 
   const [trackingNumber, setTrackingNumber] = useState('');
@@ -73,7 +75,7 @@ export default function RepairTicketDetailPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 }, maxWidth: 900, mx: 'auto' }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
 

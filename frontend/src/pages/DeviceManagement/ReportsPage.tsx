@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -31,7 +31,7 @@ import { ResponsiveTable } from '../../components/responsive';
 type ReportType = 'active-checkouts' | 'damage-summary' | 'repair-costs' | 'invoice-aging' | 'grade-level-summary' | null;
 
 export default function ReportsPage() {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const isMobile = useIsMobile();
   const [selectedReport, setSelectedReport] = useState<ReportType>(null);
   const [startDate, setStartDate]           = useState('');
@@ -150,7 +150,7 @@ export default function ReportsPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
       <Typography variant="h4" fontWeight={600} gutterBottom>

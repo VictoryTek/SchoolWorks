@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Autocomplete,
@@ -52,6 +53,7 @@ const CONDITIONS: { value: CheckoutCondition; label: string }[] = [
 
 export default function CartAssignmentWizardPage() {
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
 
@@ -284,7 +286,7 @@ export default function CartAssignmentWizardPage() {
   // ── Main render ────────────────────────────────────────────────────────────
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: 900, mx: 'auto' }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
 

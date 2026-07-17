@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useQuery } from '@tanstack/react-query';
 import { useIsMobile } from '../../hooks/useResponsive';
 import {
@@ -46,7 +46,7 @@ function isValidSchoolYear(val: string): boolean {
 }
 
 export default function DmRolloverPage() {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const { user } = useAuthStore();
   const isAdmin = user?.roles?.includes('ADMIN') ?? false;
   const isMobile = useIsMobile();
@@ -143,7 +143,7 @@ export default function DmRolloverPage() {
       <Box sx={{ p: 3, maxWidth: 720, mx: 'auto' }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate(-1)}
+          onClick={goBack}
           sx={{ mb: 2 }}
         >
           Back to DM Dashboard
@@ -189,7 +189,7 @@ export default function DmRolloverPage() {
 
   return (
     <Box sx={{ p: 3, maxWidth: 800, mx: 'auto' }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
 

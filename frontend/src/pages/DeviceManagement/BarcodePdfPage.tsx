@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import axios from 'axios';
 import {
   Alert,
@@ -38,7 +38,7 @@ const GRADE_LEVELS: { value: string; label: string }[] = [
 ];
 
 export default function BarcodePdfPage() {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const [locationId, setLocationId] = useState('');
   const [gradeLevel, setGradeLevel] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,7 +86,7 @@ export default function BarcodePdfPage() {
 
   return (
     <Box sx={{ p: 3, maxWidth: 600 }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
       <Typography variant="h5" fontWeight="bold" gutterBottom>

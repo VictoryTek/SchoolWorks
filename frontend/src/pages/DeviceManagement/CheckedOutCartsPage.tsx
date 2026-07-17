@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useFilterParams } from '@/hooks/useFilterParams';
-import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   Autocomplete,
@@ -328,7 +328,7 @@ function CartRow({ cart, onReturn, isMobile, canReturn }: CartRowProps) {
 type ActiveStatusFilter = '' | CartStatus;
 
 export default function CheckedOutCartsPage() {
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const isMobile = useIsMobile();
 
   // Filter state
@@ -403,7 +403,7 @@ export default function CheckedOutCartsPage() {
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-        <IconButton size="small" onClick={() => navigate(-1)} aria-label="Back">
+        <IconButton size="small" onClick={goBack} aria-label="Back">
           <ArrowBackIcon />
         </IconButton>
         <ShoppingCartIcon color="action" />

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import {
   Alert,
   Autocomplete,
@@ -57,6 +58,7 @@ interface PendingRepairScan {
 
 export default function BulkCheckoutPage() {
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const isMobile = useIsMobile();
 
   // Stepper state
@@ -263,7 +265,7 @@ export default function BulkCheckoutPage() {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
       <Typography variant="h5" fontWeight={600} sx={{ mb: 3 }}>

@@ -11,7 +11,8 @@
  */
 
 import { useState } from 'react';
-import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
+import { useParams, Link as RouterLink } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import {
   Alert,
@@ -222,7 +223,7 @@ function PriorityHistoryCard({ entry }: { entry: WorkOrderPriorityHistoryEntry }
 
 export default function WorkOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const goBack = useGoBack();
   const isMobile = useIsMobile();
 
   const { data: workOrder, isLoading, error } = useWorkOrder(id);
@@ -360,7 +361,7 @@ export default function WorkOrderDetailPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error" action={
-          <Button color="inherit" onClick={() => navigate(-1)}>
+          <Button color="inherit" onClick={goBack}>
             Back
           </Button>
         }>

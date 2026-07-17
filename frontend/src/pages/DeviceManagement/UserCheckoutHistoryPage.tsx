@@ -1,4 +1,5 @@
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import {
   Alert,
@@ -48,6 +49,7 @@ export default function UserCheckoutHistoryPage() {
   const { userId } = useParams<{ userId: string }>();
   const navigate   = useNavigate();
 
+  const goBack = useGoBack();
   // Tab lives in the URL so Back from a device or incident returns to the right tab
   const [filters, setFilters] = useFilterParams({ tab: '0' });
   const activeTab = Number(filters.tab) || 0;
@@ -112,7 +114,7 @@ export default function UserCheckoutHistoryPage() {
       {/* Back button */}
       <Button
         startIcon={<ArrowBackIcon />}
-        onClick={() => navigate(-1)}
+        onClick={goBack}
         sx={{ mb: 2 }}
       >
         Back to Checkouts

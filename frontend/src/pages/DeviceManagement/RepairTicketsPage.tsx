@@ -27,6 +27,7 @@ import type { Column } from '../../components/responsive';
 import { useIsMobile } from '../../hooks/useResponsive';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { repairTicketService } from '../../services/repairTicket.service';
 import { RepairStatusStepper } from '../../components/DeviceManagement/RepairStatusStepper';
 import type { RepairTicket, CreateRepairTicketData } from '../../types/repairTicket.types';
@@ -45,6 +46,7 @@ const emptyForm: CreateRepairTicketData = {
 
 export default function RepairTicketsPage() {
   const navigate     = useNavigate();
+  const goBack = useGoBack();
   const queryClient  = useQueryClient();
 
   const isMobile = useIsMobile();
@@ -167,7 +169,7 @@ export default function RepairTicketsPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      <Button startIcon={<ArrowBackIcon />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+      <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
         Back
       </Button>
       {/* Header */}

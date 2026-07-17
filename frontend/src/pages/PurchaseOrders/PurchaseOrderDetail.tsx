@@ -15,6 +15,7 @@
 
 import { useState } from 'react';
 import { useNavigate, useParams, Link as RouterLink } from 'react-router-dom';
+import { useGoBack } from '@/hooks/useGoBack';
 import { useQuery } from '@tanstack/react-query';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import {
@@ -134,6 +135,7 @@ const FD_SKIP_WORKFLOW_STAGES: { status: POStatus; label: string }[] = [
 export default function PurchaseOrderDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const goBack = useGoBack();
   const { user } = useAuthStore();
   const isMobile = useIsMobile();
   const { permLevel, isLoading: permLoading } = useRequisitionsPermLevel();
@@ -189,7 +191,7 @@ export default function PurchaseOrderDetail() {
         <Alert severity="error">
           {(error as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Purchase order not found.'}
         </Alert>
-        <Button onClick={() => navigate(-1)} sx={{ mt: 2 }}>
+        <Button onClick={goBack} sx={{ mt: 2 }}>
           Back
         </Button>
       </Box>
