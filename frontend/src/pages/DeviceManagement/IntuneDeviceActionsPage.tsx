@@ -222,7 +222,7 @@ function ActionSelector({
 
 export default function IntuneDeviceActionsPage() {
   const isMobile = useIsMobile();
-  const [tab, setTab] = useState<0 | 1 | 2 | 3 | 4 | 5>(0);
+  const [tab, setTab] = useState<0 | 1 | 2 | 3 | 4 | 5>(1);
   const [historyEntries,   setHistoryEntries]   = useState<IntuneHistoryEntry[]>(() => loadHistory());
   const [reloadKey,        setReloadKey]        = useState(0);
   const [preloadedDevices, setPreloadedDevices] = useState<{
@@ -549,8 +549,8 @@ export default function IntuneDeviceActionsPage() {
             className="form-select"
             style={{ width: '100%' }}
           >
-            <option value={0}>By Device Model</option>
             <option value={1}>Scan / Search by Name</option>
+            <option value={0}>By Device Model</option>
             <option value={2}>History</option>
             <option value={3}>Reconciliation</option>
             <option value={4}>BitLocker</option>
@@ -568,12 +568,12 @@ export default function IntuneDeviceActionsPage() {
           }}
           sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label="By Device Model" />
-          <Tab label="Scan / Search by Name" />
-          <Tab label="History" />
-          <Tab label="Reconciliation" />
-          <Tab label="BitLocker" />
-          <Tab label="Rename Devices" />
+          <Tab label="Scan / Search by Name" value={1} />
+          <Tab label="By Device Model" value={0} />
+          <Tab label="History" value={2} />
+          <Tab label="Reconciliation" value={3} />
+          <Tab label="BitLocker" value={4} />
+          <Tab label="Rename Devices" value={5} />
         </Tabs>
       )}
 
@@ -1500,7 +1500,9 @@ export default function IntuneDeviceActionsPage() {
                             <Typography
                               variant="body2"
                               fontFamily="monospace"
-                              sx={revealedKeys.has(k.id) ? { letterSpacing: 1, userSelect: 'all' } : { filter: 'blur(4px)', userSelect: 'none' }}
+                              sx={revealedKeys.has(k.id)
+                                ? { fontSize: '2.25rem', fontWeight: 600, letterSpacing: 1.5, userSelect: 'all' }
+                                : { filter: 'blur(4px)', userSelect: 'none' }}
                             >
                               {revealedKeys.has(k.id)
                                 ? (k.key || '(key value unavailable)')
