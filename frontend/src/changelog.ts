@@ -5,6 +5,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    changes: [
+      'Added native push notifications — install SchoolWorks as an app and opt in from Settings > Notifications to get a device notification for approvals, assignments, and more, even when the app isn\'t open. Email notifications are unaffected and always continue to be sent.',
+      'Removed the redundant "Resolved" work order status — resolved tickets are now simply marked Closed.',
+      'Reordered the Intune Device Actions tabs so Scan / Search by Name opens first, and made the revealed BitLocker recovery key easier to read.',
+      'Credit: Jordan Howell for this release.',
+    ],
+  },
+  {
     version: '1.4.4',
     changes: [
       'Work Order status and priority chips now use distinct colors so a chip\'s color always tells you which one it is at a glance.',
