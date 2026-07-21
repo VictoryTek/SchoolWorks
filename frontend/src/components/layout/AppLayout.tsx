@@ -8,6 +8,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
+import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import { useAuthStore, selectCanAccessDeviceManagement } from '../../store/authStore';
 import { authApi } from '../../services/authService';
 import { cancelProactiveRefresh } from '../../services/api';
@@ -287,6 +288,15 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           <img src="/schoolworks_logo.png" alt="SchoolWorks" className="shell-logo-full" />
         </div>
         <div className="shell-header-right">
+          <Tooltip title="Notification settings">
+            <IconButton
+              color="inherit"
+              aria-label="notification settings"
+              onClick={() => navigate('/settings/notifications')}
+            >
+              <NotificationsActiveIcon />
+            </IconButton>
+          </Tooltip>
           {mode && (
             <Tooltip title={resolvedMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
               <IconButton

@@ -72,6 +72,7 @@ import DotPhysicalsPage from './pages/Transportation/DotPhysicalsPage'
 import DriverLicensePage from './pages/Transportation/DriverLicensePage'
 import TransportationReportsPage from './pages/Transportation/TransportationReportsPage'
 import TransportationSettingsPage from './pages/Transportation/TransportationSettingsPage'
+import NotificationSettings from './pages/NotificationSettings'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { PwaUpdatePrompt } from './components/layout/PwaUpdatePrompt'
 import { PwaInstallPrompt } from './components/layout/PwaInstallPrompt'
@@ -356,6 +357,16 @@ function App() {
             <ProtectedRoute>
               <AppLayout>
                 <FieldTripDetailPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/settings/notifications"
+          element={
+            <ProtectedRoute>
+              <AppLayout>
+                <NotificationSettings />
               </AppLayout>
             </ProtectedRoute>
           }

@@ -43,6 +43,7 @@ import dmRolloverRoutes from './routes/dmRollover.routes';
 import inventoryAuditRoutes from './routes/inventoryAudit.routes';
 import intuneDeviceRoutes from './routes/intuneDevice.routes';
 import provisioningRoutes from './routes/provisioning.routes';
+import pushRoutes from './routes/push.routes';
 import { provideCsrfToken, getCsrfToken } from './middleware/csrf';
 import { authenticate, requireAdmin } from './middleware/auth';
 import { maintenanceMode } from './middleware/maintenanceMode';
@@ -228,6 +229,7 @@ app.use('/api/device-management/rollover', dmRolloverRoutes);
 app.use('/api', inventoryAuditRoutes);
 app.use('/api/intune', intuneDeviceRoutes);
 app.use('/api/provisioning', provisioningRoutes);
+app.use('/api/push', pushRoutes);
 
 // API info endpoint
 app.get('/api', (req: Request, res: Response) => {

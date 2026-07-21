@@ -19,6 +19,7 @@ import { prisma } from '../lib/prisma';
 import { graphClient } from '../config/entraId';
 import { ExternalAPIError } from '../utils/errors';
 import { enqueueEmail } from './emailQueue.service';
+import { notifyPushByEmails } from './push.service';
 
 // ---------------------------------------------------------------------------
 // Security helpers
@@ -66,6 +67,14 @@ async function sendMail(options: {
     });
     // Intentionally not re-throwing — email is non-critical
   }
+
+  // Best-effort push fan-out mirroring this email — never throws, never
+  // blocks/affects the email send above.
+  await notifyPushByEmails(recipients, {
+    subject: options.subject,
+    context: options.context,
+    relatedEntityId: options.relatedEntityId,
+  });
 }
 
 // ---------------------------------------------------------------------------

@@ -608,9 +608,24 @@ model User {
   refreshTokens                RefreshToken[]
   supervisorDelegations        SupervisorDelegation[] @relation("SupervisorDelegationDelegate")
   delegationsCreated           SupervisorDelegation[] @relation("SupervisorDelegationCreatedBy")
+  pushSubscriptions            push_subscription[]
 
   @@index([employeeId])
   @@map("users")
+}
+
+model push_subscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String
+  endpoint  String   @unique @db.Text
+  p256dh    String   @db.Text
+  auth      String   @db.Text
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model RefreshToken {

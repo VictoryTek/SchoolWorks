@@ -24,6 +24,14 @@ const SMTP_VARS: string[] = [
   'SMTP_PASS',
 ];
 
+// Variables needed for Web Push (VAPID). Not required at startup — push is
+// purely additive to email — but if any one is set, all must be set.
+const VAPID_VARS: string[] = [
+  'VAPID_PUBLIC_KEY',
+  'VAPID_PRIVATE_KEY',
+  'VAPID_SUBJECT',
+];
+
 export function validateEnv(): void {
   const missing = REQUIRED.filter((key) => !process.env[key]);
 
@@ -39,6 +47,15 @@ export function validateEnv(): void {
     const smtpMissing = SMTP_VARS.filter((k) => !process.env[k]);
     throw new Error(
       `Partial SMTP configuration detected. Either set all SMTP vars or none:\n${smtpMissing.map((k) => `  - ${k}`).join('\n')}`
+    );
+  }
+
+  // VAPID: if any push var is set, all must be set (partial config causes runtime failures).
+  const vapidSet = VAPID_VARS.filter((k) => process.env[k]);
+  if (vapidSet.length > 0 && vapidSet.length < VAPID_VARS.length) {
+    const vapidMissing = VAPID_VARS.filter((k) => !process.env[k]);
+    throw new Error(
+      `Partial VAPID (Web Push) configuration detected. Either set all VAPID vars or none:\n${vapidMissing.map((k) => `  - ${k}`).join('\n')}`
     );
   }
 }

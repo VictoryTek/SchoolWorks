@@ -195,4 +195,5 @@ export const loggers = {
   user: createLogger('UserController'),
   workOrders: createLogger('WorkOrdersService'),
   accessControl: createLogger('AccessControl'),
+  push: createLogger('PushService'),
 };
