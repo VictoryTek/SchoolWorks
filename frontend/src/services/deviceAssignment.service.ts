@@ -5,6 +5,7 @@ import type {
   ActiveAssignmentsResponse,
   CheckoutFormData,
   CheckinFormData,
+  ChargerAssignmentRecord,
 } from '../types/deviceAssignment.types';
 
 const BASE = '/device-assignments';
@@ -16,8 +17,11 @@ export const deviceAssignmentService = {
   checkout: (data: CheckoutFormData): Promise<DeviceAssignment> =>
     api.post(`${BASE}/checkout`, data).then((r) => r.data),
 
-  checkin: (id: string, data: CheckinFormData): Promise<{ assignment: DeviceAssignment; shouldCreateIncident: boolean }> =>
+  checkin: (id: string, data: CheckinFormData): Promise<{ assignment: DeviceAssignment; shouldCreateIncident: boolean; shouldCreateChargerIncident: boolean; chargerAssignmentId?: string }> =>
     api.post(`${BASE}/${id}/checkin`, data).then((r) => r.data),
+
+  assignCharger: (deviceAssignmentId: string, serialNumber: string): Promise<ChargerAssignmentRecord> =>
+    api.post(`${BASE}/${deviceAssignmentId}/charger`, { serialNumber }).then((r) => r.data),
 
   getActive: (params?: { page?: number; limit?: number; campusId?: string; assigneeType?: string; gradeLevel?: string; sourceType?: 'single' | 'cart' }): Promise<ActiveAssignmentsResponse> =>
     api.get(`${BASE}/active`, { params }).then((r) => r.data),

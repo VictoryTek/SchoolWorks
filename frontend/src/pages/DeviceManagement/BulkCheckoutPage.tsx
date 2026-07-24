@@ -41,11 +41,13 @@ const STEPS = ['Select Location', 'Find Person', 'Scan & Assign Devices'];
 
 interface AssignedDevice {
   equipmentId: string;
+  deviceAssignmentId?: string;
   assetTag: string;
   name: string;
   success: boolean;
   error?: string;
   assignedTo?: string;
+  chargerSerial?: string;
 }
 
 interface PendingRepairScan {
@@ -66,6 +68,7 @@ export default function BulkCheckoutPage() {
 
   // Step 1: Location
   const [selectedLocation, setSelectedLocation] = useState<OfficeLocationWithSupervisors | null>(null);
+  const [chargerAssignmentEnabled, setChargerAssignmentEnabled] = useState(false);
 
   // Step 2: User
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
@@ -83,6 +86,13 @@ export default function BulkCheckoutPage() {
   const [scanning, setScanning] = useState(false);
   const [pendingRepair, setPendingRepair] = useState<PendingRepairScan | null>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
+
+  // Step 3: charger scan (when chargerAssignmentEnabled)
+  const [chargerScanTarget, setChargerScanTarget] = useState<{ deviceAssignmentId: string; equipmentId: string; assetTag: string; name: string } | null>(null);
+  const [chargerSerialInput, setChargerSerialInput] = useState('');
+  const [chargerError, setChargerError] = useState<string | null>(null);
+  const [chargerScanning, setChargerScanning] = useState(false);
+  const chargerRef = useRef<HTMLInputElement>(null);
 
   // Fetch locations
   const { data: locations, isLoading: locationsLoading } = useQuery({
@@ -115,6 +125,9 @@ export default function BulkCheckoutPage() {
       setAssignedDevices([]);
       setScanError(null);
       setBarcodeInput('');
+      setChargerScanTarget(null);
+      setChargerSerialInput('');
+      setChargerError(null);
     }
     if (activeStep === 1) {
       setSelectedUser(null);
@@ -127,6 +140,9 @@ export default function BulkCheckoutPage() {
     setSelectedUser(null);
     setScanError(null);
     setBarcodeInput('');
+    setChargerScanTarget(null);
+    setChargerSerialInput('');
+    setChargerError(null);
     setActiveStep(1);
   };
 
@@ -144,11 +160,12 @@ export default function BulkCheckoutPage() {
         locationId: selectedLocation.id,
       };
 
-      await deviceAssignmentService.checkout(checkoutData);
+      const assignment = await deviceAssignmentService.checkout(checkoutData);
 
       setAssignedDevices((prev) => [
         {
           equipmentId: equipment.id,
+          deviceAssignmentId: assignment.id,
           assetTag: equipment.assetTag,
           name: equipment.name,
           success: true,
@@ -157,6 +174,18 @@ export default function BulkCheckoutPage() {
         ...prev,
       ]);
       setScanError(null);
+
+      if (chargerAssignmentEnabled) {
+        setChargerScanTarget({
+          deviceAssignmentId: assignment.id,
+          equipmentId: equipment.id,
+          assetTag: equipment.assetTag,
+          name: equipment.name,
+        });
+        setTimeout(() => chargerRef.current?.focus(), 100);
+      } else {
+        barcodeRef.current?.focus();
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to assign device';
       const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -172,11 +201,11 @@ export default function BulkCheckoutPage() {
         },
         ...prev,
       ]);
+      barcodeRef.current?.focus();
     } finally {
       setScanning(false);
-      barcodeRef.current?.focus();
     }
-  }, [selectedUser, selectedLocation, assigneeType, checkoutCondition]);
+  }, [selectedUser, selectedLocation, assigneeType, checkoutCondition, chargerAssignmentEnabled]);
 
   // Step 3: handle barcode scan submission
   const handleBarcodeScan = useCallback(async () => {
@@ -237,6 +266,43 @@ export default function BulkCheckoutPage() {
       barcodeRef.current?.focus();
     }
   }, [barcodeInput, selectedUser, selectedLocation, runCheckout]);
+
+  // Step 3: handle charger serial scan submission (required when chargerAssignmentEnabled)
+  const handleChargerScan = useCallback(async () => {
+    const serialNumber = chargerSerialInput.trim();
+    if (!serialNumber || !chargerScanTarget) return;
+
+    setChargerScanning(true);
+    setChargerError(null);
+
+    try {
+      await deviceAssignmentService.assignCharger(chargerScanTarget.deviceAssignmentId, serialNumber);
+
+      setAssignedDevices((prev) => prev.map((d) =>
+        d.deviceAssignmentId === chargerScanTarget.deviceAssignmentId
+          ? { ...d, chargerSerial: serialNumber }
+          : d
+      ));
+      setChargerScanTarget(null);
+      setChargerSerialInput('');
+      setTimeout(() => barcodeRef.current?.focus(), 100);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to assign charger';
+      const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setChargerError(apiMsg || msg);
+      setChargerSerialInput('');
+      chargerRef.current?.focus();
+    } finally {
+      setChargerScanning(false);
+    }
+  }, [chargerSerialInput, chargerScanTarget]);
+
+  const handleChargerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleChargerScan();
+    }
+  };
 
   const handleRepairResolved = () => {
     if (!pendingRepair) return;
@@ -300,6 +366,27 @@ export default function BulkCheckoutPage() {
               <TextField {...params} label="Location" placeholder="Search locations..." />
             )}
           />
+          {selectedLocation && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Will a charger be assigned to these devices?
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  variant={chargerAssignmentEnabled ? 'contained' : 'outlined'}
+                  onClick={() => setChargerAssignmentEnabled(true)}
+                >
+                  Yes
+                </Button>
+                <Button
+                  variant={!chargerAssignmentEnabled ? 'contained' : 'outlined'}
+                  onClick={() => setChargerAssignmentEnabled(false)}
+                >
+                  No
+                </Button>
+              </Box>
+            </Box>
+          )}
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
             <Button variant="contained" disabled={!canGoNext()} onClick={handleNext}>
               Next
@@ -388,13 +475,36 @@ export default function BulkCheckoutPage() {
               value={barcodeInput}
               onChange={(e) => setBarcodeInput(e.target.value)}
               onKeyDown={handleBarcodeKeyDown}
-              disabled={scanning}
+              disabled={scanning || !!chargerScanTarget}
               fullWidth
               autoFocus
               placeholder="Scan or type barcode..."
               inputProps={{ 'aria-label': 'Scan device barcode' }}
             />
           </Box>
+
+          {chargerScanTarget && (
+            <Box sx={{ mb: 2 }}>
+              <TextField
+                inputRef={chargerRef}
+                label={`Scan charger serial for ${chargerScanTarget.assetTag} — ${chargerScanTarget.name}`}
+                value={chargerSerialInput}
+                onChange={(e) => setChargerSerialInput(e.target.value)}
+                onKeyDown={handleChargerKeyDown}
+                disabled={chargerScanning}
+                fullWidth
+                autoFocus
+                required
+                placeholder="Scan or type charger serial number..."
+                inputProps={{ 'aria-label': 'Scan charger serial number' }}
+              />
+              {chargerError && (
+                <Alert severity="error" sx={{ mt: 1 }} onClose={() => setChargerError(null)}>
+                  {chargerError}
+                </Alert>
+              )}
+            </Box>
+          )}
 
           {scanError && (
             <Alert severity="error" sx={{ mb: 2 }} onClose={() => setScanError(null)}>
@@ -429,7 +539,10 @@ export default function BulkCheckoutPage() {
                     )}
                     <ListItemText
                       primary={`${d.assetTag} — ${d.name}`}
-                      secondary={d.error || `Assigned to ${d.assignedTo || 'user'}`}
+                      secondary={
+                        d.error
+                          || `Assigned to ${d.assignedTo || 'user'}${d.chargerSerial ? ` · Charger: ${d.chargerSerial}` : ''}`
+                      }
                     />
                   </ListItem>
                 ))}
@@ -440,10 +553,10 @@ export default function BulkCheckoutPage() {
           <Box sx={{ mt: 3, display: 'flex', justifyContent: 'space-between' }}>
             <Button onClick={handleBack}>Back</Button>
             <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button variant="outlined" onClick={handleNextPerson}>
+              <Button variant="outlined" disabled={!!chargerScanTarget} onClick={handleNextPerson}>
                 Next Person
               </Button>
-              <Button variant="contained" color="success" onClick={handleDone}>
+              <Button variant="contained" color="success" disabled={!!chargerScanTarget} onClick={handleDone}>
                 Done
               </Button>
             </Box>

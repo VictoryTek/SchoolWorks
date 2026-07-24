@@ -5,6 +5,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.0',
+    changes: [
+      'Added charger assignment to Bulk Checkout and Quick Check, allowing users to assign chargers to multiple devices at once.',
+      'Bulk Checkout and Quick Check now ask "Will a charger be assigned to these devices?" with clear Yes/No buttons instead of a checkbox, making the charger assignment step easier to notice.',
+    ],
+  },
+  {
     version: '1.5.2',
     changes: [
       'Fixed the Inventory Management Refresh button not matching the style of the Import, Export, and Add Item buttons next to it.',

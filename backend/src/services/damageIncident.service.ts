@@ -82,6 +82,9 @@ const detailInclude = {
       vendor:        { select: { id: true, name: true, contactName: true, email: true, phone: true } },
     },
   },
+  chargerAssignment: {
+    select: { id: true, charger: { select: { id: true, serialNumber: true } } },
+  },
   user:         { select: { id: true, firstName: true, lastName: true, email: true, gradeLevel: true } },
   reporter:     { select: { id: true, firstName: true, lastName: true, email: true } },
   resolvedUser: { select: { id: true, firstName: true, lastName: true } },
@@ -140,6 +143,7 @@ export async function create(data: CreateData, reportedByUserId: string) {
         incidentNumber,
         equipmentId:   data.equipmentId ?? null,
         assignmentId:  data.assignmentId ?? null,
+        chargerAssignmentId: data.chargerAssignmentId ?? null,
         userId:        data.userId ?? null,
         reportedBy:    reportedByUserId,
         damageType:    data.damageType,

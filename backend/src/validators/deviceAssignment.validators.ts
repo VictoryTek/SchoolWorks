@@ -26,6 +26,11 @@ export const CheckinSchema = z.object({
   returnCondition:      checkoutConditionEnum,
   returnNotes:          z.string().max(1000).optional(),
   createDamageIncident: z.boolean().optional(),
+  chargerReturned:      z.boolean().optional(),
+});
+
+export const AssignChargerSchema = z.object({
+  serialNumber: z.string().min(1, 'Charger serial number is required').max(200),
 });
 
 export const ListAssignmentsQuerySchema = z.object({

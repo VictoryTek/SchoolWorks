@@ -13,6 +13,8 @@ import {
   MenuItem,
   Select,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
@@ -23,7 +25,8 @@ import type { CheckoutCondition } from '@mgspe/shared-types';
 interface CheckinFormProps {
   assignmentId: string;
   assignee: DeviceAssignmentUser;
-  onSuccess: (shouldCreateIncident?: boolean) => void;
+  hasOpenCharger?: boolean;
+  onSuccess: (shouldCreateIncident?: boolean, shouldCreateChargerIncident?: boolean, chargerAssignmentId?: string) => void;
   onCancel: () => void;
 }
 
@@ -31,9 +34,10 @@ interface FormValues {
   returnCondition: CheckoutCondition;
   returnNotes: string;
   createDamageIncident: boolean;
+  chargerReturned: boolean | null;
 }
 
-export function CheckinForm({ assignmentId, assignee, onSuccess, onCancel }: CheckinFormProps) {
+export function CheckinForm({ assignmentId, assignee, hasOpenCharger, onSuccess, onCancel }: CheckinFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
 
   const {
@@ -46,6 +50,7 @@ export function CheckinForm({ assignmentId, assignee, onSuccess, onCancel }: Che
       returnCondition:      'good',
       returnNotes:          '',
       createDamageIncident: false,
+      chargerReturned:      null,
     },
   });
 
@@ -58,9 +63,10 @@ export function CheckinForm({ assignmentId, assignee, onSuccess, onCancel }: Che
         returnCondition:      values.returnCondition,
         returnNotes:          values.returnNotes || undefined,
         createDamageIncident: values.createDamageIncident || undefined,
+        chargerReturned:      hasOpenCharger ? values.chargerReturned === true : undefined,
       };
       const result = await deviceAssignmentService.checkin(assignmentId, data);
-      onSuccess(result.shouldCreateIncident);
+      onSuccess(result.shouldCreateIncident, result.shouldCreateChargerIncident, result.chargerAssignmentId);
     } catch (err: unknown) {
       const msg =
         err && typeof err === 'object' && 'response' in err
@@ -110,6 +116,32 @@ export function CheckinForm({ assignmentId, assignee, onSuccess, onCancel }: Che
           <TextField {...field} label="Return Notes (optional)" multiline rows={2} size="small" fullWidth />
         )}
       />
+
+      {/* Charger return question — shown when this checkout has an open charger assignment */}
+      {hasOpenCharger && (
+        <Controller
+          name="chargerReturned"
+          control={control}
+          rules={{ validate: (v) => v !== null || 'Please indicate whether the charger was returned' }}
+          render={({ field }) => (
+            <FormControl error={!!errors.chargerReturned}>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>Was the charger returned?</Typography>
+              <ToggleButtonGroup
+                exclusive
+                value={field.value}
+                onChange={(_, val) => { if (val !== null) field.onChange(val); }}
+                size="small"
+              >
+                <ToggleButton value={true}>Yes</ToggleButton>
+                <ToggleButton value={false}>No</ToggleButton>
+              </ToggleButtonGroup>
+              {errors.chargerReturned && (
+                <FormHelperText>{errors.chargerReturned.message}</FormHelperText>
+              )}
+            </FormControl>
+          )}
+        />
+      )}
 
       {/* Damage incident checkbox — shown with warning when condition is damaged */}
       {returnCondition === 'damaged' && (

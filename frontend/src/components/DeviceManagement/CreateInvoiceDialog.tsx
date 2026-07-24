@@ -27,6 +27,7 @@ interface CreateInvoiceDialogProps {
   onCreatedWithId?:    (invoiceId: string) => void;
   prefillIncidentId?:  string;
   prefillParentEmail?: string;
+  initialNotes?:       string;
 }
 
 const DEFAULT_DUE_DAYS = 30;
@@ -44,6 +45,7 @@ export default function CreateInvoiceDialog({
   onCreatedWithId,
   prefillIncidentId,
   prefillParentEmail,
+  initialNotes,
 }: CreateInvoiceDialogProps) {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -105,8 +107,9 @@ export default function CreateInvoiceDialog({
       setNotes('');
       setLineItems([]);
       setFormError(null);
-    } else if (prefillParentEmail) {
-      setParentEmail(prefillParentEmail);
+    } else {
+      if (prefillParentEmail) setParentEmail(prefillParentEmail);
+      if (initialNotes) setNotes(initialNotes);
     }
   }, [open]);
 

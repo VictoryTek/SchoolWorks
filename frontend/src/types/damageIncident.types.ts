@@ -30,11 +30,17 @@ export interface DamageIncidentEquipment {
   vendor?:       { id: string; name: string; contactName: string | null; email: string | null; phone: string | null } | null;
 }
 
+export interface DamageIncidentChargerAssignment {
+  id:      string;
+  charger: { id: string; serialNumber: string };
+}
+
 export interface DamageIncident {
   id:              string;
   incidentNumber:  string | null;
   equipmentId:     string | null;
   assignmentId:    string | null;
+  chargerAssignmentId: string | null;
   userId:          string | null;
   reportedBy:      string;
   reportedAt:      string;
@@ -52,6 +58,7 @@ export interface DamageIncident {
   createdAt:       string;
   updatedAt:       string;
   equipment?:      DamageIncidentEquipment | null;
+  chargerAssignment?: DamageIncidentChargerAssignment | null;
   user?:           DamageIncidentUser | null;
   reporter?:       DamageIncidentUser;
   photos?:         DamageIncidentPhoto[];
@@ -63,6 +70,7 @@ export interface DamageIncident {
 export interface CreateDamageIncidentData {
   equipmentId?:           string;
   assignmentId?:          string;
+  chargerAssignmentId?:   string;
   userId?:                string;
   damageDate?:            string;
   intent?:                IncidentIntent;

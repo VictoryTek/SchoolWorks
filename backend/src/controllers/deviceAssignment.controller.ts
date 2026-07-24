@@ -8,6 +8,7 @@ import type {
   CheckoutSchema,
   CheckinSchema,
   ListAssignmentsQuerySchema,
+  AssignChargerSchema,
 } from '../validators/deviceAssignment.validators';
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,21 @@ export const checkout = async (req: AuthRequest, res: Response): Promise<void> =
     const data = req.body as z.infer<typeof CheckoutSchema>;
     const assignment = await service.checkout(data, req.user!.id);
     res.status(201).json(assignment);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Assign charger
+// ---------------------------------------------------------------------------
+
+export const assignCharger = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params['id'] as string;
+    const data = req.body as z.infer<typeof AssignChargerSchema>;
+    const chargerAssignment = await service.assignCharger(id, data, req.user!.id);
+    res.status(201).json(chargerAssignment);
   } catch (error) {
     handleControllerError(error, res);
   }

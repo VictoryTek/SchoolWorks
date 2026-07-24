@@ -8,6 +8,7 @@ import type {
   CheckoutSchema,
   CheckinSchema,
   ListAssignmentsQuerySchema,
+  AssignChargerSchema,
 } from '../validators/deviceAssignment.validators';
 
 const log = createLogger('DeviceAssignmentService');
@@ -16,6 +17,7 @@ type ScanQuery         = z.infer<typeof ScanQuerySchema>;
 type CheckoutData      = z.infer<typeof CheckoutSchema>;
 type CheckinData       = z.infer<typeof CheckinSchema>;
 type ListAssignmentsQuery = z.infer<typeof ListAssignmentsQuerySchema>;
+type AssignChargerData = z.infer<typeof AssignChargerSchema>;
 
 // ---------------------------------------------------------------------------
 // Select helpers
@@ -43,6 +45,12 @@ const equipmentSelect = {
   purchasePrice: true,
   brands: { select: { name: true } },
   models: { select: { name: true } },
+} as const;
+
+const openChargerAssignmentSelect = {
+  id: true,
+  returnedAt: true,
+  charger: { select: { id: true, serialNumber: true } },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -79,6 +87,7 @@ export async function scanDevice(query: ScanQuery) {
           notes: true,
           user: { select: userSelect },
           checkedOutByUser: { select: { firstName: true, lastName: true } },
+          chargerAssignment: { select: openChargerAssignmentSelect },
         },
       },
       damageIncidents: {
@@ -210,6 +219,83 @@ export async function checkout(data: CheckoutData, performedByUserId: string) {
 }
 
 /**
+ * Pair a charger (identified by serial number) with a device checkout.
+ * Finds-or-creates the Charger by serial, and blocks if it's already
+ * checked out elsewhere. One charger per DeviceAssignment.
+ */
+export async function assignCharger(
+  deviceAssignmentId: string,
+  data: AssignChargerData,
+  performedByUserId: string
+) {
+  return prisma.$transaction(
+    async (tx) => {
+      const deviceAssignment = await tx.deviceAssignment.findUnique({
+        where:  { id: deviceAssignmentId },
+        select: { id: true, userId: true, assigneeType: true },
+      });
+      if (!deviceAssignment) throw new NotFoundError('DeviceAssignment', deviceAssignmentId);
+
+      const existingPairing = await tx.chargerAssignment.findUnique({
+        where:  { deviceAssignmentId },
+        select: { id: true },
+      });
+      if (existingPairing) {
+        throw new AppError('This device checkout already has a charger assigned', 409, 'CONFLICT');
+      }
+
+      let charger = await tx.charger.findUnique({
+        where: { serialNumber: data.serialNumber },
+      });
+      if (!charger) {
+        charger = await tx.charger.create({
+          data: { serialNumber: data.serialNumber, status: 'active' },
+        });
+      } else if (charger.status === 'checked_out') {
+        const activeElsewhere = await tx.chargerAssignment.findFirst({
+          where:  { chargerId: charger.id, returnedAt: null },
+          select: { user: { select: { firstName: true, lastName: true } } },
+        });
+        const holder = activeElsewhere?.user
+          ? `${activeElsewhere.user.firstName} ${activeElsewhere.user.lastName}`
+          : 'someone else';
+        throw new AppError(
+          `Charger ${data.serialNumber} is already checked out to ${holder}`,
+          409,
+          'CONFLICT'
+        );
+      }
+
+      const chargerAssignment = await tx.chargerAssignment.create({
+        data: {
+          chargerId:          charger.id,
+          deviceAssignmentId,
+          userId:             deviceAssignment.userId,
+          assigneeType:       deviceAssignment.assigneeType,
+          checkoutBy:         performedByUserId,
+        },
+        include: { charger: true },
+      });
+
+      await tx.charger.update({
+        where: { id: charger.id },
+        data:  { status: 'checked_out' },
+      });
+
+      log.info('Charger assigned', {
+        chargerAssignmentId: chargerAssignment.id,
+        chargerId:           charger.id,
+        deviceAssignmentId,
+        performedBy:         performedByUserId,
+      });
+
+      return chargerAssignment;
+    },
+    { isolationLevel: 'Serializable' }
+  );
+}
+
+/**
  * Check in a device (process a return).
  */
 export async function checkin(
@@ -225,6 +311,9 @@ export async function checkin(
   if (assignment.returnedAt) {
     throw new AppError('Device has already been returned', 409, 'CONFLICT');
   }
+
+  let shouldCreateChargerIncident = false;
+  let openChargerAssignmentId: string | undefined;
 
   const updated = await prisma.$transaction(async (tx) => {
     const result = await tx.deviceAssignment.update({
@@ -250,6 +339,29 @@ export async function checkin(
       },
     });
 
+    // If this checkout had a charger paired with it, either mark it returned
+    // or flag that a missing-charger incident needs to be raised.
+    const openChargerAssignment = await tx.chargerAssignment.findUnique({
+      where:  { deviceAssignmentId: assignmentId },
+      select: { id: true, returnedAt: true, chargerId: true },
+    });
+
+    if (openChargerAssignment && !openChargerAssignment.returnedAt) {
+      if (data.chargerReturned === true) {
+        await tx.chargerAssignment.update({
+          where: { id: openChargerAssignment.id },
+          data:  { returnedAt: new Date(), returnedBy: performedByUserId },
+        });
+        await tx.charger.update({
+          where: { id: openChargerAssignment.chargerId },
+          data:  { status: 'active' },
+        });
+      } else {
+        shouldCreateChargerIncident = true;
+        openChargerAssignmentId = openChargerAssignment.id;
+      }
+    }
+
     return result;
   });
 
@@ -259,10 +371,13 @@ export async function checkin(
     performedBy:  performedByUserId,
     returnCondition: data.returnCondition,
     shouldCreateIncident: data.createDamageIncident,
+    shouldCreateChargerIncident,
   });
 
   return {
     assignment: updated,
+    shouldCreateChargerIncident,
+    chargerAssignmentId: openChargerAssignmentId,
     shouldCreateIncident: data.createDamageIncident === true,
   };
 }
@@ -295,6 +410,7 @@ export async function getActiveAssignments(query: ListAssignmentsQuery) {
         equipment: { select: equipmentSelect },
         checkedOutByUser: { select: { firstName: true, lastName: true } },
         location:  { select: { id: true, name: true } },
+        chargerAssignment: { select: openChargerAssignmentSelect },
       },
     }),
     prisma.deviceAssignment.count({ where }),
@@ -335,6 +451,7 @@ export async function getAllAssignments(query: ListAssignmentsQuery) {
         equipment: { select: equipmentSelect },
         checkedOutByUser: { select: { firstName: true, lastName: true } },
         location:  { select: { id: true, name: true } },
+        chargerAssignment: { select: openChargerAssignmentSelect },
       },
     }),
     prisma.deviceAssignment.count({ where }),

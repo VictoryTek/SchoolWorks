@@ -21,6 +21,8 @@ import {
   Paper,
   Select,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -32,6 +34,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deviceAssignmentService } from '../../services/deviceAssignment.service';
 import { DeviceStatusChip } from '../../components/DeviceManagement/DeviceStatusChip';
 import { ConditionChip } from '../../components/DeviceManagement/ConditionChip';
+import { ChargerNotReturnedInvoiceDialog } from '../../components/DeviceManagement/ChargerNotReturnedInvoiceDialog';
 import type { ScanResult, CheckinFormData } from '../../types/deviceAssignment.types';
 import type { CheckoutCondition } from '@mgspe/shared-types';
 
@@ -75,6 +78,20 @@ export default function BulkCheckinPage() {
   // Per-scan return notes (cleared after each checkin)
   const [returnNotes, setReturnNotes] = useState('');
 
+  // Per-scan charger-return answer (cleared after each checkin) — only relevant
+  // when the scanned device's checkout has an open (unreturned) charger assignment
+  const [chargerReturned, setChargerReturned] = useState<boolean | null>(null);
+
+  // Charger-not-returned invoice dialog, shown inline so the bulk scanning
+  // session isn't interrupted by navigating away
+  const [chargerInvoiceTarget, setChargerInvoiceTarget] = useState<{
+    equipmentId: string;
+    userId?: string;
+    assignmentId: string;
+    chargerAssignmentId: string;
+    chargerSerialNumber: string;
+  } | null>(null);
+
   // Session log
   const [sessionLog, setSessionLog] = useState<SessionLogEntry[]>([]);
 
@@ -100,6 +117,7 @@ export default function BulkCheckinPage() {
     setScanResult(null);
     setScanError(null);
     setReturnNotes('');
+    setChargerReturned(null);
     setBarcodeInput('');
     setTimeout(() => barcodeInputRef.current?.focus(), 50);
   }, []);
@@ -108,7 +126,7 @@ export default function BulkCheckinPage() {
   const checkinMutation = useMutation({
     mutationFn: ({ assignmentId, data }: { assignmentId: string; data: CheckinFormData }) =>
       deviceAssignmentService.checkin(assignmentId, data),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ['device-assignments', 'active'] });
 
       if (scanResult?.activeAssignment) {
@@ -128,6 +146,18 @@ export default function BulkCheckinPage() {
           errorMessage: undefined,
         };
         setSessionLog((prev) => [entry, ...prev]);
+      }
+
+      if (response.shouldCreateChargerIncident && response.chargerAssignmentId && scanResult?.activeAssignment?.chargerAssignment) {
+        const assignment = scanResult.activeAssignment;
+        const chargerSerialNumber = scanResult.activeAssignment.chargerAssignment.charger.serialNumber;
+        setChargerInvoiceTarget({
+          equipmentId: scanResult.equipment.id,
+          userId: assignment.user?.id,
+          assignmentId: assignment.id,
+          chargerAssignmentId: response.chargerAssignmentId,
+          chargerSerialNumber,
+        });
       }
 
       resetAfterAction();
@@ -197,13 +227,18 @@ export default function BulkCheckinPage() {
     }
   };
 
+  const hasOpenCharger = !!scanResult?.activeAssignment?.chargerAssignment
+    && !scanResult.activeAssignment.chargerAssignment.returnedAt;
+
   const handleCheckin = () => {
     if (!scanResult?.activeAssignment) return;
+    if (hasOpenCharger && chargerReturned === null) return;
     checkinMutation.mutate({
       assignmentId: scanResult.activeAssignment.id,
       data: {
         returnCondition: defaultCondition,
         returnNotes: returnNotes.trim() || undefined,
+        chargerReturned: hasOpenCharger ? chargerReturned === true : undefined,
       },
     });
   };
@@ -378,6 +413,25 @@ export default function BulkCheckinPage() {
               })}
             </Typography>
 
+            {/* Charger return question — shown when this checkout has an open charger assignment */}
+            {hasOpenCharger && (
+              <Box sx={{ mb: 1.5 }}>
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  Was the charger returned? (S/N: {scanResult.activeAssignment.chargerAssignment!.charger.serialNumber})
+                </Typography>
+                <ToggleButtonGroup
+                  exclusive
+                  value={chargerReturned}
+                  onChange={(_, val) => { if (val !== null) setChargerReturned(val); }}
+                  size="small"
+                  disabled={checkinMutation.isPending}
+                >
+                  <ToggleButton value={true}>Yes</ToggleButton>
+                  <ToggleButton value={false}>No</ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            )}
+
             {/* Optional return notes */}
             <TextField
               label="Return notes (optional)"
@@ -401,7 +455,7 @@ export default function BulkCheckinPage() {
                 variant="contained"
                 color="primary"
                 onClick={handleCheckin}
-                disabled={checkinMutation.isPending}
+                disabled={checkinMutation.isPending || (hasOpenCharger && chargerReturned === null)}
                 startIcon={
                   checkinMutation.isPending ? (
                     <CircularProgress size={16} color="inherit" />
@@ -484,6 +538,19 @@ export default function BulkCheckinPage() {
             ))}
           </List>
         </Paper>
+      )}
+
+      {chargerInvoiceTarget && (
+        <ChargerNotReturnedInvoiceDialog
+          open
+          onClose={() => setChargerInvoiceTarget(null)}
+          onCreated={() => setChargerInvoiceTarget(null)}
+          equipmentId={chargerInvoiceTarget.equipmentId}
+          userId={chargerInvoiceTarget.userId}
+          assignmentId={chargerInvoiceTarget.assignmentId}
+          chargerAssignmentId={chargerInvoiceTarget.chargerAssignmentId}
+          chargerSerialNumber={chargerInvoiceTarget.chargerSerialNumber}
+        />
       )}
     </Box>
   );

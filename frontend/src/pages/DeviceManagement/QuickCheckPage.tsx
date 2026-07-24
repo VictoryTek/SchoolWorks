@@ -35,6 +35,7 @@ import { DeviceManagementUserSearch, type UserOption } from '../../components/De
 import { DeviceOutForRepairDialog } from '../../components/DeviceManagement/DeviceOutForRepairDialog';
 import { DeviceStatusChip } from '../../components/DeviceManagement/DeviceStatusChip';
 import { ConditionChip } from '../../components/DeviceManagement/ConditionChip';
+import { ChargerNotReturnedInvoiceDialog } from '../../components/DeviceManagement/ChargerNotReturnedInvoiceDialog';
 import type { ScanResult, CheckinFormData, CheckoutFormData } from '../../types/deviceAssignment.types';
 import type { AssigneeType, CheckoutCondition } from '@mgspe/shared-types';
 
@@ -57,6 +58,13 @@ interface SuccessSummary {
   condition: CheckoutCondition;
   time: Date;
   shouldCreateIncident?: boolean;
+  shouldCreateChargerIncident?: boolean;
+  chargerAssignmentId?: string;
+  chargerSerialNumber?: string;
+  chargerAssignError?: string;
+  equipmentId?: string;
+  userId?: string;
+  assignmentId?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -98,12 +106,19 @@ export default function QuickCheckPage() {
   const [returnCondition, setReturnCondition] = useState<CheckoutCondition>('good');
   const [returnNotes, setReturnNotes] = useState('');
   const [createDamageIncident, setCreateDamageIncident] = useState(false);
+  const [chargerReturned, setChargerReturned] = useState<boolean | null>(null);
+
+  // Charger-not-returned invoice dialog (opened from the success card)
+  const [chargerInvoiceOpen, setChargerInvoiceOpen] = useState(false);
 
   // Check-out form fields
   const [selectedUser, setSelectedUser] = useState<UserOption | null>(null);
   const [checkoutCondition, setCheckoutCondition] = useState<CheckoutCondition>('good');
   const [checkoutNotes, setCheckoutNotes] = useState('');
   const [userError, setUserError] = useState<string | null>(null);
+  const [chargerAssigned, setChargerAssigned] = useState(false);
+  const [chargerSerial, setChargerSerial] = useState('');
+  const [chargerFieldError, setChargerFieldError] = useState<string | null>(null);
 
   // Submit error
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -128,10 +143,15 @@ export default function QuickCheckPage() {
     setReturnCondition('good');
     setReturnNotes('');
     setCreateDamageIncident(false);
+    setChargerReturned(null);
+    setChargerInvoiceOpen(false);
     setCheckoutCondition('good');
     setSelectedUser(null);
     setCheckoutNotes('');
     setUserError(null);
+    setChargerAssigned(false);
+    setChargerSerial('');
+    setChargerFieldError(null);
     setSubmitError(null);
     setRepairResolved(false);
     setPageState({ phase: 'idle' });
@@ -181,10 +201,14 @@ export default function QuickCheckPage() {
   const returnConditionRef = useRef<CheckoutCondition>(returnCondition);
   const selectedUserRef = useRef<UserOption | null>(selectedUser);
   const checkoutConditionRef = useRef<CheckoutCondition>(checkoutCondition);
+  const chargerAssignedRef = useRef(chargerAssigned);
+  const chargerSerialRef = useRef(chargerSerial);
 
   useEffect(() => { returnConditionRef.current = returnCondition; }, [returnCondition]);
   useEffect(() => { selectedUserRef.current = selectedUser; }, [selectedUser]);
   useEffect(() => { checkoutConditionRef.current = checkoutCondition; }, [checkoutCondition]);
+  useEffect(() => { chargerAssignedRef.current = chargerAssigned; }, [chargerAssigned]);
+  useEffect(() => { chargerSerialRef.current = chargerSerial; }, [chargerSerial]);
 
   // ── Check-in mutation ──────────────────────────────────────────────────────
 
@@ -209,6 +233,12 @@ export default function QuickCheckPage() {
           condition: returnConditionRef.current,
           time: new Date(),
           shouldCreateIncident: response.shouldCreateIncident,
+          shouldCreateChargerIncident: response.shouldCreateChargerIncident,
+          chargerAssignmentId: response.chargerAssignmentId,
+          chargerSerialNumber: result.activeAssignment.chargerAssignment?.charger.serialNumber,
+          equipmentId: result.equipment.id,
+          userId: result.activeAssignment.userId,
+          assignmentId: result.activeAssignment.id,
         },
       });
     },
@@ -223,10 +253,23 @@ export default function QuickCheckPage() {
 
   const checkoutMutation = useMutation({
     mutationFn: (data: CheckoutFormData) => deviceAssignmentService.checkout(data),
-    onSuccess: () => {
+    onSuccess: async (assignment) => {
       queryClient.invalidateQueries({ queryKey: ['device-assignments', 'active'] });
       const result = scanResultRef.current;
       if (!result) return;
+
+      let chargerSerialNumber: string | undefined;
+      let chargerAssignError: string | undefined;
+      if (chargerAssignedRef.current && chargerSerialRef.current.trim()) {
+        const serial = chargerSerialRef.current.trim();
+        try {
+          await deviceAssignmentService.assignCharger(assignment.id, serial);
+          chargerSerialNumber = serial;
+        } catch (err) {
+          chargerAssignError = getApiError(err);
+        }
+      }
+
       setPageState({
         phase: 'success',
         summary: {
@@ -236,6 +279,8 @@ export default function QuickCheckPage() {
           assigneeName: selectedUserRef.current?.label ?? 'Unknown',
           condition: checkoutConditionRef.current,
           time: new Date(),
+          chargerSerialNumber,
+          chargerAssignError,
         },
       });
     },
@@ -257,6 +302,9 @@ export default function QuickCheckPage() {
 
     if (mode === 'checkin') {
       if (!result.activeAssignment) return;
+      const hasOpenCharger = !!result.activeAssignment.chargerAssignment
+        && !result.activeAssignment.chargerAssignment.returnedAt;
+      if (hasOpenCharger && chargerReturned === null) return;
       setPageState({ phase: 'submitting' });
       checkinMutation.mutate({
         assignmentId: result.activeAssignment.id,
@@ -264,11 +312,16 @@ export default function QuickCheckPage() {
           returnCondition,
           returnNotes: returnNotes.trim() || undefined,
           createDamageIncident,
+          chargerReturned: hasOpenCharger ? chargerReturned === true : undefined,
         },
       });
     } else {
       if (!selectedUser) {
         setUserError('Assignee is required.');
+        return;
+      }
+      if (chargerAssigned && !chargerSerial.trim()) {
+        setChargerFieldError('Charger serial number is required');
         return;
       }
       const assigneeType: AssigneeType = selectedUser.email.toLowerCase().endsWith('@ocboe.com')
@@ -294,6 +347,9 @@ export default function QuickCheckPage() {
 
   // Block checkout while the device is still out for repair and hasn't been marked returned
   const needsRepairCheck = mode === 'checkout' && !!scanResultData && !scanResultData.activeAssignment;
+
+  const hasOpenCharger = !!scanResultData?.activeAssignment?.chargerAssignment
+    && !scanResultData.activeAssignment.chargerAssignment.returnedAt;
 
   const { data: fetchedRepairTicket } = useQuery({
     queryKey: ['active-repair-ticket', scanResultData?.equipment.id],
@@ -419,7 +475,21 @@ export default function QuickCheckPage() {
                     </Typography>
                     <Typography variant="body2">{formatTime(summary.time)}</Typography>
                   </div>
+                  {summary.chargerSerialNumber && (
+                    <div>
+                      <Typography variant="caption" color="text.secondary">
+                        Charger
+                      </Typography>
+                      <Typography variant="body2" fontFamily="monospace">{summary.chargerSerialNumber}</Typography>
+                    </div>
+                  )}
                 </Box>
+
+                {summary.chargerAssignError && (
+                  <Alert severity="warning" sx={{ mt: 1 }}>
+                    Device checked out, but the charger serial could not be recorded: {summary.chargerAssignError}
+                  </Alert>
+                )}
 
                 {summary.shouldCreateIncident && (
                   <Alert severity="warning" sx={{ mt: 1 }}>
@@ -432,6 +502,32 @@ export default function QuickCheckPage() {
                       Create Incident Report →
                     </Button>
                   </Alert>
+                )}
+
+                {summary.shouldCreateChargerIncident && (
+                  <Alert severity="warning" sx={{ mt: 1 }}>
+                    Charger not returned.{' '}
+                    <Button
+                      size="small"
+                      onClick={() => setChargerInvoiceOpen(true)}
+                      sx={{ p: 0, minWidth: 'auto', textDecoration: 'underline' }}
+                    >
+                      Create Invoice →
+                    </Button>
+                  </Alert>
+                )}
+
+                {summary.shouldCreateChargerIncident && summary.equipmentId && summary.assignmentId && summary.chargerAssignmentId && (
+                  <ChargerNotReturnedInvoiceDialog
+                    open={chargerInvoiceOpen}
+                    onClose={() => setChargerInvoiceOpen(false)}
+                    onCreated={() => setChargerInvoiceOpen(false)}
+                    equipmentId={summary.equipmentId}
+                    userId={summary.userId}
+                    assignmentId={summary.assignmentId}
+                    chargerAssignmentId={summary.chargerAssignmentId}
+                    chargerSerialNumber={summary.chargerSerialNumber ?? ''}
+                  />
                 )}
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, mt: 2 }}>
@@ -615,6 +711,25 @@ export default function QuickCheckPage() {
                       inputProps={{ maxLength: 1000 }}
                     />
 
+                    {/* Charger return question — shown when this checkout has an open charger assignment */}
+                    {hasOpenCharger && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography variant="body2" sx={{ mb: 0.5 }}>
+                          Was the charger returned? (S/N: {scanResultData.activeAssignment!.chargerAssignment!.charger.serialNumber})
+                        </Typography>
+                        <ToggleButtonGroup
+                          exclusive
+                          value={chargerReturned}
+                          onChange={(_, val) => { if (val !== null) setChargerReturned(val); }}
+                          size="small"
+                          disabled={isSubmitting}
+                        >
+                          <ToggleButton value={true}>Yes</ToggleButton>
+                          <ToggleButton value={false}>No</ToggleButton>
+                        </ToggleButtonGroup>
+                      </Box>
+                    )}
+
                     {/* Damage incident checkbox */}
                     {returnCondition === 'damaged' && (
                       <Alert severity="warning" sx={{ mb: 2 }} icon={<WarningAmberIcon />}>
@@ -712,6 +827,45 @@ export default function QuickCheckPage() {
                       disabled={isSubmitting}
                       inputProps={{ maxLength: 1000 }}
                     />
+
+                    {/* Charger assignment */}
+                    <Box sx={{ mb: chargerAssigned ? 1 : 2 }}>
+                      <Typography variant="body2" sx={{ mb: 0.5 }}>
+                        Will a charger be assigned to this device?
+                      </Typography>
+                      <ToggleButtonGroup
+                        exclusive
+                        value={chargerAssigned}
+                        onChange={(_, val) => {
+                          if (val === null) return;
+                          setChargerAssigned(val);
+                          setChargerFieldError(null);
+                          if (!val) setChargerSerial('');
+                        }}
+                        size="small"
+                        disabled={isSubmitting}
+                      >
+                        <ToggleButton value={true}>Yes</ToggleButton>
+                        <ToggleButton value={false}>No</ToggleButton>
+                      </ToggleButtonGroup>
+                    </Box>
+                    {chargerAssigned && (
+                      <TextField
+                        label="Charger Serial Number"
+                        value={chargerSerial}
+                        onChange={(e) => {
+                          setChargerSerial(e.target.value);
+                          setChargerFieldError(null);
+                        }}
+                        size="small"
+                        fullWidth
+                        required
+                        error={!!chargerFieldError}
+                        helperText={chargerFieldError ?? undefined}
+                        sx={{ mb: 2 }}
+                        disabled={isSubmitting}
+                      />
+                    )}
                   </>
                 )}
               </>
@@ -736,7 +890,7 @@ export default function QuickCheckPage() {
                   variant="contained"
                   color="primary"
                   onClick={handleSubmit}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || (hasOpenCharger && chargerReturned === null)}
                   startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}
                 >
                   {isSubmitting ? 'Checking In…' : 'Check In'}

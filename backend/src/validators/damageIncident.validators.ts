@@ -16,6 +16,7 @@ export const IncidentWorkflowStepEnum = z.enum([
 export const CreateDamageIncidentSchema = z.object({
   equipmentId:            z.string().uuid().optional(),
   assignmentId:           z.string().uuid().optional(),
+  chargerAssignmentId:    z.string().uuid().optional(),
   userId:                 z.string().uuid().optional(),
   damageDate:             z.string().datetime().optional(),
   intent:                 IncidentIntentEnum.optional(),

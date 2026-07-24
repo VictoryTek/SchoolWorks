@@ -33,6 +33,7 @@ import { userService } from '../../services/userService';
 import { DeviceStatusChip } from '../../components/DeviceManagement/DeviceStatusChip';
 import { ConditionChip } from '../../components/DeviceManagement/ConditionChip';
 import { CheckinForm } from '../../components/DeviceManagement/CheckinForm';
+import { ChargerNotReturnedInvoiceDialog } from '../../components/DeviceManagement/ChargerNotReturnedInvoiceDialog';
 import { GRADE_LEVELS, gradeLevelLabel, toDbGradeLevel } from '../../constants/gradeLevel';
 import type { DeviceAssignment, DeviceAssignmentUser } from '../../types/deviceAssignment.types';
 
@@ -54,6 +55,13 @@ export default function CheckoutPage() {
 
   // Checkin dialog state
   const [checkinTarget, setCheckinTarget] = useState<DeviceAssignment | null>(null);
+  const [chargerInvoiceTarget, setChargerInvoiceTarget] = useState<{
+    equipmentId: string;
+    userId?: string;
+    assignmentId: string;
+    chargerAssignmentId: string;
+    chargerSerialNumber: string;
+  } | null>(null);
 
   // ── Query: locations for filter dropdown ─────────────────────────────
   const { data: locations } = useQuery({
@@ -164,6 +172,16 @@ export default function CheckoutPage() {
             {' — '}{eq.name}
           </span>
         );
+      },
+    },
+    {
+      key:    'charger',
+      label:  'Charger',
+      render: (r) => {
+        const serial = r.chargerAssignment?.charger.serialNumber;
+        return serial
+          ? <span style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{serial}</span>
+          : <span>—</span>;
       },
     },
     {
@@ -350,10 +368,19 @@ export default function CheckoutPage() {
             <CheckinForm
               assignmentId={checkinTarget.id}
               assignee={checkinTarget.user as DeviceAssignmentUser}
-              onSuccess={(shouldCreateIncident) => {
+              hasOpenCharger={!!checkinTarget.chargerAssignment && !checkinTarget.chargerAssignment.returnedAt}
+              onSuccess={(shouldCreateIncident, shouldCreateChargerIncident, chargerAssignmentId) => {
                 const target = checkinTarget;
                 setCheckinTarget(null);
-                if (shouldCreateIncident && target) {
+                if (shouldCreateChargerIncident && target?.chargerAssignment && chargerAssignmentId) {
+                  setChargerInvoiceTarget({
+                    equipmentId: target.equipmentId,
+                    userId: target.userId ?? undefined,
+                    assignmentId: target.id,
+                    chargerAssignmentId,
+                    chargerSerialNumber: target.chargerAssignment.charger.serialNumber,
+                  });
+                } else if (shouldCreateIncident && target) {
                   navigate(`/incidents/new?equipmentId=${target.equipmentId}&userId=${target.userId ?? ''}&assignmentId=${target.id}&damageDate=${new Date().toISOString().slice(0, 10)}`);
                 }
                 checkinMutation.mutate();
@@ -363,6 +390,19 @@ export default function CheckoutPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {chargerInvoiceTarget && (
+        <ChargerNotReturnedInvoiceDialog
+          open
+          onClose={() => setChargerInvoiceTarget(null)}
+          onCreated={() => setChargerInvoiceTarget(null)}
+          equipmentId={chargerInvoiceTarget.equipmentId}
+          userId={chargerInvoiceTarget.userId}
+          assignmentId={chargerInvoiceTarget.assignmentId}
+          chargerAssignmentId={chargerInvoiceTarget.chargerAssignmentId}
+          chargerSerialNumber={chargerInvoiceTarget.chargerSerialNumber}
+        />
+      )}
     </Box>
   );
 }

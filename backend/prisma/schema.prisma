@@ -571,6 +571,9 @@ model User {
   deviceAssignments             DeviceAssignment[]    @relation("DeviceAssignmentUser")
   deviceAssignmentsCheckedOutBy DeviceAssignment[]    @relation("DeviceAssignmentCheckedOutBy")
   deviceAssignmentsReturnedBy   DeviceAssignment[]    @relation("DeviceAssignmentReturnedBy")
+  chargerAssignments             ChargerAssignment[]  @relation("ChargerAssignmentUser")
+  chargerAssignmentsCheckedOutBy ChargerAssignment[]  @relation("ChargerAssignmentCheckedOutBy")
+  chargerAssignmentsReturnedBy   ChargerAssignment[]  @relation("ChargerAssignmentReturnedBy")
   damageIncidentsInvolved       DamageIncident[]      @relation("DamageIncidentUser")
   damageIncidentsReported       DamageIncident[]      @relation("DamageIncidentReporter")
   damageIncidentsResolved       DamageIncident[]      @relation("DamageIncidentResolver")
@@ -1365,6 +1368,7 @@ model DeviceAssignment {
   cart             DeviceCart?      @relation(fields: [cartId], references: [id], onDelete: SetNull)
   damageIncidents  DamageIncident[]
   cartItem         DeviceCartItem?
+  chargerAssignment ChargerAssignment?
 
   @@index([equipmentId])
   @@index([userId])
@@ -1377,11 +1381,63 @@ model DeviceAssignment {
   @@map("device_assignments")
 }
 
+/// A physical charger, tracked as a lightweight standalone inventory item
+/// (identified by serial number) — deliberately not part of the `equipment`
+/// table so a charger never needs full asset intake (brand/model/PO/funding)
+/// before it can be scanned in at checkout.
+model Charger {
+  id             String    @id @default(uuid())
+  serialNumber   String    @unique
+  status         String    @default("active") // "active" | "checked_out" | "disposed"
+  notes          String?
+  isDisposed     Boolean   @default(false)
+  disposedDate   DateTime?
+  disposedReason String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  chargerAssignments ChargerAssignment[]
+
+  @@index([status])
+  @@map("chargers")
+}
+
+/// Pairs a Charger with the specific DeviceAssignment (laptop checkout) it
+/// was scanned in with — one charger per device checkout. This is what ties
+/// a charger to both the device and the recipient.
+model ChargerAssignment {
+  id                 String    @id @default(uuid())
+  chargerId          String
+  deviceAssignmentId String    @unique
+  userId             String    // copied from the parent DeviceAssignment at creation time
+  assigneeType       String    // copied from the parent DeviceAssignment
+  checkoutBy         String    // User.id — technician who scanned the charger
+  checkoutAt         DateTime  @default(now())
+  returnedAt         DateTime?
+  returnedBy         String?   // User.id — technician who processed the return
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  charger          Charger          @relation(fields: [chargerId], references: [id])
+  deviceAssignment DeviceAssignment @relation(fields: [deviceAssignmentId], references: [id])
+  user             User             @relation("ChargerAssignmentUser", fields: [userId], references: [id])
+  checkedOutByUser User             @relation("ChargerAssignmentCheckedOutBy", fields: [checkoutBy], references: [id])
+  returnedByUser   User?            @relation("ChargerAssignmentReturnedBy", fields: [returnedBy], references: [id])
+  damageIncidents  DamageIncident[]
+
+  @@index([chargerId])
+  @@index([userId])
+  @@index([returnedAt])
+  @@map("charger_assignments")
+}
+
 model DamageIncident {
   id              String    @id @default(uuid())
   incidentNumber  String?   @unique
   equipmentId     String?   // Nullable — wizard supports user-only incidents (no device)
   assignmentId    String?   // FK → DeviceAssignment (null for walk-in with no active checkout)
+  chargerAssignmentId String? // FK → ChargerAssignment — set when this incident is about a missing/damaged charger
   userId          String?   // FK → User — the student/staff member responsible (denormalised)
   reportedBy      String    // User.id — technician who logged the incident
   reportedAt      DateTime  @default(now())
@@ -1410,8 +1466,9 @@ model DamageIncident {
   /// DAMAGE_REPORTED → PENDING_REPAIR → IN_REPAIR → REPAIR_COMPLETE → INVOICED → CLOSED
   workflowStep    String?   // see IncidentWorkflowStep type
 
-  equipment     equipment?            @relation(fields: [equipmentId], references: [id])
-  assignment    DeviceAssignment?     @relation(fields: [assignmentId], references: [id])
+  equipment         equipment?            @relation(fields: [equipmentId], references: [id])
+  assignment        DeviceAssignment?     @relation(fields: [assignmentId], references: [id])
+  chargerAssignment ChargerAssignment?    @relation(fields: [chargerAssignmentId], references: [id])
   user          User?                 @relation("DamageIncidentUser", fields: [userId], references: [id])
   reporter      User                  @relation("DamageIncidentReporter", fields: [reportedBy], references: [id])
   resolvedUser  User?                 @relation("DamageIncidentResolver", fields: [resolvedBy], references: [id])
@@ -1421,6 +1478,7 @@ model DamageIncident {
 
   @@index([equipmentId])
   @@index([assignmentId])
+  @@index([chargerAssignmentId])
   @@index([userId])
   @@index([status])
   @@index([reportedAt])

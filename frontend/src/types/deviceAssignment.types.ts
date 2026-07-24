@@ -23,6 +23,12 @@ export interface DeviceAssignmentEquipment {
   models: { name: string } | null;
 }
 
+export interface OpenChargerAssignment {
+  id: string;
+  returnedAt: string | null;
+  charger: { id: string; serialNumber: string };
+}
+
 export interface DeviceAssignment {
   id: string;
   equipmentId: string;
@@ -43,6 +49,19 @@ export interface DeviceAssignment {
   equipment?: DeviceAssignmentEquipment;
   checkedOutByUser?: { firstName: string; lastName: string };
   location?: { id: string; name: string } | null;
+  chargerAssignment?: OpenChargerAssignment | null;
+}
+
+export interface ChargerAssignmentRecord {
+  id: string;
+  chargerId: string;
+  deviceAssignmentId: string;
+  userId: string;
+  assigneeType: AssigneeType;
+  checkoutBy: string;
+  checkoutAt: string;
+  returnedAt: string | null;
+  charger?: { id: string; serialNumber: string; status: string };
 }
 
 export interface ScanResult {
@@ -71,4 +90,5 @@ export interface CheckinFormData {
   returnCondition: CheckoutCondition;
   returnNotes?: string;
   createDamageIncident?: boolean;
+  chargerReturned?: boolean;
 }
