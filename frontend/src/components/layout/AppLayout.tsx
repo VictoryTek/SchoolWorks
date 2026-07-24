@@ -77,6 +77,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'DM Dashboard',   icon: '📱', path: '/device-management',               requireDeviceManagement: true },
       { label: 'Checkouts',      icon: '📤', path: '/device-management/checkouts',      requireDeviceManagement: true },
       { label: 'Quick Check',    icon: '⚡', path: '/device-management/quick-check',             requireDeviceManagement: true },
+      { label: 'Room Check Out', icon: '🚪', path: '/device-management/room-checkout',           requireDeviceManagement: true },
       { label: 'Bulk Checkout',  icon: '📋', path: '/device-management/checkouts/bulk',          requireDeviceManagement: true },
       { label: 'Bulk Check-In',   icon: '📥', path: '/device-management/checkouts/bulk-checkin', requireDeviceManagement: true },
       { label: 'Cart Assignment', icon: '🗂️', path: '/device-management/carts/assign',             requireDeviceManagement: true },

@@ -46,6 +46,7 @@ import BulkCheckinPage from './pages/DeviceManagement/BulkCheckinPage'
 import CartAssignmentWizardPage from './pages/DeviceManagement/CartAssignmentWizardPage'
 import CheckedOutCartsPage from './pages/DeviceManagement/CheckedOutCartsPage'
 import QuickCheckPage from './pages/DeviceManagement/QuickCheckPage'
+import RoomCheckoutPage from './pages/DeviceManagement/RoomCheckoutPage'
 import RepairTicketsPage from './pages/DeviceManagement/RepairTicketsPage'
 import RepairTicketDetailPage from './pages/DeviceManagement/RepairTicketDetailPage'
 import InvoicesPage from './pages/DeviceManagement/InvoicesPage'
@@ -497,6 +498,16 @@ function App() {
             <ProtectedRoute requireDeviceManagement>
               <AppLayout>
                 <QuickCheckPage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/device-management/room-checkout"
+          element={
+            <ProtectedRoute requireDeviceManagement>
+              <AppLayout>
+                <RoomCheckoutPage />
               </AppLayout>
             </ProtectedRoute>
           }
