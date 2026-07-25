@@ -11,7 +11,7 @@ COPY shared/src ./shared/src/
 # Copy frontend package files and install dependencies
 COPY frontend/package.json frontend/package-lock.json* ./frontend/
 WORKDIR /app/frontend
-RUN npm install
+RUN npm ci
 
 # Symlink frontend node_modules into shared/ so TypeScript can resolve imports
 # (e.g. zod) when it traverses into ../shared/src via the @mgspe/shared-types alias.

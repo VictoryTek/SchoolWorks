@@ -13,7 +13,7 @@ WORKDIR /workspace
 # TypeScript compiler runs and when production deps are installed.
 COPY shared/package.json shared/package-lock.json* ./shared/
 WORKDIR /workspace/shared
-RUN npm install
+RUN npm ci
 COPY shared/src ./src/
 COPY shared/tsconfig.json ./
 RUN npm run build
@@ -26,7 +26,7 @@ COPY backend/package.json backend/package-lock.json* ./
 COPY backend/prisma ./prisma/
 
 # Install all dependencies (including dev for build)
-RUN npm install
+RUN npm ci
 
 # Copy Prisma config after install to preserve layer cache
 COPY backend/prisma.config.ts ./
@@ -50,7 +50,7 @@ WORKDIR /workspace
 COPY --from=builder /workspace/shared/package.json ./shared/
 COPY --from=builder /workspace/shared/dist ./shared/dist/
 WORKDIR /workspace/shared
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # ── Backend production deps ─────────────────────────────────────────────────
 WORKDIR /workspace/backend
@@ -59,7 +59,7 @@ WORKDIR /workspace/backend
 COPY backend/package.json backend/package-lock.json* ./
 COPY backend/prisma ./prisma/
 COPY backend/prisma.config.ts ./
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # Generate Prisma client in production image
 RUN npx prisma generate
