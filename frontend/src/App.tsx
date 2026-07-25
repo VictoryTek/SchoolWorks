@@ -71,6 +71,7 @@ import FuelEntryPage from './pages/Transportation/FuelEntryPage'
 import MyFuelHistoryPage from './pages/Transportation/MyFuelHistoryPage'
 import DotPhysicalsPage from './pages/Transportation/DotPhysicalsPage'
 import DriverLicensePage from './pages/Transportation/DriverLicensePage'
+import MvrRecordsPage from './pages/Transportation/MvrRecordsPage'
 import TransportationReportsPage from './pages/Transportation/TransportationReportsPage'
 import TransportationSettingsPage from './pages/Transportation/TransportationSettingsPage'
 import NotificationSettings from './pages/NotificationSettings'
@@ -750,6 +751,16 @@ function App() {
             <ProtectedRoute requireTransportationLevel={2}>
               <AppLayout>
                 <DriverLicensePage />
+              </AppLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/transportation/mvr-records"
+          element={
+            <ProtectedRoute requireTransportationLevel={2}>
+              <AppLayout>
+                <MvrRecordsPage />
               </AppLayout>
             </ProtectedRoute>
           }

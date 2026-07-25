@@ -102,6 +102,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Fuel Stations', icon: '🏪', path: '/transportation/fuel-stations', requireTransportationLevel: 2 },
       { label: 'DOT Physicals',    icon: '📄', path: '/transportation/dot-physicals',    requireTransportationLevel: 2 },
       { label: "Driver's Licenses", icon: '🪪', path: '/transportation/driver-licenses', requireTransportationLevel: 2 },
+      { label: 'MVR Records',      icon: '📝', path: '/transportation/mvr-records',      requireTransportationLevel: 2 },
       { label: 'Reports',          icon: '📊', path: '/transportation/reports',          requireTransportationLevel: 2 },
       { label: 'Settings', icon: '⚙️', path: '/transportation/settings', requireTransportationLevel: 3 },
     ],

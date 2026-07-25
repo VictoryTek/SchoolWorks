@@ -216,6 +216,8 @@ export interface TransportationSettings {
   dotNotificationsEnabled:            boolean;
   driverLicenseReminderDays:          number[];
   driverLicenseNotificationsEnabled:  boolean;
+  mvrReminderDays:                    number[];
+  mvrNotificationsEnabled:            boolean;
   monthlyFuelReportEnabled:           boolean;
   monthlyFuelReportDay:          number;
   gasFuelThresholdEnabled:       boolean;
@@ -342,6 +344,53 @@ export interface UpdateDriverLicensePayload {
   expirationDate?: string;
   licenseNumber?:  string | null;
   licenseState?:   string | null;
+  notes?:          string | null;
+}
+
+// ---------------------------------------------------------------------------
+// MVR Record
+// ---------------------------------------------------------------------------
+
+export type MvrRecordStatus = 'active' | 'expiring_soon' | 'expired';
+
+export const MVR_STATUS_LABELS: Record<MvrRecordStatus, string> = {
+  active:        'Active',
+  expiring_soon: 'Expiring Soon',
+  expired:       'Expired',
+};
+
+export const MVR_STATUS_COLORS: Record<MvrRecordStatus, 'success' | 'warning' | 'error'> = {
+  active:        'success',
+  expiring_soon: 'warning',
+  expired:       'error',
+};
+
+export interface MvrRecord {
+  id:             string;
+  userId:         string;
+  pullDate:       string;
+  expirationDate: string;
+  isActive:       boolean;
+  remindersSent:  number[];
+  notes?:         string | null;
+  createdById:    string;
+  createdAt:      string;
+  updatedAt:      string;
+  driver?:        { id: string; firstName: string; lastName: string; email: string; displayName?: string | null };
+  createdBy?:     { id: string; firstName: string; lastName: string; displayName?: string | null };
+  status?:        MvrRecordStatus;
+}
+
+export interface CreateMvrRecordPayload {
+  userId:         string;
+  pullDate:       string;
+  expirationDate: string;
+  notes?:         string;
+}
+
+export interface UpdateMvrRecordPayload {
+  pullDate?:       string;
+  expirationDate?: string;
   notes?:          string | null;
 }
 

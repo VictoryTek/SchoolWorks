@@ -301,6 +301,8 @@ export const UpdateTransportationSettingsSchema = z.object({
   gasFuelThresholdGallons:            z.number().positive().max(99999.99).optional().nullable(),
   driverLicenseReminderDays:          z.array(z.number().int().min(1).max(365)).max(10).optional(),
   driverLicenseNotificationsEnabled:  z.boolean().optional(),
+  mvrReminderDays:                    z.array(z.number().int().min(1).max(365)).max(10).optional(),
+  mvrNotificationsEnabled:            z.boolean().optional(),
 });
 
 // ---------------------------------------------------------------------------
@@ -341,6 +343,50 @@ export const ListDriverLicensesQuerySchema = z.object({
 export type ListDriverLicensesQueryDto = z.infer<typeof ListDriverLicensesQuerySchema>;
 
 export type UpdateTransportationSettingsDto = z.infer<typeof UpdateTransportationSettingsSchema>;
+
+// ---------------------------------------------------------------------------
+// MVR Records
+// ---------------------------------------------------------------------------
+
+export const CreateMvrRecordSchema = z.object({
+  userId:         z.string().uuid('Invalid user ID'),
+  pullDate:       DATE_STRING,
+  expirationDate: DATE_STRING,
+  notes:          z.string().max(5000).optional().nullable(),
+}).refine(
+  (data) => new Date(data.expirationDate) > new Date(data.pullDate),
+  { message: 'Expiration date must be after pull date', path: ['expirationDate'] },
+);
+
+export type CreateMvrRecordDto = z.infer<typeof CreateMvrRecordSchema>;
+
+export const UpdateMvrRecordSchema = z.object({
+  pullDate:       DATE_STRING.optional(),
+  expirationDate: DATE_STRING.optional(),
+  isActive:       z.boolean().optional(),
+  notes:          z.string().max(5000).optional().nullable(),
+}).refine(
+  (data) => {
+    if (data.expirationDate && data.pullDate) {
+      return new Date(data.expirationDate) > new Date(data.pullDate);
+    }
+    return true;
+  },
+  { message: 'Expiration date must be after pull date', path: ['expirationDate'] },
+);
+
+export type UpdateMvrRecordDto = z.infer<typeof UpdateMvrRecordSchema>;
+
+export const ListMvrRecordsQuerySchema = z.object({
+  userId:             z.string().uuid().optional(),
+  isActive:           z.string().optional().transform(v => v === undefined ? undefined : v === 'true'),
+  status:             z.enum(['active', 'expiring_soon', 'expired']).optional(),
+  expiringWithinDays: z.coerce.number().int().positive().optional(),
+  page:               z.string().optional().transform(v => (v ? parseInt(v, 10) : 1)),
+  limit:              z.string().optional().transform(v => (v ? Math.min(parseInt(v, 10), 100) : 25)),
+});
+
+export type ListMvrRecordsQueryDto = z.infer<typeof ListMvrRecordsQuerySchema>;
 
 // ---------------------------------------------------------------------------
 // Reports

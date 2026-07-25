@@ -24,6 +24,9 @@ import type {
   FuelType,
   DriverLicense,
   UpdateDriverLicensePayload,
+  MvrRecord,
+  CreateMvrRecordPayload,
+  UpdateMvrRecordPayload,
   FuelTank,
   FuelTankDelivery,
   TankFuelType,
@@ -365,6 +368,8 @@ export const transportationSettingsApi = {
     dotNotificationsEnabled: boolean;
     driverLicenseReminderDays: number[];
     driverLicenseNotificationsEnabled: boolean;
+    mvrReminderDays: number[];
+    mvrNotificationsEnabled: boolean;
     monthlyFuelReportEnabled: boolean;
     monthlyFuelReportDay: number;
     gasFuelThresholdEnabled: boolean;
@@ -435,6 +440,47 @@ export const driverLicenseApi = {
     const contentType = (res.headers['content-type'] as string | undefined) ?? 'image/jpeg';
     const url = URL.createObjectURL(res.data);
     return { url, contentType };
+  },
+};
+
+// ---------------------------------------------------------------------------
+// MVR Records
+// ---------------------------------------------------------------------------
+
+export const mvrRecordApi = {
+  getAll: async (params?: {
+    userId?: string;
+    isActive?: boolean;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<MvrRecord>> => {
+    const res = await api.get<PaginatedResponse<MvrRecord>>('/mvr-records', { params });
+    return res.data;
+  },
+
+  getByDriver: async (userId: string): Promise<MvrRecord[]> => {
+    const res = await api.get<MvrRecord[]>(`/mvr-records/driver/${userId}`);
+    return res.data;
+  },
+
+  getById: async (id: string): Promise<MvrRecord> => {
+    const res = await api.get<MvrRecord>(`/mvr-records/${id}`);
+    return res.data;
+  },
+
+  create: async (payload: CreateMvrRecordPayload): Promise<MvrRecord> => {
+    const res = await api.post<MvrRecord>('/mvr-records', payload);
+    return res.data;
+  },
+
+  update: async (id: string, payload: UpdateMvrRecordPayload): Promise<MvrRecord> => {
+    const res = await api.put<MvrRecord>(`/mvr-records/${id}`, payload);
+    return res.data;
+  },
+
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/mvr-records/${id}`);
   },
 };
 

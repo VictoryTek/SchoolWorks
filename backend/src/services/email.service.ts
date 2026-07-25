@@ -1424,6 +1424,74 @@ export async function sendDriverLicenseExpiredEmail(params: {
 }
 
 /**
+ * Send an MVR (Motor Vehicle Record) renewal reminder to the driver (and CC secretary).
+ */
+export async function sendMvrReminderEmail(params: {
+  driver: { email: string; displayName: string };
+  daysRemaining: number;
+  expirationDate: Date;
+  record: { id: string };
+  secretaryEmails: string[];
+}): Promise<void> {
+  const { driver, daysRemaining, expirationDate, record, secretaryEmails } = params;
+  const expStr = expirationDate.toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+  const urgencyColor = daysRemaining <= 7 ? '#C62828' : daysRemaining <= 14 ? '#E65100' : '#F57F17';
+
+  const html = `
+    <h2 style="color:${urgencyColor};">MVR Renewal Reminder</h2>
+    <p>Hello <strong>${escapeHtml(driver.displayName)}</strong>,</p>
+    <p>Your Motor Vehicle Record (MVR) is due for renewal soon.</p>
+    <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+      <tr><td style="padding:4px 8px;font-weight:bold;">Due Date:</td>
+          <td style="padding:4px 8px;color:${urgencyColor};font-weight:bold;">${expStr}</td></tr>
+      <tr><td style="padding:4px 8px;font-weight:bold;">Days Remaining:</td>
+          <td style="padding:4px 8px;color:${urgencyColor};font-weight:bold;">${daysRemaining} day${daysRemaining !== 1 ? 's' : ''}</td></tr>
+    </table>
+    <p style="margin-top:16px;">Please obtain an updated MVR and provide it to Transportation as soon as possible.</p>
+    <p style="color:#666;font-size:12px;margin-top:24px;">This is an automated reminder from the Transportation Management System.</p>
+  `;
+
+  const recipients = [driver.email, ...secretaryEmails].filter(Boolean);
+  await sendMail({
+    to: recipients,
+    subject: `MVR Renewal Due in ${daysRemaining} Day${daysRemaining !== 1 ? 's' : ''} — ${driver.displayName}`,
+    html,
+    context: 'mvr_reminder',
+    relatedEntityId: record.id,
+  });
+}
+
+/**
+ * Send an MVR renewal-overdue notice to the driver (and CC secretary).
+ */
+export async function sendMvrExpiredEmail(params: {
+  driver: { email: string; displayName: string };
+  record: { id: string };
+  secretaryEmails: string[];
+}): Promise<void> {
+  const { driver, record, secretaryEmails } = params;
+
+  const html = `
+    <h2 style="color:#C62828;">MVR Renewal Overdue</h2>
+    <p>Hello <strong>${escapeHtml(driver.displayName)}</strong>,</p>
+    <p>Your Motor Vehicle Record (MVR) is <strong>overdue</strong> for its annual renewal.</p>
+    <p style="margin-top:16px;color:#C62828;font-weight:bold;">Please obtain an updated MVR immediately and provide it to Transportation.</p>
+    <p style="color:#666;font-size:12px;margin-top:24px;">This is an automated notice from the Transportation Management System.</p>
+  `;
+
+  const recipients = [driver.email, ...secretaryEmails].filter(Boolean);
+  await sendMail({
+    to: recipients,
+    subject: `URGENT: MVR Renewal Overdue — ${driver.displayName}`,
+    html,
+    context: 'mvr_expired',
+    relatedEntityId: record.id,
+  });
+}
+
+/**
  * Send the monthly fuel consumption report to Finance Director.
  */
 export async function sendMonthlyFuelReportEmail(params: {

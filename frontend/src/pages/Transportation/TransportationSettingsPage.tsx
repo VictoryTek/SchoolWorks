@@ -64,6 +64,8 @@ export default function TransportationSettingsPage() {
   const [reminderDays, setReminderDays]           = useState('60,30,14,7');
   const [licenseEnabled, setLicenseEnabled]       = useState(true);
   const [licenseReminderDays, setLicenseReminderDays] = useState('60,30,14,7');
+  const [mvrEnabled, setMvrEnabled]               = useState(true);
+  const [mvrReminderDays, setMvrReminderDays]     = useState('60,30,14,7');
   const [monthlyEnabled, setMonthlyEnabled]       = useState(true);
   const [monthlyDay, setMonthlyDay]               = useState('1');
   const [thresholdEnabled, setThresholdEnabled]   = useState(false);
@@ -80,6 +82,8 @@ export default function TransportationSettingsPage() {
       setReminderDays((settings.dotPhysicalReminderDays ?? []).join(', '));
       setLicenseEnabled(settings.driverLicenseNotificationsEnabled);
       setLicenseReminderDays((settings.driverLicenseReminderDays ?? []).join(', '));
+      setMvrEnabled(settings.mvrNotificationsEnabled);
+      setMvrReminderDays((settings.mvrReminderDays ?? []).join(', '));
       setMonthlyEnabled(settings.monthlyFuelReportEnabled);
       setMonthlyDay(settings.monthlyFuelReportDay?.toString() ?? '1');
       setThresholdEnabled(settings.gasFuelThresholdEnabled);
@@ -122,6 +126,12 @@ export default function TransportationSettingsPage() {
       .map((d) => parseInt(d.trim(), 10))
       .filter((d) => !isNaN(d) && d > 0);
 
+    // Parse MVR reminder days
+    const mvrDays = mvrReminderDays
+      .split(/[,\s]/)
+      .map((d) => parseInt(d.trim(), 10))
+      .filter((d) => !isNaN(d) && d > 0);
+
     const day = parseInt(monthlyDay, 10);
     if (isNaN(day) || day < 1 || day > 28) {
       setSaveError('Report day must be between 1 and 28.');
@@ -136,6 +146,8 @@ export default function TransportationSettingsPage() {
       dotPhysicalReminderDays:            days,
       driverLicenseNotificationsEnabled:  licenseEnabled,
       driverLicenseReminderDays:          licenseDays,
+      mvrNotificationsEnabled:            mvrEnabled,
+      mvrReminderDays:                    mvrDays,
       monthlyFuelReportEnabled:           monthlyEnabled,
       monthlyFuelReportDay:          day,
       gasFuelThresholdEnabled:       thresholdEnabled,
@@ -326,6 +338,43 @@ export default function TransportationSettingsPage() {
                 onChange={(e) => setLicenseReminderDays(e.target.value)}
                 helperText="Comma-separated days before expiration to send a reminder email (e.g., 60, 30, 14, 7). Notifies both the driver and transportation secretary."
                 disabled={!licenseEnabled}
+              />
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* MVR Reminders */}
+        <Grid size={{ xs: 12 }}>
+          <Card>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                <Typography variant="h6" fontWeight="bold">MVR Reminders</Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={mvrEnabled}
+                      onChange={(e) => setMvrEnabled(e.target.checked)}
+                    />
+                  }
+                  label={mvrEnabled ? 'Enabled' : 'Disabled'}
+                  sx={{ whiteSpace: 'nowrap' }}
+                />
+              </Box>
+
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  Reminder emails are sent to both the driver and the transportation secretary on each configured day before the MVR's annual expiration, same as Driver License reminders. A separate overdue notice is sent on the day it expires.
+                </Typography>
+              </Alert>
+
+              <TextField
+                label="Reminder Days Before Expiration"
+                fullWidth
+                size="small"
+                value={mvrReminderDays}
+                onChange={(e) => setMvrReminderDays(e.target.value)}
+                helperText="Comma-separated days before expiration to send a reminder email (e.g., 60, 30, 14, 7). Notifies both the driver and transportation secretary."
+                disabled={!mvrEnabled}
               />
             </CardContent>
           </Card>

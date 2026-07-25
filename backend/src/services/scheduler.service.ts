@@ -10,10 +10,11 @@ import { UserSyncService } from './userSync.service';
 import { TransportationReportService } from './transportationReport.service';
 import { DotPhysicalService } from './dotPhysical.service';
 import { DriverLicenseService } from './driverLicense.service';
+import { MvrRecordService } from './mvrRecord.service';
 import { runProvisioningJob } from './userProvision.service';
 import { sendProvisioningReport } from './email.service';
 
-type JobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'transportation-dot-reminders' | 'transportation-monthly-report' | 'transportation-license-reminders' | 'provisioning-sync' | 'provisioning-sync-staff' | 'provisioning-sync-students' | 'provisioning-audit-cleanup';
+type JobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'transportation-dot-reminders' | 'transportation-monthly-report' | 'transportation-license-reminders' | 'transportation-mvr-reminders' | 'provisioning-sync' | 'provisioning-sync-staff' | 'provisioning-sync-students' | 'provisioning-audit-cleanup';
 
 const VALID_JOB_KEYS: JobKey[] = [
   'sync-staff',
@@ -23,6 +24,7 @@ const VALID_JOB_KEYS: JobKey[] = [
   'transportation-dot-reminders',
   'transportation-monthly-report',
   'transportation-license-reminders',
+  'transportation-mvr-reminders',
   'provisioning-sync',
   'provisioning-sync-staff',
   'provisioning-sync-students',
@@ -39,6 +41,7 @@ const DEFAULT_CRON: Record<JobKey, string> = {
   'transportation-dot-reminders':  '0 7 * * *',
   'transportation-monthly-report': '0 6 1 * *',
   'transportation-license-reminders': '0 7 * * 1',
+  'transportation-mvr-reminders':  '0 7 * * 2',
   'provisioning-sync':             '0 */2 * * *',
   'provisioning-sync-staff':       '0 3 * * *',
   'provisioning-sync-students':    '0 3 * * *',
@@ -284,6 +287,10 @@ class SchedulerService {
       case 'transportation-license-reminders': {
         const svc = new DriverLicenseService(prisma);
         return (await svc.runLicenseReminderJob()) as unknown as Record<string, unknown>;
+      }
+      case 'transportation-mvr-reminders': {
+        const svc = new MvrRecordService(prisma);
+        return (await svc.runMvrReminderJob()) as unknown as Record<string, unknown>;
       }
       case 'provisioning-sync': {
         const cfg = await prisma.provisioningConfig.findUnique({ where: { id: 'singleton' } });

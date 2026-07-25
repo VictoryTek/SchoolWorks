@@ -10,6 +10,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Added charger assignment to Bulk Checkout and Quick Check, allowing users to assign chargers to multiple devices at once.',
       'Bulk Checkout and Quick Check now ask "Will a charger be assigned to these devices?" with clear Yes/No buttons instead of a checkbox, making the charger assignment step easier to notice.',
       'Added Room Check Out under Device Management: select a school and room, then scan or type each device\'s tag number to check it into that room. Unrecognized tags can be added to inventory on the spot.',
+      'Added MVR Records under Fleet Management: track each driver\'s Motor Vehicle Record pull date, with the expiration date auto-filled one year out and editable reminder emails before renewal is due.',
     ],
   },
   {
