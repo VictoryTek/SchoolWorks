@@ -238,9 +238,10 @@ export default function CheckoutPage() {
   const rows = (data?.items ?? []).filter((r) => {
     if (!search) return true;
     const q = search.toLowerCase();
-    const name = [r.user?.firstName, r.user?.lastName].filter(Boolean).join(' ').toLowerCase();
-    const tag  = r.equipment?.assetTag?.toLowerCase() ?? '';
-    return name.includes(q) || tag.includes(q);
+    const name    = [r.user?.firstName, r.user?.lastName].filter(Boolean).join(' ').toLowerCase();
+    const tag     = r.equipment?.assetTag?.toLowerCase() ?? '';
+    const charger = r.chargerAssignment?.charger.serialNumber?.toLowerCase() ?? '';
+    return name.includes(q) || tag.includes(q) || charger.includes(q);
   });
 
   return (
@@ -268,7 +269,7 @@ export default function CheckoutPage() {
             onSearchChange={(v) => { setSearch(v); setPage(0); }}
             filterCount={activeFilterCount}
             onOpenFilters={() => setFilterDrawerOpen(!filterDrawerOpen)}
-            searchPlaceholder="Search by name or asset tag…"
+            searchPlaceholder="Search by name, asset tag, or charger serial…"
           />
           {filterDrawerOpen && (
             <Paper sx={{ p: 2, mt: 1 }}>
@@ -302,7 +303,7 @@ export default function CheckoutPage() {
       ) : (
         <Paper sx={{ p: 1.5, mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
           <TextField
-            label="Search by name or asset tag"
+            label="Search by name, asset tag, or charger serial"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
             size="small"
