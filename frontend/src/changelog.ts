@@ -5,6 +5,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.1',
+    changes: [
+      'Fixed Sync Staff Users and Sync Student Users not deactivating accounts that were disabled in Microsoft Entra.',
+      'Fixed student Grade not appearing on the Users page after syncing.',
+      'Fixed the staff/student directory sync failing for an account when Microsoft 365 reissues a new account ID for the same person (e.g. after an account is deleted and recreated).',
+      'Fixed the SIS import occasionally creating a second Entra account for an employee instead of recognizing the account it already created.',
+    ],
+  },
+  {
     version: '1.6.0',
     changes: [
       'Added charger assignment to Bulk Checkout and Quick Check, allowing users to assign chargers to multiple devices at once.',

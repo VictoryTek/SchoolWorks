@@ -401,7 +401,7 @@ export class UserSyncService {
       // Fetch user from Graph API with multiple location-related fields
       const graphUser = await this.graphClient
         .api(`/users/${entraId}`)
-        .select('id,displayName,givenName,surname,mail,userPrincipalName,jobTitle,department,officeLocation,physicalDeliveryOfficeName,usageLocation,accountEnabled,employeeId,onPremisesExtensionAttributes')
+        .select('id,displayName,givenName,surname,mail,userPrincipalName,jobTitle,department,officeLocation,physicalDeliveryOfficeName,usageLocation,accountEnabled,employeeId')
         .get();
 
       // Log location fields for debugging
@@ -434,9 +434,10 @@ export class UserSyncService {
         permissionCount: permissions.length,
       });
 
-      // Extract grade level from extension attributes (students only; null for staff)
+      // Grade level is provisioned into the `department` field as "Grade {grade}"
+      // (see userProvision.service.ts) — students only; staff never have this field set.
       const gradeLevel: string | null =
-        graphUser.onPremisesExtensionAttributes?.extensionAttribute2 ?? null;
+        graphUser.department?.replace(/^Grade\s+/i, '') || null;
 
       // Try multiple fields for office location (some orgs use physicalDeliveryOfficeName instead)
       const rawLocation = graphUser.officeLocation || graphUser.physicalDeliveryOfficeName || null;
@@ -452,39 +453,66 @@ export class UserSyncService {
         mappedLocation: officeLocation,
       });
 
-      // Upsert user
-      const user = await this.prisma.user.upsert({
-        where: { entraId },
-        update: {
-          email,
-          displayName: graphUser.displayName,
-          firstName: graphUser.givenName,
-          lastName: graphUser.surname,
-          jobTitle: graphUser.jobTitle,
-          department: graphUser.department,
-          officeLocation,
-          employeeId: graphUser.employeeId ?? null,
-          gradeLevel,
-          role, // With simplified 2-role system (ADMIN/USER), role always syncs from Entra groups.
-          isActive: graphUser.accountEnabled ?? true,
-          lastSync: new Date(),
-        },
-        create: {
-          entraId,
-          email,
-          displayName: graphUser.displayName,
-          firstName: graphUser.givenName,
-          lastName: graphUser.surname,
-          jobTitle: graphUser.jobTitle,
-          department: graphUser.department,
-          officeLocation,
-          employeeId: graphUser.employeeId ?? null,
-          gradeLevel,
-          role,
-          isActive: graphUser.accountEnabled ?? true,
-          lastSync: new Date(),
-        },
-      });
+      const fields = {
+        email,
+        displayName: graphUser.displayName,
+        firstName: graphUser.givenName,
+        lastName: graphUser.surname,
+        jobTitle: graphUser.jobTitle,
+        department: graphUser.department,
+        officeLocation,
+        employeeId: graphUser.employeeId ?? null,
+        gradeLevel,
+        role, // With simplified 2-role system (ADMIN/USER), role always syncs from Entra groups.
+        isActive: graphUser.accountEnabled ?? true,
+        lastSync: new Date(),
+      };
+
+      let user: User;
+      try {
+        user = await this.prisma.user.upsert({
+          where: { entraId },
+          update: fields,
+          create: { entraId, ...fields },
+        });
+      } catch (error: any) {
+        // Entra sometimes reissues a brand-new object id for an existing identity
+        // (account deleted + recreated, rather than re-enabled) — same UPN/email and
+        // employeeId, different entraId. The upsert above is keyed on entraId, so it
+        // attempts an INSERT that collides with the old row's unique email. When the
+        // colliding row's employeeId matches this Graph user's employeeId, it's safe
+        // to treat this as "this identity's Entra object was reissued" and re-point
+        // the existing local row to the new entraId rather than failing outright.
+        //
+        // Prisma 7's driver-adapter errors don't populate the classic `meta.target`
+        // array — the offending constraint's fields live at
+        // meta.driverAdapterError.cause.constraint.fields instead (confirmed against
+        // this project's Postgres driver adapter). Check both shapes so this keeps
+        // working if the error format changes again.
+        const conflictFields: unknown =
+          error?.meta?.target ?? error?.meta?.driverAdapterError?.cause?.constraint?.fields;
+        const isEmailConflict =
+          error?.code === 'P2002' && Array.isArray(conflictFields) && conflictFields.includes('email');
+
+        if (isEmailConflict) {
+          const existingByEmail = await this.prisma.user.findUnique({ where: { email } });
+          if (existingByEmail && existingByEmail.employeeId && existingByEmail.employeeId === (graphUser.employeeId ?? null)) {
+            loggers.userSync.warn('User sync: reissued Entra object detected — re-pointing existing row to new entraId', {
+              oldEntraId: redactEntraId(existingByEmail.entraId ?? ''),
+              newEntraId: redactEntraId(entraId),
+              employeeId: existingByEmail.employeeId,
+            });
+            user = await this.prisma.user.update({
+              where: { id: existingByEmail.id },
+              data: { entraId, ...fields },
+            });
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
 
       loggers.userSync.info('User sync completed', {
         entraId: redactEntraId(entraId),
@@ -581,6 +609,18 @@ export class UserSyncService {
       }
     }
 
+    // Deactivate local users no longer enabled in Entra. NOTE: this intentionally does
+    // NOT diff against this group's own membership list — groups like All-Staff/
+    // All-Students are dynamically evaluated by Entra and silently drop disabled
+    // accounts from their membership the moment they're disabled, so a disabled user
+    // never appears in `members` at all (confirmed: a manually-disabled test account
+    // vanished from /groups/{id}/members entirely rather than showing up with
+    // accountEnabled: false). Comparing only within the group snapshot can never catch
+    // that. Instead this mirrors syncAllUsers()'s proven approach: fetch the org's
+    // actual enabled-user set directly and deactivate any local user missing from it.
+    const activeEntraIds = await this.fetchAllEnabledEntraIds();
+    const deactivated = await this.deactivateUsersNotIn(activeEntraIds, `group sync (${groupId})`);
+
     const durationMs = Date.now() - startTime;
     loggers.userSync.info('Group sync completed', {
       groupId,
@@ -588,6 +628,7 @@ export class UserSyncService {
       added,
       updated,
       errors,
+      deactivated,
       duration: durationMs,
     });
 
@@ -595,7 +636,7 @@ export class UserSyncService {
       added,
       updated,
       errors,
-      deactivated: 0,
+      deactivated,
       totalProcessed: added + updated + errors,
       durationMs,
       errorDetails,
@@ -609,26 +650,10 @@ export class UserSyncService {
     const startTime = Date.now();
     loggers.userSync.info('Starting full user sync');
 
-    // Fetch all enabled users with pagination.
-    // $filter=accountEnabled eq true is an advanced filter requiring ConsistencyLevel: eventual
-    // and $count=true per Microsoft Graph documentation.
-    let allUsers: any[] = [];
-    let nextLink = '/users?$select=id&$filter=accountEnabled eq true&$count=true';
-    
-    while (nextLink) {
-      const response = await this.graphClient
-        .api(nextLink)
-        .header('ConsistencyLevel', 'eventual')
-        .get();
-      allUsers = allUsers.concat(response.value);
-      nextLink = response['@odata.nextLink'] ? response['@odata.nextLink'].split('/v1.0')[1] : null;
-      loggers.userSync.debug('Fetching users in progress', {
-        usersFetched: allUsers.length,
-      });
-    }
+    const activeEntraIds = await this.fetchAllEnabledEntraIds();
 
     loggers.userSync.info('All users retrieved', {
-      totalUsers: allUsers.length,
+      totalUsers: activeEntraIds.length,
     });
 
     // Pre-fetch existing entraIds to distinguish adds from updates
@@ -644,9 +669,9 @@ export class UserSyncService {
 
     const CONCURRENCY_LIMIT = 10;
 
-    const tasks = allUsers.map((user) => async () => {
-      const isNew = !existingEntraIds.has(user.id);
-      await this.syncUser(user.id);
+    const tasks = activeEntraIds.map((entraId) => async () => {
+      const isNew = !existingEntraIds.has(entraId);
+      await this.syncUser(entraId);
       return isNew ? 'added' : 'updated';
     });
 
@@ -660,45 +685,22 @@ export class UserSyncService {
         errors++;
         if (errorDetails.length < 20) {
           errorDetails.push({
-            entraId: redactEntraId(allUsers[i].id),
+            entraId: redactEntraId(activeEntraIds[i]),
             message: result.reason instanceof Error ? result.reason.message : String(result.reason),
           });
         }
         loggers.userSync.error('Failed to sync user in bulk operation', {
-          userId: redactEntraId(allUsers[i].id),
+          userId: redactEntraId(activeEntraIds[i]),
           error: result.reason,
         });
       }
     }
 
-    // Deactivate DB users whose entraId was NOT in the active Entra list.
-    // Safety guard: only run when the active list is non-empty (prevents mass deactivation
-    // if Graph returns empty due to a transient API error).
-    let deactivated = 0;
-    const activeEntraIds: string[] = allUsers.map((u) => u.id as string);
-    if (activeEntraIds.length > 0) {
-      try {
-        const deactivatedResult = await this.prisma.user.updateMany({
-          where: {
-            entraId: { notIn: activeEntraIds },
-            isActive: true,
-          },
-          data: { isActive: false },
-        });
-        deactivated = deactivatedResult.count;
-        if (deactivated > 0) {
-          loggers.userSync.info('Deactivated users not present in Entra active list', {
-            deactivatedCount: deactivated,
-          });
-        }
-      } catch (error) {
-        loggers.userSync.error('Failed to deactivate stale users — DB may have ghost active records', { error });
-      }
-    }
+    const deactivated = await this.deactivateUsersNotIn(activeEntraIds, 'full sync');
 
     const durationMs = Date.now() - startTime;
     loggers.userSync.info('Full user sync completed', {
-      totalUsers: allUsers.length,
+      totalUsers: activeEntraIds.length,
       added,
       updated,
       errors,
@@ -711,10 +713,63 @@ export class UserSyncService {
       updated,
       errors,
       deactivated,
-      totalProcessed: allUsers.length,
+      totalProcessed: activeEntraIds.length,
       durationMs,
       errorDetails,
     };
+  }
+
+  /**
+   * Fetch the ids of all currently-enabled users org-wide. $filter=accountEnabled eq
+   * true is an advanced filter requiring ConsistencyLevel: eventual and $count=true
+   * per Microsoft Graph documentation.
+   */
+  private async fetchAllEnabledEntraIds(): Promise<string[]> {
+    const ids: string[] = [];
+    let nextLink: string | null = '/users?$select=id&$filter=accountEnabled eq true&$count=true';
+
+    while (nextLink) {
+      const response = await this.graphClient
+        .api(nextLink)
+        .header('ConsistencyLevel', 'eventual')
+        .get();
+      ids.push(...response.value.map((u: { id: string }) => u.id));
+      nextLink = response['@odata.nextLink'] ? response['@odata.nextLink'].split('/v1.0')[1] : null;
+      loggers.userSync.debug('Fetching enabled users in progress', {
+        usersFetched: ids.length,
+      });
+    }
+
+    return ids;
+  }
+
+  /**
+   * Deactivate local users whose entraId is not in the given active-id list.
+   * Safety guard: only runs when the active list is non-empty (prevents mass
+   * deactivation if Graph returns empty due to a transient API error).
+   */
+  private async deactivateUsersNotIn(activeEntraIds: string[], context: string): Promise<number> {
+    if (activeEntraIds.length === 0) return 0;
+
+    try {
+      const deactivatedResult = await this.prisma.user.updateMany({
+        where: {
+          entraId: { notIn: activeEntraIds },
+          isActive: true,
+        },
+        data: { isActive: false },
+      });
+      if (deactivatedResult.count > 0) {
+        loggers.userSync.info('Deactivated users not present in Entra active list', {
+          context,
+          deactivatedCount: deactivatedResult.count,
+        });
+      }
+      return deactivatedResult.count;
+    } catch (error) {
+      loggers.userSync.error('Failed to deactivate stale users — DB may have ghost active records', { context, error });
+      return 0;
+    }
   }
 
   /**

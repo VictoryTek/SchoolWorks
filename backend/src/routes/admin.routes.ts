@@ -137,7 +137,7 @@ router.post('/sync-users/staff', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: `Synced ${result.added + result.updated} staff members (${result.added} added, ${result.updated} updated, ${result.errors} errors)`,
+      message: `Synced ${result.added + result.updated} staff members (${result.added} added, ${result.updated} updated, ${result.errors} errors, ${result.deactivated} deactivated)`,
       count: result.added + result.updated,
       detail: result,
     });
@@ -168,7 +168,7 @@ router.post('/sync-users/students', async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      message: `Synced ${result.added + result.updated} students (${result.added} added, ${result.updated} updated, ${result.errors} errors)`,
+      message: `Synced ${result.added + result.updated} students (${result.added} added, ${result.updated} updated, ${result.errors} errors, ${result.deactivated} deactivated)`,
       count: result.added + result.updated,
       detail: result,
     });

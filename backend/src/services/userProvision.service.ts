@@ -323,6 +323,28 @@ async function fetchEntraUsersByUpnDomain(domain: string, client: Client): Promi
   return users;
 }
 
+/**
+ * Targeted, just-in-time re-check for an existing Entra account with the given
+ * employeeId, run immediately before Pass 2 creates a new account. The bulk
+ * entraByEmployeeId snapshot fetched at the top of runForType() has been observed to
+ * miss accounts that were created on a prior run (Azure AD's eventually-consistent
+ * search index backing endsWith()/$count queries), which caused duplicate accounts to
+ * be created for the same employeeId on repeated runs. This narrows that staleness
+ * window from "one full run" to a single fresh lookup right before the POST.
+ */
+async function findExistingAccountByEmployeeId(
+  empId: string,
+  client: Client,
+): Promise<{ id: string; userPrincipalName: string } | null> {
+  const escapedEmpId = empId.replace(/'/g, "''");
+  const response: { value: Array<{ id: string; userPrincipalName: string }> } = await client
+    .api(`/users?$filter=employeeId eq '${escapedEmpId}'&$select=id,userPrincipalName`)
+    .header('ConsistencyLevel', 'eventual')
+    .get();
+
+  return response.value[0] ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Concurrency helper
 // ---------------------------------------------------------------------------
@@ -738,6 +760,25 @@ async function runForType(
     createTasks.push(async () => {
       let upn = '';
       try {
+        // Final safety check: re-verify against Entra directly (not the bulk snapshot)
+        // immediately before creating, since the snapshot has been observed to miss
+        // accounts created on a prior run and duplicate them. Skipped in test mode —
+        // no account should exist yet to find, and DRY_RUN runs shouldn't make live
+        // Graph calls beyond what they already do.
+        if (!testMode) {
+          const existing = await findExistingAccountByEmployeeId(empId, client);
+          if (existing) {
+            loggers.server.warn('Provisioning: skipped CREATE — account already exists for employeeId', {
+              employeeId: empId, existingUpn: existing.userPrincipalName,
+            });
+            await writeAudit({
+              triggeredBy, userType: type, employeeId: empId, action: 'CREATE_SKIPPED_DUPLICATE',
+              details: { existingUpn: existing.userPrincipalName },
+            });
+            return;
+          }
+        }
+
         const initialPassword = type === 'STAFF' ? config.staffPassword : config.studentPassword;
         const mappedLocation  = mapOfficeLocation(sisRow.school);
 
