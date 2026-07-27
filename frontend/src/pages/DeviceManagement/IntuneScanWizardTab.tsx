@@ -26,6 +26,8 @@ import SearchIcon       from '@mui/icons-material/Search';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ClearAllIcon     from '@mui/icons-material/ClearAll';
 import PlayArrowIcon    from '@mui/icons-material/PlayArrow';
+import DriveFileRenameOutlineIcon from '@mui/icons-material/DriveFileRenameOutline';
+import VpnKeyIcon       from '@mui/icons-material/VpnKey';
 import { useMutation } from '@tanstack/react-query';
 import {
   INTUNE_ACTION_LABELS,
@@ -34,9 +36,13 @@ import {
   type BulkDeviceActionResponse,
   type DeviceActionResult,
   type IntuneDevicePreview,
+  type RenameDevicesResponse,
 } from '@mgspe/shared-types';
 import { intuneService } from '../../services/intuneService';
 import DeviceActionConfirmDialog from '../../components/DeviceActionConfirmDialog';
+import IntuneBitLockerDialog from '../../components/IntuneBitLockerDialog';
+import IntuneRenameDeviceDialog from '../../components/IntuneRenameDeviceDialog';
+import IntuneBulkRenameDialog from '../../components/IntuneBulkRenameDialog';
 import { useIsMobile } from '../../hooks/useResponsive';
 import { useAuthStore } from '../../store/authStore';
 import { ResponsiveTable } from '../../components/responsive';
@@ -213,6 +219,12 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
   const [resultsPage,       setResultsPage]       = useState(0);
   const [resultsRowsPerPage, setResultsRowsPerPage] = useState(25);
 
+  // Per-row BitLocker / Rename dialogs, launched directly from a scanned device's row —
+  // no need to look the device up again in a separate tab.
+  const [bitlockerDevice, setBitlockerDevice] = useState<IntuneDevicePreview | null>(null);
+  const [renameDevice,    setRenameDevice]    = useState<IntuneDevicePreview | null>(null);
+  const [bulkRenameOpen,  setBulkRenameOpen]  = useState(false);
+
   // Derived
   const foundDevices  = scannedEntries.filter((e) => e.status === 'found').map((e) => e.device!);
   const hasPending    = scannedEntries.some((e) => e.status === 'pending');
@@ -342,6 +354,44 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
     setScannedEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
+  /**
+   * Shared by both the per-device and bulk rename dialogs — both resolve to the same
+   * RenameDevicesResponse shape. Writes the same history entry the old standalone Rename tab
+   * wrote, then patches any affected row's displayName in place: the BitLocker lookup is keyed
+   * by device name, so a stale name here would send the wrong identifier to Graph next click.
+   */
+  const handleRenamed = (result: RenameDevicesResponse) => {
+    saveToHistory({
+      id:          result.logId,
+      timestamp:   new Date().toISOString(),
+      action:      'setDeviceName',
+      actionLabel: INTUNE_ACTION_LABELS.setDeviceName,
+      deviceCount: result.total,
+      succeeded:   result.succeeded,
+      failed:      result.failed,
+      partial:     0,
+      devices: result.results.map((r) => ({
+        intuneDeviceId:  r.intuneDeviceId ?? '',
+        displayName:     r.newDeviceName,
+        serialNumber:    r.serialNumber,
+        assetTag:        r.assetTag,
+        operatingSystem: null,
+      })),
+    });
+    setScannedEntries((prev) =>
+      prev.map((e) => {
+        if (!e.device?.intuneDeviceId) return e;
+        const renamed = result.results.find(
+          (r) => r.status === 'success' && r.intuneDeviceId === e.device!.intuneDeviceId,
+        );
+        return renamed
+          ? { ...e, device: { ...e.device, displayName: renamed.newDeviceName } }
+          : e;
+      }),
+    );
+    onActionComplete?.();
+  };
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
@@ -369,26 +419,35 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
             Maximum 50 devices.
           </Typography>
 
-          <TextField
-            size="small"
-            label="Scan or type device name"
-            value={scanInput}
-            onChange={(e) => setScanInput(e.target.value)}
-            onKeyDown={handleScanKeyDown}
-            onPaste={handleScanPaste}
-            autoFocus
-            disabled={scannedEntries.length >= 50}
-            sx={{ mb: 2, maxWidth: 480, display: 'block' }}
-            slotProps={{
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
+          <Stack direction="row" spacing={2} alignItems="flex-start" sx={{ mb: 2 }} flexWrap="wrap">
+            <TextField
+              size="small"
+              label="Scan or type device name"
+              value={scanInput}
+              onChange={(e) => setScanInput(e.target.value)}
+              onKeyDown={handleScanKeyDown}
+              onPaste={handleScanPaste}
+              autoFocus
+              disabled={scannedEntries.length >= 50}
+              sx={{ maxWidth: 480 }}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<DriveFileRenameOutlineIcon fontSize="small" />}
+              onClick={() => setBulkRenameOpen(true)}
+            >
+              Bulk Rename
+            </Button>
+          </Stack>
 
           {scannedEntries.length > 0 && (
             <>
@@ -450,7 +509,18 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
                     {
                       key: 'displayName',
                       label: 'Device Name',
-                      render: (entry) => entry.device?.displayName ?? (entry.status === 'pending' ? '' : '—'),
+                      render: (entry) => (
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <span>{entry.device?.displayName ?? (entry.status === 'pending' ? '' : '—')}</span>
+                          {entry.status === 'found' && entry.device?.intuneDeviceId && (
+                            <Tooltip title="Rename device">
+                              <IconButton size="small" onClick={() => setRenameDevice(entry.device!)}>
+                                <DriveFileRenameOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                        </Stack>
+                      ),
                     },
                     {
                       key: 'model',
@@ -472,9 +542,18 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
                   rows={scannedEntries}
                   getRowKey={(entry) => entry.id}
                   rowActions={(entry) => (
-                    <IconButton size="small" onClick={() => removeEntry(entry.id)}>
-                      <DeleteOutlineIcon fontSize="small" />
-                    </IconButton>
+                    <Stack direction="row" spacing={0.5} alignItems="center">
+                      {entry.status === 'found' && entry.device?.displayName && (
+                        <Tooltip title="BitLocker recovery key">
+                          <IconButton size="small" onClick={() => setBitlockerDevice(entry.device!)}>
+                            <VpnKeyIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <IconButton size="small" onClick={() => removeEntry(entry.id)}>
+                        <DeleteOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </Stack>
                   )}
                 />
               </Box>
@@ -746,6 +825,23 @@ export default function IntuneScanWizardTab({ initialLookupResult, initialAction
           isDryRun={isDryRun}
         />
       )}
+
+      <IntuneBitLockerDialog
+        open={!!bitlockerDevice}
+        deviceName={bitlockerDevice?.displayName ?? null}
+        onClose={() => setBitlockerDevice(null)}
+      />
+      <IntuneRenameDeviceDialog
+        open={!!renameDevice}
+        device={renameDevice}
+        onClose={() => setRenameDevice(null)}
+        onRenamed={(result) => { handleRenamed(result); setRenameDevice(null); }}
+      />
+      <IntuneBulkRenameDialog
+        open={bulkRenameOpen}
+        onClose={() => setBulkRenameOpen(false)}
+        onRenamed={(result) => { handleRenamed(result); setBulkRenameOpen(false); }}
+      />
     </Box>
   );
 }
