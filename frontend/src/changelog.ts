@@ -11,6 +11,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed student Grade not appearing on the Users page after syncing.',
       'Fixed the staff/student directory sync failing for an account when Microsoft 365 reissues a new account ID for the same person (e.g. after an account is deleted and recreated).',
       'Fixed the SIS import occasionally creating a second Entra account for an employee instead of recognizing the account it already created.',
+      "Consolidated the Intune Device Actions tabs so that Scan / Search by Name and the BitLocker recovery key are now on the same tab, and the BitLocker recovery key is easier to read.",
     ],
   },
   {
