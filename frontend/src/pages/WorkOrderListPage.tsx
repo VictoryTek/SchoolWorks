@@ -210,6 +210,9 @@ export default function WorkOrderListPage() {
     {
       key: 'officeLocation',
       label: 'Location',
+      // Outranks Work Order #/Status/Priority so the narrowest desktop layout
+      // still answers where the work order is.
+      priority: -3,
       render: (wo) =>
         locationFilter ? (
           <span>{wo.room?.name ?? '—'}</span>
@@ -223,6 +226,7 @@ export default function WorkOrderListPage() {
     {
       key: 'description',
       label: 'Description',
+      priority: -3,
       render: (wo) =>
         isMobile ? (
           <Box
@@ -253,6 +257,7 @@ export default function WorkOrderListPage() {
     {
       key: 'reportedBy',
       label: 'Submitted By',
+      priority: -3,
       render: (wo) => wo.reportedBy?.displayName ?? wo.reportedBy?.email ?? '—',
     },
     {

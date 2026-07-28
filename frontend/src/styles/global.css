@@ -355,7 +355,7 @@ body {
 }
 
 .table th {
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 0.875rem;
   text-align: left;
   font-size: 0.75rem;
   font-weight: 600;
@@ -366,9 +366,24 @@ body {
 }
 
 .table td {
-  padding: 1rem 1.5rem;
+  padding: 0.75rem 0.875rem;
   border-bottom: 1px solid var(--slate-200);
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* MUI tables outside ResponsiveTable (Provisioning, Intune Device Actions,
+   Line Items Editor, etc.) — same anti-overflow treatment as .table td,
+   without adopting the full column-drop behavior. */
+.MuiTableCell-root {
+  overflow-wrap: anywhere;
+}
+
+/* Same chip-label guard as .table td .MuiChip-label above, needed for the
+   same reason: MUI v7 chip labels inherit overflow-wrap from ancestors. */
+.MuiTableCell-root .MuiChip-label {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Prevent chip/badge label text from wrapping inside table cells */
@@ -607,6 +622,35 @@ body {
   width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive Table — expand row for columns dropped by the fit calculation */
+.table td.responsive-table__expand-row {
+  background-color: var(--slate-50);
+  padding: var(--spacing-md) 0.875rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--spacing-xs) var(--spacing-md);
+}
+
+.responsive-table__expand-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.responsive-table__expand-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--slate-400);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.responsive-table__expand-value {
+  font-size: 0.8125rem;
+  color: var(--slate-700);
+  overflow-wrap: anywhere;
 }
 
 /* Responsive Table — Loading / Empty states */

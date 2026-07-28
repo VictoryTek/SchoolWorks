@@ -5,9 +5,10 @@
  * Supports: column definitions with primary/secondary flags, row actions,
  * loading state, empty state, click handler, and sortable headers on desktop.
  */
-import { ReactNode, useState } from 'react';
+import { Fragment, ReactNode, useState } from 'react';
 import { CircularProgress } from '@mui/material';
 import { useIsMobile } from '../../hooks/useResponsive';
+import { useContainerWidth } from '../../hooks/useContainerWidth';
 import { MobileCard } from './MobileCard';
 
 export interface Column<T> {
@@ -26,6 +27,40 @@ export interface Column<T> {
   width?: string | number;
   /** Text alignment */
   align?: 'left' | 'center' | 'right';
+  /**
+   * Desktop column-drop priority — lower is kept longer when the table can't
+   * fit every column. Defaults to isPrimary (-2) / isSecondary (-1) /
+   * hideOnMobile (1000 + index) / array index, so pages that set nothing keep
+   * today's left-to-right, always-visible behavior.
+   */
+  priority?: number;
+  /** Minimum rendered width (px) used by the desktop fit calculation. */
+  minWidth?: number;
+}
+
+// Desktop column-fit heuristics — approximate, since header text is the only
+// signal available without a two-pass measure/layout render.
+const CHAR_WIDTH_PX = 8; // 0.75rem bold uppercase w/ 0.05em letter-spacing
+const HEADER_PADDING_PX = 28; // matches .table th horizontal padding (0.875rem * 2)
+const SORT_INDICATOR_PX = 18;
+const MIN_COLUMN_WIDTH_PX = 60;
+const ACTIONS_COLUMN_WIDTH_PX = 96;
+const EXPAND_COLUMN_WIDTH_PX = 44;
+
+function estimateMinWidth<T>(col: Column<T>): number {
+  if (col.minWidth != null) return col.minWidth;
+  const textLength = typeof col.label === 'string' ? col.label.length : 10;
+  const estimate =
+    textLength * CHAR_WIDTH_PX + HEADER_PADDING_PX + (col.sortable ? SORT_INDICATOR_PX : 0);
+  return Math.max(MIN_COLUMN_WIDTH_PX, estimate);
+}
+
+function getPriority<T>(col: Column<T>, index: number): number {
+  if (col.priority != null) return col.priority;
+  if (col.isPrimary) return -2;
+  if (col.isSecondary) return -1;
+  if (col.hideOnMobile) return 1000 + index;
+  return index;
 }
 
 export type SortDirection = 'asc' | 'desc';
@@ -66,9 +101,51 @@ export function ResponsiveTable<T>({
 }: ResponsiveTableProps<T>) {
   const isMobile = useIsMobile();
   const [internalSort, setInternalSort] = useState<SortState | undefined>(undefined);
+  const [containerRef, containerWidth] = useContainerWidth();
+  const [expandedKeys, setExpandedKeys] = useState<Set<string | number>>(new Set());
 
   const activeSort = sort ?? internalSort;
   const handleSort = onSortChange ?? setInternalSort;
+
+  const toggleExpanded = (key: string | number) => {
+    setExpandedKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  // Desktop column fit: drop lowest-priority columns until the rest fit the
+  // measured container width. `containerWidth === 0` means not yet measured
+  // (useContainerWidth's useLayoutEffect resolves this before paint) — show
+  // everything rather than guess.
+  const columnEntries = columns.map((col, index) => ({
+    index,
+    priority: getPriority(col, index),
+    min: estimateMinWidth(col),
+  }));
+  const actionsWidth = rowActions ? ACTIONS_COLUMN_WIDTH_PX : 0;
+  const budget = containerWidth - actionsWidth;
+  let required = columnEntries.reduce((sum, e) => sum + e.min, 0);
+  const hiddenIndices = new Set<number>();
+  if (containerWidth > 0 && required > budget) {
+    const budgetWithExpand = budget - EXPAND_COLUMN_WIDTH_PX;
+    const dropOrder = [...columnEntries].sort(
+      (a, b) => b.priority - a.priority || b.index - a.index
+    );
+    for (const entry of dropOrder) {
+      if (required <= budgetWithExpand) break;
+      if (hiddenIndices.size >= columnEntries.length - 1) break;
+      hiddenIndices.add(entry.index);
+      required -= entry.min;
+    }
+  }
+  const visibleColumns = columns.filter((_, i) => !hiddenIndices.has(i));
+  const hiddenColumns = columns.filter((_, i) => hiddenIndices.has(i));
+  const hasHiddenColumns = hiddenColumns.length > 0;
+  const totalColSpan =
+    visibleColumns.length + (hasHiddenColumns ? 1 : 0) + (rowActions ? 1 : 0);
 
   const handleHeaderClick = (col: Column<T>) => {
     if (!col.sortable) return;
@@ -122,13 +199,23 @@ export function ResponsiveTable<T>({
   }
 
   // Desktop: standard table
+  const getCellValue = (col: Column<T>, row: T): ReactNode => {
+    if (col.render) return col.render(row);
+    const val = row[col.key as keyof T];
+    return val == null ? '—' : String(val);
+  };
+
   return (
-    <div className={`responsive-table responsive-table--desktop ${className}`}>
+    <div
+      ref={containerRef}
+      className={`responsive-table responsive-table--desktop ${className}`}
+    >
       <div className="table-scroll-wrapper">
         <table className="table">
           <thead>
             <tr>
-              {columns.map((col) => (
+              {hasHiddenColumns && <th style={{ width: EXPAND_COLUMN_WIDTH_PX }} />}
+              {visibleColumns.map((col) => (
                 <th
                   key={String(col.key)}
                   style={{
@@ -148,35 +235,71 @@ export function ResponsiveTable<T>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={getRowKey(row)}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                style={{ cursor: onRowClick ? 'pointer' : undefined }}
-              >
-                {columns.map((col) => (
-                  <td
-                    key={String(col.key)}
-                    style={{ textAlign: col.align ?? 'left' }}
+            {rows.map((row) => {
+              const rowKey = getRowKey(row);
+              const expanded = expandedKeys.has(rowKey);
+              return (
+                <Fragment key={rowKey}>
+                  <tr
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    style={{ cursor: onRowClick ? 'pointer' : undefined }}
                   >
-                    {col.render
-                      ? col.render(row)
-                      : (() => {
-                          const val = row[col.key as keyof T];
-                          return val == null ? '—' : String(val);
-                        })()}
-                  </td>
-                ))}
-                {rowActions && (
-                  <td
-                    style={{ textAlign: 'right' }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {rowActions(row)}
-                  </td>
-                )}
-              </tr>
-            ))}
+                    {hasHiddenColumns && (
+                      <td
+                        style={{ textAlign: 'center', cursor: 'pointer' }}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={expanded}
+                        aria-label={expanded ? 'Hide more details' : 'Show more details'}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleExpanded(rowKey);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleExpanded(rowKey);
+                          }
+                        }}
+                      >
+                        {expanded ? '▾' : '▸'}
+                      </td>
+                    )}
+                    {visibleColumns.map((col) => (
+                      <td
+                        key={String(col.key)}
+                        style={{ textAlign: col.align ?? 'left' }}
+                      >
+                        {getCellValue(col, row)}
+                      </td>
+                    ))}
+                    {rowActions && (
+                      <td
+                        style={{ textAlign: 'right' }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {rowActions(row)}
+                      </td>
+                    )}
+                  </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={totalColSpan} className="responsive-table__expand-row">
+                        {hiddenColumns.map((col) => (
+                          <div key={String(col.key)} className="responsive-table__expand-field">
+                            <span className="responsive-table__expand-label">{col.label}</span>
+                            <span className="responsive-table__expand-value">
+                              {getCellValue(col, row)}
+                            </span>
+                          </div>
+                        ))}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

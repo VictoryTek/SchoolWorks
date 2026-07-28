@@ -472,11 +472,11 @@ export default function InvoiceDetailPage() {
                 <tbody>
                   {invoice.payments.map(p => (
                     <tr key={p.id}>
-                      <td style={{ padding: '4px 8px' }}>{new Date(p.paidAt).toLocaleDateString()}</td>
-                      <td style={{ padding: '4px 8px' }}>${parseFloat(p.amount).toFixed(2)}</td>
-                      <td style={{ padding: '4px 8px' }}>{p.paymentMethod ?? '—'}</td>
-                      <td style={{ padding: '4px 8px' }}>{p.checkNumber ?? '—'}</td>
-                      <td style={{ padding: '4px 8px' }}>{p.notes ?? '—'}</td>
+                      <td style={{ padding: '4px 8px', overflowWrap: 'anywhere' }}>{new Date(p.paidAt).toLocaleDateString()}</td>
+                      <td style={{ padding: '4px 8px', overflowWrap: 'anywhere' }}>${parseFloat(p.amount).toFixed(2)}</td>
+                      <td style={{ padding: '4px 8px', overflowWrap: 'anywhere' }}>{p.paymentMethod ?? '—'}</td>
+                      <td style={{ padding: '4px 8px', overflowWrap: 'anywhere' }}>{p.checkNumber ?? '—'}</td>
+                      <td style={{ padding: '4px 8px', overflowWrap: 'anywhere' }}>{p.notes ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>
