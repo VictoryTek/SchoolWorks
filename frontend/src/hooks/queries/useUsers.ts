@@ -21,11 +21,12 @@ export function useUsers(
     'queryKey' | 'queryFn'
   >,
   locationId?: string,
-  gradeLevel?: string
+  gradeLevel?: string,
+  isActive?: 'all' | 'active' | 'inactive'
 ) {
   return useQuery({
-    queryKey: queryKeys.users.list(page, limit, search, accountType, locationId, gradeLevel),
-    queryFn: () => userService.getUsers(page, limit, search, accountType, locationId, gradeLevel),
+    queryKey: queryKeys.users.list(page, limit, search, accountType, locationId, gradeLevel, isActive),
+    queryFn: () => userService.getUsers(page, limit, search, accountType, locationId, gradeLevel, isActive),
     
     // Keep previous data while fetching new page
     placeholderData: keepPreviousData,
@@ -44,11 +45,12 @@ export function usePaginatedUsers(
   search: string = '',
   accountType?: 'all' | 'staff' | 'student',
   locationId?: string,
-  gradeLevel?: string
+  gradeLevel?: string,
+  isActive?: 'all' | 'active' | 'inactive'
 ) {
   const query = useQuery({
-    queryKey: queryKeys.users.list(page, limit, search, accountType, locationId, gradeLevel),
-    queryFn: () => userService.getUsers(page, limit, search, accountType, locationId, gradeLevel),
+    queryKey: queryKeys.users.list(page, limit, search, accountType, locationId, gradeLevel, isActive),
+    queryFn: () => userService.getUsers(page, limit, search, accountType, locationId, gradeLevel, isActive),
     
     // Keep showing previous page while new page loads
     placeholderData: keepPreviousData,

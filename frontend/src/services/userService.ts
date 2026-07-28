@@ -75,7 +75,7 @@ export interface UserIncidentSummary {
 
 class UserService {
   // Get all users with pagination
-  async getUsers(page: number = 1, limit: number = 50, search: string = '', accountType?: 'all' | 'staff' | 'student', locationId?: string, gradeLevel?: string): Promise<PaginatedResponse<User>> {
+  async getUsers(page: number = 1, limit: number = 50, search: string = '', accountType?: 'all' | 'staff' | 'student', locationId?: string, gradeLevel?: string, isActive?: 'all' | 'active' | 'inactive'): Promise<PaginatedResponse<User>> {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString(),
@@ -83,6 +83,7 @@ class UserService {
       ...(accountType && accountType !== 'all' && { accountType }),
       ...(locationId && { locationId }),
       ...(gradeLevel && { gradeLevel }),
+      ...(isActive && isActive !== 'all' && { isActive: isActive === 'active' ? 'true' : 'false' }),
     });
     const response = await api.get(`/users?${params}`);
     return response.data;

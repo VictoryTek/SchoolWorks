@@ -51,6 +51,7 @@ const Users: React.FC = () => {
     accountType: 'all',
     location:    '',
     grade:       '',
+    status:      'all',
     page:        '1',
     rows:        '50',
   });
@@ -59,6 +60,7 @@ const Users: React.FC = () => {
   const accountType      = filters.accountType as 'all' | 'staff' | 'student';
   const locationFilter   = filters.location;
   const gradeLevelFilter = filters.grade;
+  const statusFilter     = filters.status as 'all' | 'active' | 'inactive';
   const currentPage      = Number(filters.page) || 1;
   const itemsPerPage     = Number(filters.rows) || 50;
 
@@ -100,7 +102,7 @@ const Users: React.FC = () => {
     isLoading: usersLoading,
     error: usersError,
     isPlaceholderData,
-  } = usePaginatedUsers(currentPage, itemsPerPage, debouncedSearchTerm, accountType, locationFilter || undefined, gradeLevelFilter || undefined);
+  } = usePaginatedUsers(currentPage, itemsPerPage, debouncedSearchTerm, accountType, locationFilter || undefined, gradeLevelFilter || undefined, statusFilter);
 
   // Fetch locations for filter dropdown
   const { data: locations = [] } = useLocations();
@@ -184,6 +186,10 @@ const Users: React.FC = () => {
 
   const handleGradeLevelFilterChange = (value: string) => {
     setFilters({ grade: value, page: '1' });
+  };
+
+  const handleStatusFilterChange = (value: 'all' | 'active' | 'inactive') => {
+    setFilters({ status: value, page: '1' });
   };
 
   const handlePageChange = (page: number) => {
@@ -415,7 +421,7 @@ const Users: React.FC = () => {
               <MobileFilterBar
                 searchValue={searchTerm}
                 onSearchChange={(value) => handleSearchChange(value)}
-                filterCount={(accountType !== 'all' ? 1 : 0) + (locationFilter ? 1 : 0) + (gradeLevelFilter ? 1 : 0)}
+                filterCount={(accountType !== 'all' ? 1 : 0) + (locationFilter ? 1 : 0) + (gradeLevelFilter ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)}
                 onOpenFilters={() => setFilterDrawerOpen(!filterDrawerOpen)}
                 searchPlaceholder="Search users by name or email..."
               />
@@ -462,9 +468,21 @@ const Users: React.FC = () => {
                         </select>
                       </div>
                     )}
+                    <div>
+                      <label className="form-label">Status</label>
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => handleStatusFilterChange(e.target.value as 'all' | 'active' | 'inactive')}
+                        className="form-select"
+                      >
+                        <option value="all">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </div>
                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <button
-                        onClick={() => { handleAccountTypeChange('all'); handleLocationFilterChange(''); handleGradeLevelFilterChange(''); setFilterDrawerOpen(false); }}
+                        onClick={() => { handleAccountTypeChange('all'); handleLocationFilterChange(''); handleGradeLevelFilterChange(''); handleStatusFilterChange('all'); setFilterDrawerOpen(false); }}
                         className="btn btn-secondary btn-sm"
                       >
                         Clear Filters
@@ -519,6 +537,16 @@ const Users: React.FC = () => {
                     ))}
                   </select>
                 )}
+                <select
+                  value={statusFilter}
+                  onChange={(e) => handleStatusFilterChange(e.target.value as 'all' | 'active' | 'inactive')}
+                  className="form-select"
+                  style={{ width: 'auto', fontSize: '0.875rem' }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <label style={{ fontSize: '0.875rem', whiteSpace: 'nowrap' }}>Show:</label>
                   <select

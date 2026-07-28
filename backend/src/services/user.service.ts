@@ -118,7 +118,7 @@ export class UserService {
     }
 
     if (query.isActive !== undefined) {
-      where.isActive = query.isActive;
+      where.isActive = String(query.isActive) === 'true';
     }
 
     if (query.accountType === 'student') {

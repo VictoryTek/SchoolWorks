@@ -21,8 +21,8 @@ export const queryKeys = {
   users: {
     all: ['users'] as const,
     lists: () => [...queryKeys.users.all, 'list'] as const,
-    list: (page: number, limit: number, search?: string, accountType?: string, locationId?: string, gradeLevel?: string) =>
-      [...queryKeys.users.lists(), { page, limit, search, accountType, locationId, gradeLevel }] as const,
+    list: (page: number, limit: number, search?: string, accountType?: string, locationId?: string, gradeLevel?: string, isActive?: string) =>
+      [...queryKeys.users.lists(), { page, limit, search, accountType, locationId, gradeLevel, isActive }] as const,
     details: () => [...queryKeys.users.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.users.details(), id] as const,
     supervisorsList: () => [...queryKeys.users.all, 'supervisorsList'] as const,

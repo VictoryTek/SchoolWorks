@@ -5,6 +5,12 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.2',
+    changes: [
+      'Fixed Librarians not being able to see or search for students on the Device Management checkout pages.',
+    ],
+  },
+  {
     version: '1.6.1',
     changes: [
       'Fixed Sync Staff Users and Sync Student Users not deactivating accounts that were disabled in Microsoft Entra.',
