@@ -9,6 +9,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       'Fixed Librarians not being able to see or search for students on the Device Management checkout pages.',
       'Fixed the DM Dashboard to only show the stats for the user that is logged in, instead of showing the stats for all assigned devices.',
+      'Fixed Create Incident on Active Checkouts not reliably filling in the device tag number or linked user.',
     ],
   },
   {

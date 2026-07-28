@@ -21,10 +21,13 @@ interface WizardStep1Props {
   errors:   Partial<Record<keyof Step1Values, string>>;
 }
 
+const getEquipLabel = (opt: InventoryItem) => `${opt.assetTag} — ${opt.name}${opt.brand ? ` (${opt.brand.name})` : ''}`;
+
 export default function WizardStep1LinkAndDate({ values, onChange, errors }: WizardStep1Props) {
   const [userOption,  setUserOption]  = useState<UserOption | null>(null);
   const [equipOption, setEquipOption] = useState<InventoryItem | null>(null);
   const [equipSearch, setEquipSearch] = useState('');
+  const [equipInputValue, setEquipInputValue] = useState('');
 
   const { data: equipData, isLoading: equipLoading } = useQuery({
     queryKey: ['equipment-search-wizard', equipSearch],
@@ -43,22 +46,25 @@ export default function WizardStep1LinkAndDate({ values, onChange, errors }: Wiz
   useEffect(() => {
     if (prefillEquipment && equipOption === null) {
       setEquipOption(prefillEquipment);
-      // inputValue is uncontrolled — MUI auto-derives display text from value
+      setEquipInputValue(getEquipLabel(prefillEquipment));
     }
   }, [prefillEquipment]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Uses the level-1 Technology "summary" endpoint (not the admin-gated GET /users/:id)
+  // so non-admin Technology staff (Tech Assistants, Librarians) can prefill this field.
   const { data: prefillUserData } = useQuery({
     queryKey: ['user-prefill', values.userId],
-    queryFn:  () => userService.getUserById(values.userId!),
+    queryFn:  () => userService.getUserSummary(values.userId!),
     enabled:  !!values.userId && userOption === null,
     staleTime: 60_000,
   });
 
   useEffect(() => {
     if (prefillUserData && userOption === null) {
+      const name = [prefillUserData.firstName, prefillUserData.lastName].filter(Boolean).join(' ') || prefillUserData.displayName || prefillUserData.email;
       setUserOption({
         id:    prefillUserData.id,
-        label: `${prefillUserData.firstName} ${prefillUserData.lastName} — ${prefillUserData.email}`,
+        label: `${name} — ${prefillUserData.email}`,
         email: prefillUserData.email,
       });
     }
@@ -102,12 +108,15 @@ export default function WizardStep1LinkAndDate({ values, onChange, errors }: Wiz
           options={equipOptions}
           loading={equipLoading}
           value={equipOption}
+          inputValue={equipInputValue}
           onInputChange={(_, v, reason) => {
-            // Track typed text for the search query; ignore MUI's internal sync events
+            // Always keep the displayed text in sync (including MUI's 'reset' event,
+            // which fires when `value` changes programmatically — e.g. on prefill).
+            setEquipInputValue(v);
             if (reason === 'input') setEquipSearch(v);
             else if (reason === 'clear') setEquipSearch('');
           }}
-          getOptionLabel={(opt) => `${opt.assetTag} — ${opt.name}${opt.brand ? ` (${opt.brand.name})` : ''}`}
+          getOptionLabel={getEquipLabel}
           isOptionEqualToValue={(a, b) => a.id === b.id}
           onChange={(_, opt) => {
             setEquipOption(opt);
