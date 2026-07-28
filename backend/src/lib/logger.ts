@@ -196,4 +196,5 @@ export const loggers = {
   workOrders: createLogger('WorkOrdersService'),
   accessControl: createLogger('AccessControl'),
   push: createLogger('PushService'),
+  notificationPreferences: createLogger('NotificationPreferencesService'),
 };

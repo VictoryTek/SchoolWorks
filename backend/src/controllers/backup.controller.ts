@@ -13,6 +13,7 @@ import {
   disableMaintenance,
   getDbSize,
 } from '../services/backup.service';
+import { scheduleMaintenanceReminder, cancelMaintenanceReminder } from '../services/maintenanceReminder.service';
 import { handleControllerError } from '../utils/errorHandler';
 import { loggers } from '../lib/logger';
 
@@ -122,8 +123,14 @@ export const getMaintenanceStatus = async (_req: AuthRequest, res: Response): Pr
 
 export const setMaintenanceEnabled = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    loggers.admin.warn('Maintenance mode enabled', { requestedBy: req.user?.email });
-    enableMaintenance();
+    if (!req.user) {
+      res.status(401).json({ success: false, error: 'Not authenticated' });
+      return;
+    }
+    const initiatedBy = { id: req.user.id, email: req.user.email, name: req.user.name };
+    loggers.admin.warn('Maintenance mode enabled', { requestedBy: initiatedBy.email });
+    enableMaintenance(initiatedBy);
+    scheduleMaintenanceReminder(new Date(), initiatedBy);
     res.json({ success: true, enabled: true });
   } catch (error) {
     handleControllerError(error, res);
@@ -134,6 +141,7 @@ export const setMaintenanceDisabled = async (req: AuthRequest, res: Response): P
   try {
     loggers.admin.info('Maintenance mode disabled', { requestedBy: req.user?.email });
     disableMaintenance();
+    cancelMaintenanceReminder();
     res.json({ success: true, enabled: false });
   } catch (error) {
     handleControllerError(error, res);

@@ -18,6 +18,8 @@ interface MobileFilterBarProps {
   onOpenFilters: () => void;
   /** Placeholder text for search input */
   searchPlaceholder?: string;
+  /** Optional extra control rendered between the search input and the filter button */
+  beforeFilterButton?: ReactNode;
   /** Optional extra controls rendered after the filter button */
   children?: ReactNode;
 }
@@ -28,6 +30,7 @@ export function MobileFilterBar({
   filterCount = 0,
   onOpenFilters,
   searchPlaceholder = 'Search...',
+  beforeFilterButton,
   children,
 }: MobileFilterBarProps) {
   return (
@@ -55,6 +58,7 @@ export function MobileFilterBar({
           onChange={(e) => onSearchChange(e.target.value)}
         />
       </div>
+      {beforeFilterButton}
       <IconButton
         className="mobile-filter-bar__filter-btn"
         onClick={onOpenFilters}

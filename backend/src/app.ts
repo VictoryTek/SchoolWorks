@@ -46,6 +46,7 @@ import inventoryAuditRoutes from './routes/inventoryAudit.routes';
 import intuneDeviceRoutes from './routes/intuneDevice.routes';
 import provisioningRoutes from './routes/provisioning.routes';
 import pushRoutes from './routes/push.routes';
+import notificationPreferencesRoutes from './routes/notificationPreferences.routes';
 import { provideCsrfToken, getCsrfToken } from './middleware/csrf';
 import { authenticate, requireAdmin } from './middleware/auth';
 import { maintenanceMode } from './middleware/maintenanceMode';
@@ -61,8 +62,10 @@ dotenv.config();
 validateEnv();
 
 // Honour MAINTENANCE_MODE=true env var — activate on cold start without UI interaction.
+// No authenticated admin exists at this point, so there's no one to attribute this to or
+// remind later — the reminder timer only applies to sessions started via the admin UI.
 if (process.env.MAINTENANCE_MODE === 'true' && !isMaintenanceEnabled()) {
-  enableMaintenance();
+  enableMaintenance({ id: 'system', email: 'system@internal', name: 'System (MAINTENANCE_MODE env var)' });
 }
 
 const app: Express = express();
@@ -234,6 +237,7 @@ app.use('/api', roomCheckoutRoutes);
 app.use('/api/intune', intuneDeviceRoutes);
 app.use('/api/provisioning', provisioningRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/notification-preferences', notificationPreferencesRoutes);
 
 // API info endpoint
 app.get('/api', (req: Request, res: Response) => {

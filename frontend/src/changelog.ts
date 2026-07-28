@@ -14,6 +14,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed dashboard reflow module card grid by container width, not viewport',
       "Added comment requirement when changing a work order's status to 'Closed' or 'Resolved'.",
       'Added a back to top button to the bottome right of the screen for easier navigation on long pages.',
+      'Admins are now emailed (and pushed) a reminder if Maintenance Mode is still on 3 hours after they enabled it.',
+      'Fixed the Inventory Management mobile Refresh button being undersized and visually disconnected from the search/filter row.',
+      'Added an Email Notifications toggle under Settings > Notifications, letting you opt out of notification emails independently of push.',
     ],
   },
   {

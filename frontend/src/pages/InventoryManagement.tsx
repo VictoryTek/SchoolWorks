@@ -360,11 +360,6 @@ export const InventoryManagement = () => {
                   {exportMutation.isPending ? '⏳...' : '⬇️ Export'}
                 </button>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button onClick={() => refetch()} className="btn btn-secondary" title="Refresh">
-                  🔄
-                </button>
-              </div>
             </div>
           ) : (
             <div className="card mb-6">
@@ -437,6 +432,16 @@ export const InventoryManagement = () => {
                 filterCount={activeFilterCount}
                 onOpenFilters={() => setFilterDrawerOpen(!filterDrawerOpen)}
                 searchPlaceholder="Asset tag, serial #, model, brand, PO#..."
+                beforeFilterButton={
+                  <button
+                    onClick={() => refetch()}
+                    className="btn btn-secondary"
+                    title="Refresh"
+                    style={{ minWidth: 44, minHeight: 44, padding: 0, flexShrink: 0 }}
+                  >
+                    🔄
+                  </button>
+                }
               />
               {filterDrawerOpen && (
                 <div className="card" style={{ marginTop: '0.5rem' }}>

@@ -520,6 +520,7 @@ model User {
   department                                                String?
   jobTitle                                                  String?
   isActive                                                  Boolean               @default(true)
+  emailNotificationsEnabled                                 Boolean               @default(true)
   lastSync                                                  DateTime              @default(now())
   lastLogin                                                 DateTime?
   lastAdminNotifyAt                                         DateTime?             @map("last_admin_notify_at")

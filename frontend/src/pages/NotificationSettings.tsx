@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
+import MailOutlineIcon from '@mui/icons-material/MailOutline';
 import {
   isPushSupported,
   getCurrentSubscription,
@@ -27,6 +28,10 @@ import {
   unsubscribeFromPush,
   PUSH_STATUS_QUERY_KEY,
 } from '../services/pushService';
+import {
+  getEmailNotificationsEnabled,
+  setEmailNotificationsEnabled,
+} from '../services/notificationPreferencesService';
 
 type PushState = 'loading' | 'unsupported' | 'unconfigured' | 'denied' | 'ready';
 
@@ -36,6 +41,13 @@ export default function NotificationSettings() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Email is opt-out (default-on), so assume enabled while loading rather
+  // than flashing an "off" state that isn't true for almost every user.
+  const [emailLoading, setEmailLoading] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (!isPushSupported()) {
@@ -61,6 +73,30 @@ export default function NotificationSettings() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    getEmailNotificationsEnabled()
+      .then(setEmailEnabled)
+      .catch((err) => {
+        setEmailError(err instanceof Error ? err.message : 'Failed to load email notification preference');
+      })
+      .finally(() => setEmailLoading(false));
+  }, []);
+
+  const handleEmailToggle = async (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    const previous = emailEnabled;
+    setEmailEnabled(checked); // optimistic
+    setEmailBusy(true);
+    setEmailError(null);
+    try {
+      await setEmailNotificationsEnabled(checked);
+    } catch (err) {
+      setEmailEnabled(previous); // rollback
+      setEmailError(err instanceof Error ? err.message : 'Failed to update notification settings');
+    } finally {
+      setEmailBusy(false);
+    }
+  };
 
   const handleToggle = async (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
     setBusy(true);
@@ -134,9 +170,9 @@ export default function NotificationSettings() {
               />
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 Get a native notification on this device whenever you'd normally receive a
-                notification email (approvals, assignments, and more). Email is always sent
-                regardless of this setting. This only affects the device/browser you're using
-                right now.
+                notification email (approvals, assignments, and more). This only affects the
+                device/browser you're using right now — see Email Notifications below to control
+                whether email is sent at all.
               </Typography>
             </>
           )}
@@ -144,6 +180,39 @@ export default function NotificationSettings() {
           {error && (
             <Alert severity="error" sx={{ mt: 2 }}>
               {error}
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <MailOutlineIcon color="primary" />
+            <Typography variant="h6">Email Notifications</Typography>
+          </Box>
+
+          {emailLoading ? (
+            <CircularProgress size={24} />
+          ) : (
+            <>
+              <FormControlLabel
+                control={
+                  <Switch checked={emailEnabled} disabled={emailBusy} onChange={handleEmailToggle} />
+                }
+                label={emailEnabled ? 'Email notifications enabled' : 'Email notifications disabled'}
+              />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Receive an email whenever you'd normally be notified (approvals, assignments, and
+                more). Turning this off does not affect push notifications above — this applies to
+                your account, not just this device.
+              </Typography>
+            </>
+          )}
+
+          {emailError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {emailError}
             </Alert>
           )}
         </CardContent>

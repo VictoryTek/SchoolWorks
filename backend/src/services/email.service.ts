@@ -20,6 +20,7 @@ import { graphClient } from '../config/entraId';
 import { ExternalAPIError } from '../utils/errors';
 import { enqueueEmail } from './emailQueue.service';
 import { notifyPushByEmails } from './push.service';
+import { filterEmailEnabledRecipients } from './notificationPreferences.service';
 
 // ---------------------------------------------------------------------------
 // Security helpers
@@ -52,24 +53,29 @@ async function sendMail(options: {
   const recipients = Array.isArray(options.to) ? options.to : [options.to];
   if (recipients.length === 0) return;
 
-  try {
-    await enqueueEmail({
-      to:      recipients,
-      subject: options.subject,
-      html:    options.html,
-      context: options.context,
-      relatedEntityId: options.relatedEntityId,
-    });
-  } catch (error) {
-    loggers.email.error('Failed to enqueue email', {
-      subject: options.subject,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    // Intentionally not re-throwing — email is non-critical
+  const emailRecipients = await filterEmailEnabledRecipients(recipients);
+
+  if (emailRecipients.length > 0) {
+    try {
+      await enqueueEmail({
+        to:      emailRecipients,
+        subject: options.subject,
+        html:    options.html,
+        context: options.context,
+        relatedEntityId: options.relatedEntityId,
+      });
+    } catch (error) {
+      loggers.email.error('Failed to enqueue email', {
+        subject: options.subject,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Intentionally not re-throwing — email is non-critical
+    }
   }
 
   // Best-effort push fan-out mirroring this email — never throws, never
-  // blocks/affects the email send above.
+  // blocks/affects the email send above. Uses the ORIGINAL, unfiltered
+  // recipient list so the email opt-out toggle never affects push.
   await notifyPushByEmails(recipients, {
     subject: options.subject,
     context: options.context,
@@ -1931,5 +1937,39 @@ export async function sendGasThresholdAlertEmail(params: {
     subject: `Gas Usage Alert: Threshold Exceeded for ${month}`,
     html,
     context: 'gas_threshold_alert',
+  });
+}
+
+/**
+ * Remind the admin who enabled Maintenance Mode that it's still active.
+ */
+export async function sendMaintenanceModeReminder(
+  recipient: { email: string; name: string },
+  enabledAt: Date,
+): Promise<void> {
+  const elapsedHours = Math.floor((Date.now() - enabledAt.getTime()) / (60 * 60 * 1000));
+  const enabledAtStr = enabledAt.toLocaleString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+  });
+
+  const html = `
+    <h2 style="color:#E65100;">Maintenance Mode Is Still Active</h2>
+    <p>Hello <strong>${escapeHtml(recipient.name)}</strong>,</p>
+    <p>You enabled Maintenance Mode, and it is still active. Non-admin users cannot access the system while it remains on.</p>
+    <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+      <tr><td style="padding:4px 8px;font-weight:bold;">Enabled At:</td>
+          <td style="padding:4px 8px;">${enabledAtStr}</td></tr>
+      <tr><td style="padding:4px 8px;font-weight:bold;">Time Active:</td>
+          <td style="padding:4px 8px;color:#E65100;font-weight:bold;">${elapsedHours}+ hour${elapsedHours !== 1 ? 's' : ''}</td></tr>
+    </table>
+    <p style="margin-top:16px;">If you're finished with maintenance, please disable it from the Admin Backup tab.</p>
+    <p style="color:#666;font-size:12px;margin-top:24px;">This is an automated reminder from the SchoolWorks Tech Department Management System.</p>
+  `;
+
+  await sendMail({
+    to:      recipient.email,
+    subject: `Maintenance Mode has been active for ${elapsedHours}+ hours`,
+    html,
+    context: 'maintenance_mode_reminder',
   });
 }

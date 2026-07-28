@@ -165,13 +165,42 @@ const MAINTENANCE_FLAG = path.join(
   '.maintenance'
 );
 
+export interface MaintenanceInitiator {
+  id: string;
+  email: string;
+  name: string;
+}
+
+export interface MaintenanceInfo {
+  enabledAt: Date;
+  initiatedBy: MaintenanceInitiator;
+}
+
 export function isMaintenanceEnabled(): boolean {
   return fs.existsSync(MAINTENANCE_FLAG);
 }
 
-export function enableMaintenance(): void {
+/** Returns when Maintenance Mode was enabled and who enabled it, or null if it's off or the flag is unparseable. */
+export function getMaintenanceInfo(): MaintenanceInfo | null {
+  if (!fs.existsSync(MAINTENANCE_FLAG)) return null;
+  try {
+    const raw = fs.readFileSync(MAINTENANCE_FLAG, 'utf8').trim();
+    const parsed = JSON.parse(raw) as { enabledAt: string; initiatedBy: MaintenanceInitiator };
+    const enabledAt = new Date(parsed.enabledAt);
+    if (Number.isNaN(enabledAt.getTime()) || !parsed.initiatedBy) return null;
+    return { enabledAt, initiatedBy: parsed.initiatedBy };
+  } catch {
+    return null;
+  }
+}
+
+export function enableMaintenance(initiatedBy: MaintenanceInitiator): void {
   fs.mkdirSync(path.dirname(MAINTENANCE_FLAG), { recursive: true });
-  fs.writeFileSync(MAINTENANCE_FLAG, new Date().toISOString(), 'utf8');
+  fs.writeFileSync(
+    MAINTENANCE_FLAG,
+    JSON.stringify({ enabledAt: new Date().toISOString(), initiatedBy }),
+    'utf8'
+  );
   loggers.admin.warn('Maintenance mode ENABLED');
 }
 

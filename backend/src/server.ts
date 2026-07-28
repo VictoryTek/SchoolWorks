@@ -2,6 +2,8 @@
 import { cronJobsService } from './services/cronJobs.service';
 import { schedulerService } from './services/scheduler.service';
 import { startEmailQueueWorker, stopEmailQueueWorker } from './services/emailQueue.service';
+import { getMaintenanceInfo } from './services/backup.service';
+import { scheduleMaintenanceReminder } from './services/maintenanceReminder.service';
 import { loggers } from './lib/logger';
 
 const PORT = process.env.PORT || 3000;
@@ -23,6 +25,12 @@ const server = app.listen(PORT, () => {
   startEmailQueueWorker().catch((err) => {
     loggers.server.error('Email queue worker startup failed', { error: err });
   });
+
+  // Resume the maintenance-mode reminder timer if maintenance was left on across a restart
+  const maintenanceInfo = getMaintenanceInfo();
+  if (maintenanceInfo) {
+    scheduleMaintenanceReminder(maintenanceInfo.enabledAt, maintenanceInfo.initiatedBy);
+  }
 });
 
 function gracefulShutdown(signal: string) {
