@@ -11,7 +11,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed the DM Dashboard to only show the stats for the user that is logged in, instead of showing the stats for all assigned devices.',
       'Fixed Create Incident on Active Checkouts not reliably filling in the device tag number or linked user.',
       'Added a chip card to view open workorders',
-      'fix(dashboard): reflow module card grid by container width, not viewport',
+      'Fixed dashboard reflow module card grid by container width, not viewport',
+      "Added comment requirement when changing a work order's status to 'Closed' or 'Resolved'.",
+      'Added a back to top button to the bottome right of the screen for easier navigation on long pages.',
     ],
   },
   {

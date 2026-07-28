@@ -1,6 +1,6 @@
 // c:\Tech-V2\frontend\src\components\layout\AppLayout.tsx
 
-import { ReactNode, useState, Dispatch, SetStateAction } from 'react';
+import { ReactNode, useRef, useState, Dispatch, SetStateAction } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Drawer, IconButton, Collapse, Tooltip, ClickAwayListener } from '@mui/material';
@@ -17,6 +17,7 @@ import { cancelProactiveRefresh } from '../../services/api';
 import { PUSH_STATUS_QUERY_KEY, isPushEnabled } from '../../services/pushService';
 import { useRoomAssignmentAccess } from '../../hooks/useRoomAssignmentAccess';
 import { OfflineIndicator } from '../responsive/OfflineIndicator';
+import { ScrollToTopButton } from './ScrollToTopButton';
 import { CHANGELOG } from '../../changelog';
 import './AppLayout.css';
 
@@ -146,6 +147,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const hasReportsAccess = isAdmin || (user?.permLevels?.REPORTS ?? 0) >= 1;
   const { canAccess: canAccessRoomAssignments } = useRoomAssignmentAccess();
 
+  const contentRef = useRef<HTMLElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopChangelogOpen, setDesktopChangelogOpen] = useState(false);
   const [mobileChangelogOpen, setMobileChangelogOpen] = useState(false);
@@ -365,9 +367,10 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         </Drawer>
 
         {/* Main Content */}
-        <main className="shell-content">
+        <main className="shell-content" ref={contentRef}>
           {children}
         </main>
+        <ScrollToTopButton containerRef={contentRef} />
       </div>
     </div>
   );

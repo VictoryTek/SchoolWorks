@@ -271,6 +271,10 @@ export default function WorkOrderDetailPage() {
   const handleStatusSubmit = async () => {
     if (!id) return;
     setStatusError(null);
+    if (newStatus === 'CLOSED' && !statusNote.trim()) {
+      setStatusError('Actions Taken is required to close this work order.');
+      return;
+    }
     try {
       await updateStatus.mutateAsync({ id, status: newStatus, notes: statusNote || undefined });
       setStatusOpen(false);
@@ -667,13 +671,20 @@ export default function WorkOrderDetailPage() {
             </Select>
           </FormControl>
           <TextField
-            label="Note (optional)"
+            label={newStatus === 'CLOSED' ? 'Actions Taken' : 'Note (optional)'}
+            required={newStatus === 'CLOSED'}
             multiline
             minRows={2}
             size="small"
             fullWidth
             value={statusNote}
             onChange={(e) => setStatusNote(e.target.value)}
+            error={newStatus === 'CLOSED' && !statusNote.trim()}
+            helperText={
+              newStatus === 'CLOSED' && !statusNote.trim()
+                ? 'Actions Taken is required to close this work order'
+                : undefined
+            }
           />
           {statusError && <Alert severity="error" onClose={() => setStatusError(null)}>{statusError}</Alert>}
         </DialogContent>
@@ -682,7 +693,7 @@ export default function WorkOrderDetailPage() {
           <Button
             variant="contained"
             onClick={handleStatusSubmit}
-            disabled={updateStatus.isPending}
+            disabled={updateStatus.isPending || (newStatus === 'CLOSED' && !statusNote.trim())}
             startIcon={updateStatus.isPending ? <CircularProgress size={14} /> : undefined}
           >
             {updateStatus.isPending ? 'Saving…' : 'Save'}

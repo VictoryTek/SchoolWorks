@@ -154,10 +154,20 @@ export const UpdateWorkOrderSchema = z.object({
 // PUT /work-orders/:id/status — status transition
 // ---------------------------------------------------------------------------
 
-export const UpdateStatusSchema = z.object({
-  status: TicketStatusEnum,
-  notes:  z.string().max(1000).optional(),
-});
+export const UpdateStatusSchema = z
+  .object({
+    status: TicketStatusEnum,
+    notes:  z.string().max(1000).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.status === 'CLOSED' && !data.notes?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Actions Taken is required to close a work order',
+        path: ['notes'],
+      });
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // PUT /work-orders/:id/assign — assignment
