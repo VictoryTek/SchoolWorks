@@ -70,7 +70,7 @@ export const Dashboard = () => {
       </div>
 
       {/* Module Cards */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' }, gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 3 }}>
         {hasTechAccess && (
           <div className="card">
             <div className="feature-icon inventory"><InventoryIcon /></div>

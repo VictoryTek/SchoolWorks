@@ -10,7 +10,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed Librarians not being able to see or search for students on the Device Management checkout pages.',
       'Fixed the DM Dashboard to only show the stats for the user that is logged in, instead of showing the stats for all assigned devices.',
       'Fixed Create Incident on Active Checkouts not reliably filling in the device tag number or linked user.',
-      'Add chips to the Work Orders list view to show the number of linked incidents and linked purchase orders for each work order, and allow clicking on the chip to open the linked items.',
+      'Added a chip card to view open workorders',
+      'fix(dashboard): reflow module card grid by container width, not viewport',
     ],
   },
   {
