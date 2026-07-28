@@ -5,6 +5,8 @@ export interface DashboardData {
   damageIncidentsThisYear: { month: string; count: number }[];
   outstandingInvoiceTotal: string;
   topDamagedModels:        { modelName: string; brandName: string | null; incidentCount: number }[];
+  scopeStatus:             'all' | 'scoped' | 'unresolved';
+  scopedLocationNames:     string[];
 }
 
 export interface ActiveCheckoutsByCampus {

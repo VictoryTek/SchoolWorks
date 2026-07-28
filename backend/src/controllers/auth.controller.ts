@@ -9,7 +9,7 @@ import { getCookieConfig } from '../config/cookies';
 import { rotateCsrfToken, clearCsrfToken } from '../middleware/csrf';
 import { loggers } from '../lib/logger';
 import { redactEmail, redactEntraId } from '../utils/redact';
-import { derivePermLevelFromGroups, hasDeviceManagementAccess, canSeeAllLocations, isPrincipalOrVP, isTechAssistant, canChangeTicketPriority, getDefaultWorkOrderDepartment, getPrimaryRoleLabel } from '../utils/groupAuth';
+import { derivePermLevelFromGroups, hasDeviceManagementAccess, hasDashboardAccess, canSeeAllLocations, isPrincipalOrVP, isTechAssistant, canChangeTicketPriority, getDefaultWorkOrderDepartment, getPrimaryRoleLabel } from '../utils/groupAuth';
 import { 
   GraphUser, 
   isGraphUser,
@@ -395,6 +395,7 @@ export const callback = async (
         permLevels: { ...permLevels, isFinanceDirectorApprover, isStrictFinanceDirector, isDosApprover, isPoEntryUser, isFoodServiceSupervisor, isFoodServicePoEntry, isTransportationSecretary, canChangeWorkOrderPriority: canChangeTicketPriority(groupIds), defaultWorkOrderDepartment: getDefaultWorkOrderDepartment(groupIds) },
         hasBaseAccess,
         canAccessDeviceManagement,
+        canAccessDeviceManagementDashboard: hasDashboardAccess(groupIds),
         canSeeAllLocations: canSeeAllLocations(groupIds),
         isPrincipalOrVP: isPrincipalOrVP(groupIds),
         isTechAssistant: isTechAssistant(groupIds),
@@ -778,6 +779,7 @@ export const getMe = async (
       permLevels,
       hasBaseAccess,
       canAccessDeviceManagement: hasDeviceManagementAccess(groupIds),
+      canAccessDeviceManagementDashboard: hasDashboardAccess(groupIds),
       canSeeAllLocations: canSeeAllLocations(groupIds),
       isPrincipalOrVP: isPrincipalOrVP(groupIds),
       isTechAssistant: isTechAssistant(groupIds),

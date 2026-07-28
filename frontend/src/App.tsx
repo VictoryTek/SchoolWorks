@@ -566,7 +566,7 @@ function App() {
         <Route
           path="/device-management"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireDashboardAccess>
               <AppLayout>
                 <DeviceManagementDashboard />
               </AppLayout>

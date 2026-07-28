@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Chip, CircularProgress, Divider, Grid, Typography } from '@mui/material';
+import { Alert, Box, Card, CardContent, Chip, CircularProgress, Divider, Grid, Typography } from '@mui/material';
 import type { DashboardData, DamageByGradeItem } from '../../types/checkoutReport.types';
 import { gradeLevelLabel } from '../../constants/gradeLevel';
 import { useIsMobile } from '../../hooks/useResponsive';
@@ -8,6 +8,25 @@ interface DashboardWidgetsProps {
   isLoading:     boolean;
   gradeData?:    DamageByGradeItem[];
   gradeLoading?: boolean;
+}
+
+function ScopeBanner({ data }: { data: DashboardData }) {
+  if (data.scopeStatus === 'unresolved') {
+    return (
+      <Alert severity="warning" sx={{ mb: 2 }}>
+        No school is on file for your account — contact IT to have your office location set so
+        your dashboard can show your school's data.
+      </Alert>
+    );
+  }
+  if (data.scopeStatus === 'scoped') {
+    return (
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Showing data for: {data.scopedLocationNames.join(', ')}
+      </Typography>
+    );
+  }
+  return null;
 }
 
 function StatCard({ label, value, sub }: { label: string; value: React.ReactNode; sub: string }) {
@@ -38,6 +57,8 @@ export function DashboardWidgets({ data, isLoading, gradeData, gradeLoading }: D
   if (isMobile) {
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+
+        <ScopeBanner data={data} />
 
         {/* Card 1: All three stats as a vertical list */}
         <Card>
@@ -132,7 +153,9 @@ export function DashboardWidgets({ data, isLoading, gradeData, gradeLoading }: D
 
   // ── Desktop layout ──────────────────────────────────────────────────────────
   return (
-    <Grid container spacing={3}>
+    <Box>
+      <ScopeBanner data={data} />
+      <Grid container spacing={3}>
       {/* Row 1: three stat cards */}
       <Grid size={{ xs: 12, sm: 4 }}>
         <StatCard
@@ -284,6 +307,7 @@ export function DashboardWidgets({ data, isLoading, gradeData, gradeLoading }: D
           </CardContent>
         </Card>
       </Grid>
-    </Grid>
+      </Grid>
+    </Box>
   );
 }

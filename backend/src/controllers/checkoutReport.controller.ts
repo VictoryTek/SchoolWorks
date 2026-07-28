@@ -23,7 +23,8 @@ const DateRangeQuerySchema = z.object({
 
 export const getDashboard = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const data = await service.getDashboard();
+    const scope = await service.resolveDashboardScope(req.user!.id, req.user!.groups ?? []);
+    const data = await service.getDashboard(scope);
     res.json(data);
   } catch (error) {
     handleControllerError(error, res);
@@ -123,7 +124,8 @@ export const getUserDeviceHistory = async (req: AuthRequest, res: Response): Pro
 
 export const getDamageByGrade = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const data = await service.getDamageByGrade();
+    const scope = await service.resolveDashboardScope(req.user!.id, req.user!.groups ?? []);
+    const data = await service.getDamageByGrade(scope);
     res.json(data);
   } catch (error) {
     handleControllerError(error, res);

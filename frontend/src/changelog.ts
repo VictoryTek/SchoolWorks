@@ -8,6 +8,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: '1.6.2',
     changes: [
       'Fixed Librarians not being able to see or search for students on the Device Management checkout pages.',
+      'Fixed the DM Dashboard to only show the stats for the user that is logged in, instead of showing the stats for all assigned devices.',
     ],
   },
   {

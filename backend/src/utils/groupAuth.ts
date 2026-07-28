@@ -381,6 +381,59 @@ export function requireDeviceManagementAccess() {
 }
 
 /**
+ * Superset of DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS plus the two director groups — grants
+ * district-wide, read-only visibility into the Device Management Dashboard specifically
+ * (not the rest of Device Management, which stays gated by hasDeviceManagementAccess).
+ */
+const DASHBOARD_ACCESS_ALLOWLIST_ENV_VARS = [
+  ...DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS,
+  'ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID',
+  'ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID',
+] as const;
+
+export function hasDashboardAccess(groupIds: string[]): boolean {
+  const allowedGroupIds = DASHBOARD_ACCESS_ALLOWLIST_ENV_VARS
+    .map((envVar) => process.env[envVar])
+    .filter((groupId): groupId is string => Boolean(groupId));
+  const normalizedUserGroups = groupIds.map((g) => g.toLowerCase());
+  return allowedGroupIds.some((groupId) => normalizedUserGroups.includes(groupId.toLowerCase()));
+}
+
+export function requireDashboardAccess() {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!hasDashboardAccess(req.user.groups ?? [])) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: 'Device Management Dashboard access is not permitted for this user',
+      });
+      return;
+    }
+
+    next();
+  };
+}
+
+/** Admin, Director of Schools, Assistant Director of Schools — see the dashboard district-wide, unscoped. */
+export function isDistrictWideDashboardViewer(groupIds: string[]): boolean {
+  const allowlist = [
+    process.env.ENTRA_ADMIN_GROUP_ID,
+    process.env.ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID,
+    process.env.ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID,
+  ].filter(Boolean) as string[];
+  return allowlist.some((id) => groupIds.includes(id));
+}
+
+export function isLibrarian(groupIds: string[]): boolean {
+  const gid = process.env.ENTRA_OCBOE_LIBRARIANS_GROUP_ID;
+  return Boolean(gid && groupIds.includes(gid));
+}
+
+/**
  * Ordered highest-priority-first: the first matching group's label is the user's
  * displayed role. Director/leadership groups are listed before ENTRA_ALL_STAFF_GROUP_ID
  * so that a Director (who is typically also in All Staff) shows their specific title

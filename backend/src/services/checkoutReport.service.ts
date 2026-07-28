@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
 import { NotFoundError } from '../utils/errors';
 import { gradeLevelSortIndex } from '../constants/gradeLevel';
+import { isDistrictWideDashboardViewer, isTechAssistant, isLibrarian } from '../utils/groupAuth';
 
 const log = createLogger('CheckoutReportService');
 
@@ -12,14 +13,73 @@ export interface DashboardData {
   damageIncidentsThisYear: { month: string; count: number }[];
   outstandingInvoiceTotal: string;
   topDamagedModels:        { modelName: string; brandName: string | null; incidentCount: number }[];
+  scopeStatus:             'all' | 'scoped' | 'unresolved';
+  scopedLocationNames:     string[];
 }
+
+// ---------------------------------------------------------------------------
+// resolveDashboardScope
+// ---------------------------------------------------------------------------
+
+export type DashboardScope =
+  | { kind: 'all' }
+  | { kind: 'scoped'; locationIds: string[] }; // empty array => unresolved school, zero-state
+
+/**
+ * Server-derived (never client-supplied) location scope for the Device Management Dashboard.
+ * Admin/DOS/Asst DOS see everything; Tech Assistants are scoped to every school they supervise
+ * (LocationSupervisor rows); Librarians are scoped to their single Entra-synced officeLocation.
+ */
+export async function resolveDashboardScope(userId: string, groups: string[]): Promise<DashboardScope> {
+  if (isDistrictWideDashboardViewer(groups)) return { kind: 'all' };
+
+  if (isTechAssistant(groups)) {
+    const rows = await prisma.locationSupervisor.findMany({
+      where: { userId, supervisorType: 'TECHNOLOGY_ASSISTANT' },
+      select: { locationId: true },
+    });
+    return { kind: 'scoped', locationIds: rows.map(r => r.locationId) };
+  }
+
+  if (isLibrarian(groups)) {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { officeLocation: true } });
+    if (!user?.officeLocation) return { kind: 'scoped', locationIds: [] };
+    const location = await prisma.officeLocation.findFirst({
+      where: { name: { equals: user.officeLocation, mode: 'insensitive' }, isActive: true },
+      select: { id: true },
+    });
+    return { kind: 'scoped', locationIds: location ? [location.id] : [] };
+  }
+
+  // Route is gated to exactly {Admin, DOS, Asst DOS, Tech Assistant, Librarian} — unreachable,
+  // but fail closed (zero-state) rather than open if it ever is.
+  return { kind: 'scoped', locationIds: [] };
+}
+
+const ZERO_DASHBOARD_DATA: DashboardData = {
+  activeCheckoutsCount:    0,
+  devicesInRepairCount:    0,
+  devicesInRepairAvgDays:  0,
+  damageIncidentsThisYear: [],
+  outstandingInvoiceTotal: '0.00',
+  topDamagedModels:        [],
+  scopeStatus:             'unresolved',
+  scopedLocationNames:     [],
+};
 
 // ---------------------------------------------------------------------------
 // getDashboard
 // ---------------------------------------------------------------------------
 
-export async function getDashboard(): Promise<DashboardData> {
-  log.info('getDashboard');
+export async function getDashboard(scope: DashboardScope): Promise<DashboardData> {
+  log.info('getDashboard', { scope: scope.kind });
+
+  if (scope.kind === 'scoped' && scope.locationIds.length === 0) {
+    return ZERO_DASHBOARD_DATA;
+  }
+
+  const locationIds = scope.kind === 'scoped' ? scope.locationIds : undefined;
+  const equipmentLocationFilter = locationIds ? { equipment: { officeLocationId: { in: locationIds } } } : {};
 
   const [
     activeCheckoutsCount,
@@ -28,16 +88,21 @@ export async function getDashboard(): Promise<DashboardData> {
     incidents,
     outstanding,
     topModels,
+    scopedLocationNames,
   ] = await Promise.all([
     // 1. Active checkouts count
-    prisma.deviceAssignment.count({ where: { returnedAt: null } }),
+    prisma.deviceAssignment.count({
+      where: { returnedAt: null, ...(locationIds ? { locationId: { in: locationIds } } : {}) },
+    }),
 
     // 2. Devices in repair count
-    prisma.repairTicket.count({ where: { status: { in: ['sent_to_vendor'] } } }),
+    prisma.repairTicket.count({
+      where: { status: { in: ['sent_to_vendor'] }, ...equipmentLocationFilter },
+    }),
 
     // 3. Active repairs for avg days
     prisma.repairTicket.findMany({
-      where: { status: { in: ['sent_to_vendor'] }, sentForRepairAt: { not: null } },
+      where: { status: { in: ['sent_to_vendor'] }, sentForRepairAt: { not: null }, ...equipmentLocationFilter },
       select: { sentForRepairAt: true },
     }),
 
@@ -50,7 +115,7 @@ export async function getDashboard(): Promise<DashboardData> {
         1,
       );
       return prisma.damageIncident.findMany({
-        where: { reportedAt: { gte: academicYearStart } },
+        where: { reportedAt: { gte: academicYearStart }, ...equipmentLocationFilter },
         select: { reportedAt: true },
       });
     })(),
@@ -58,16 +123,25 @@ export async function getDashboard(): Promise<DashboardData> {
     // 5. Outstanding invoice total
     prisma.damageInvoice.aggregate({
       _sum: { amount: true },
-      where: { status: { in: ['draft', 'sent', 'collections'] } },
+      where: {
+        status: { in: ['draft', 'sent', 'collections'] },
+        ...(locationIds ? { damageIncident: { equipment: { officeLocationId: { in: locationIds } } } } : {}),
+      },
     }),
 
     // 6. Top damaged models
     prisma.damageIncident.groupBy({
       by: ['equipmentId'],
       _count: { id: true },
+      where: equipmentLocationFilter,
       orderBy: { _count: { id: 'desc' } },
       take: 5,
     }),
+
+    // 7. Names of the location(s) this dashboard is scoped to (for the frontend caption)
+    locationIds
+      ? prisma.officeLocation.findMany({ where: { id: { in: locationIds } }, select: { name: true } })
+      : Promise.resolve([]),
   ]);
 
   // Avg days in repair
@@ -118,6 +192,8 @@ export async function getDashboard(): Promise<DashboardData> {
     damageIncidentsThisYear,
     outstandingInvoiceTotal,
     topDamagedModels,
+    scopeStatus:         locationIds ? 'scoped' : 'all',
+    scopedLocationNames: scopedLocationNames.map(l => l.name),
   };
 }
 
@@ -358,8 +434,13 @@ export interface DamageByGradeItem {
   incidentCount: number;
 }
 
-export async function getDamageByGrade(): Promise<DamageByGradeItem[]> {
-  log.info('getDamageByGrade');
+export async function getDamageByGrade(scope: DashboardScope): Promise<DamageByGradeItem[]> {
+  log.info('getDamageByGrade', { scope: scope.kind });
+
+  if (scope.kind === 'scoped' && scope.locationIds.length === 0) {
+    return [];
+  }
+  const locationIds = scope.kind === 'scoped' ? scope.locationIds : undefined;
 
   const now = new Date();
   const academicYearStart = new Date(
@@ -372,6 +453,7 @@ export async function getDamageByGrade(): Promise<DamageByGradeItem[]> {
     where: {
       reportedAt: { gte: academicYearStart },
       user: { isNot: null },
+      ...(locationIds ? { equipment: { officeLocationId: { in: locationIds } } } : {}),
     },
     select: {
       user: { select: { gradeLevel: true } },

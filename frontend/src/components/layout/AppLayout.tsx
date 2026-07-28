@@ -11,7 +11,7 @@ import LightModeIcon from '@mui/icons-material/LightMode';
 import DarkModeIcon from '@mui/icons-material/DarkMode';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
-import { useAuthStore, selectCanAccessDeviceManagement } from '../../store/authStore';
+import { useAuthStore, selectCanAccessDeviceManagement, selectCanAccessDeviceManagementDashboard } from '../../store/authStore';
 import { authApi } from '../../services/authService';
 import { cancelProactiveRefresh } from '../../services/api';
 import { PUSH_STATUS_QUERY_KEY, isPushEnabled } from '../../services/pushService';
@@ -30,6 +30,7 @@ interface NavItem {
   adminOnly?: boolean;
   requireTech?: boolean;
   requireDeviceManagement?: boolean;
+  requireDashboardAccess?: boolean;
   requireRoomAssignment?: boolean;
   requireFieldTripApprover?: boolean;
   staffOnly?: boolean;  // Hidden from students (ALL_STUDENTS group)
@@ -74,7 +75,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Device Management',
     items: [
-      { label: 'DM Dashboard',   icon: '📱', path: '/device-management',               requireDeviceManagement: true },
+      { label: 'DM Dashboard',   icon: '📱', path: '/device-management',               requireDashboardAccess: true },
       { label: 'Checkouts',      icon: '📤', path: '/device-management/checkouts',      requireDeviceManagement: true },
       { label: 'Quick Check',    icon: '⚡', path: '/device-management/quick-check',             requireDeviceManagement: true },
       { label: 'Room Check Out', icon: '🚪', path: '/device-management/room-checkout',           requireDeviceManagement: true },
@@ -129,6 +130,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const resolvedMode = mode === 'system' ? systemMode : mode;
   const { user, clearAuth } = useAuthStore();
   const canAccessDeviceManagement = useAuthStore(selectCanAccessDeviceManagement);
+  const canAccessDeviceManagementDashboard = useAuthStore(selectCanAccessDeviceManagementDashboard);
   const navigate = useNavigate();
   const location = useLocation();
   const { data: pushEnabled } = useQuery({
@@ -184,6 +186,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           (!item.adminOnly || isAdmin) &&
           (!item.requireTech || hasTechAccess) &&
           (!item.requireDeviceManagement || canAccessDeviceManagement) &&
+          (!item.requireDashboardAccess || canAccessDeviceManagementDashboard) &&
           (!item.requireFieldTripApprover || hasFieldTripApproverAccess) &&
           (!item.staffOnly || isStaff) &&
           (!item.requireRoomAssignment || canAccessRoomAssignments) &&

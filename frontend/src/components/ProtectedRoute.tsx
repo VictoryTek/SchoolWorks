@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuthStore, selectCanAccessDeviceManagement } from '../store/authStore';
+import { useAuthStore, selectCanAccessDeviceManagement, selectCanAccessDeviceManagementDashboard } from '../store/authStore';
 import { useRoomAssignmentAccess } from '../hooks/useRoomAssignmentAccess';
 import AccessDenied from '../pages/AccessDenied';
 
@@ -8,6 +8,7 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
   requireTech?: boolean;
   requireDeviceManagement?: boolean;
+  requireDashboardAccess?: boolean;
   requireRoomAssignment?: boolean;
   requireTransportationLevel?: number;
   requireReports?: boolean;
@@ -18,12 +19,14 @@ export const ProtectedRoute = ({
   requireAdmin = false,
   requireTech = false,
   requireDeviceManagement = false,
+  requireDashboardAccess = false,
   requireRoomAssignment = false,
   requireTransportationLevel,
   requireReports = false,
 }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const canAccessDeviceManagement = useAuthStore(selectCanAccessDeviceManagement);
+  const canAccessDeviceManagementDashboard = useAuthStore(selectCanAccessDeviceManagementDashboard);
   const roomAssignmentAccess = useRoomAssignmentAccess();
 
   // Wait for the initial /api/auth/me check before making auth decisions
@@ -57,6 +60,10 @@ export const ProtectedRoute = ({
   }
 
   if (requireDeviceManagement && !canAccessDeviceManagement) {
+    return <AccessDenied />;
+  }
+
+  if (requireDashboardAccess && !canAccessDeviceManagementDashboard) {
     return <AccessDenied />;
   }
 
