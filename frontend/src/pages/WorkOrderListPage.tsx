@@ -291,6 +291,22 @@ export default function WorkOrderListPage() {
               sx={{ ml: 1 }}
             />
           )}
+          {statusBucket === 'open' ? (
+            <Chip
+              label={`${isLoading ? '…' : totalCount} Open`}
+              size="small"
+              color="statusOpen"
+              sx={{ ml: 1, fontWeight: 600 }}
+            />
+          ) : (
+            <Chip
+              label={`${isLoading ? '…' : totalCount} Closed`}
+              size="small"
+              variant="outlined"
+              color="statusClosed"
+              sx={{ ml: 1, fontWeight: 600 }}
+            />
+          )}
         </Box>
         <Button
           variant="contained"
