@@ -98,6 +98,8 @@ export interface AuthUserInfo {
   hasBaseAccess: boolean;
   /** True if user belongs to the dedicated Device Management allowlist */
   canAccessDeviceManagement: boolean;
+  /** True for the narrower Device Management tier (Admin + Tech Assistants only — excludes Librarians) */
+  canAccessDeviceManagementElevated: boolean;
   /** True if user can view the Device Management Dashboard (Device Management allowlist + DOS/Asst DOS) */
   canAccessDeviceManagementDashboard: boolean;
   /** True if user can view all locations in reports (admin or librarians group) */

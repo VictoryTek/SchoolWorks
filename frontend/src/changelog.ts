@@ -17,7 +17,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Admins are now emailed (and pushed) a reminder if Maintenance Mode is still on 3 hours after they enabled it.',
       'Fixed the Inventory Management mobile Refresh button being undersized and visually disconnected from the search/filter row.',
       'Added an Email Notifications toggle under Settings > Notifications, letting you opt out of notification emails independently of push.',
-      'Fixed tables stop mid-with horizontal scroll on TesponsiveTables list'
+      'Fixed tables stop mid-with horizontal scroll on TesponsiveTables list',
+      'Librarians no longer have access to Intune Actions, DM Reports, Component Prices, Cart Assignment, Checked-Out Carts, and Room Check Out under Device Management.',
     ],
   },
   {

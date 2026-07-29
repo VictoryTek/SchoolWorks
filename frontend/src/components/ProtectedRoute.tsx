@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom';
-import { useAuthStore, selectCanAccessDeviceManagement, selectCanAccessDeviceManagementDashboard } from '../store/authStore';
+import { useAuthStore, selectCanAccessDeviceManagement, selectCanAccessDeviceManagementDashboard, selectCanAccessDeviceManagementElevated } from '../store/authStore';
 import { useRoomAssignmentAccess } from '../hooks/useRoomAssignmentAccess';
 import AccessDenied from '../pages/AccessDenied';
 
@@ -8,9 +8,11 @@ interface ProtectedRouteProps {
   requireAdmin?: boolean;
   requireTech?: boolean;
   requireDeviceManagement?: boolean;
+  requireDeviceManagementElevated?: boolean;
   requireDashboardAccess?: boolean;
   requireRoomAssignment?: boolean;
   requireTransportationLevel?: number;
+  requireCheckoutLevel?: number;
   requireReports?: boolean;
 }
 
@@ -19,13 +21,16 @@ export const ProtectedRoute = ({
   requireAdmin = false,
   requireTech = false,
   requireDeviceManagement = false,
+  requireDeviceManagementElevated = false,
   requireDashboardAccess = false,
   requireRoomAssignment = false,
   requireTransportationLevel,
+  requireCheckoutLevel,
   requireReports = false,
 }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user } = useAuthStore();
   const canAccessDeviceManagement = useAuthStore(selectCanAccessDeviceManagement);
+  const canAccessDeviceManagementElevated = useAuthStore(selectCanAccessDeviceManagementElevated);
   const canAccessDeviceManagementDashboard = useAuthStore(selectCanAccessDeviceManagementDashboard);
   const roomAssignmentAccess = useRoomAssignmentAccess();
 
@@ -63,6 +68,10 @@ export const ProtectedRoute = ({
     return <AccessDenied />;
   }
 
+  if (requireDeviceManagementElevated && !canAccessDeviceManagementElevated) {
+    return <AccessDenied />;
+  }
+
   if (requireDashboardAccess && !canAccessDeviceManagementDashboard) {
     return <AccessDenied />;
   }
@@ -71,6 +80,14 @@ export const ProtectedRoute = ({
     const isAdmin = user?.roles?.includes('ADMIN');
     const transportationLevel = isAdmin ? 6 : (user?.permLevels?.TRANSPORTATION ?? 0);
     if (transportationLevel < requireTransportationLevel) {
+      return <AccessDenied />;
+    }
+  }
+
+  if (requireCheckoutLevel !== undefined) {
+    const isAdmin = user?.roles?.includes('ADMIN');
+    const checkoutLevel = isAdmin ? 6 : (user?.permLevels?.CHECKOUT ?? 0);
+    if (checkoutLevel < requireCheckoutLevel) {
       return <AccessDenied />;
     }
   }

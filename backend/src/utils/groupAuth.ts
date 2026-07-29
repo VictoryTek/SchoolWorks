@@ -381,6 +381,45 @@ export function requireDeviceManagementAccess() {
 }
 
 /**
+ * Narrower than DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS — Admin + Tech Assistants
+ * only. Used by Device Management sub-features that Librarians should not
+ * reach (Intune Actions, Component Prices, DM Reports), while Librarians keep
+ * the broader hasDeviceManagementAccess() grant for checkout/check-in,
+ * incidents, repair tickets, invoices, and barcode generation.
+ */
+const DEVICE_MANAGEMENT_ELEVATED_ALLOWLIST_ENV_VARS = [
+  'ENTRA_ADMIN_GROUP_ID',
+  'ENTRA_TECH_ASSISTANTS_GROUP_ID',
+] as const;
+
+export function hasDeviceManagementElevatedAccess(groupIds: string[]): boolean {
+  const allowedGroupIds = DEVICE_MANAGEMENT_ELEVATED_ALLOWLIST_ENV_VARS
+    .map((envVar) => process.env[envVar])
+    .filter((groupId): groupId is string => Boolean(groupId));
+  const normalizedUserGroups = groupIds.map((g) => g.toLowerCase());
+  return allowedGroupIds.some((groupId) => normalizedUserGroups.includes(groupId.toLowerCase()));
+}
+
+export function requireDeviceManagementElevatedAccess() {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!hasDeviceManagementElevatedAccess(req.user.groups ?? [])) {
+      res.status(403).json({
+        error: 'Forbidden',
+        message: 'This Device Management feature is not permitted for this user',
+      });
+      return;
+    }
+
+    next();
+  };
+}
+
+/**
  * Superset of DEVICE_MANAGEMENT_ALLOWLIST_ENV_VARS plus the two director groups — grants
  * district-wide, read-only visibility into the Device Management Dashboard specifically
  * (not the rest of Device Management, which stays gated by hasDeviceManagementAccess).

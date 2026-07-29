@@ -3,7 +3,7 @@ import multer from 'multer';
 import { authenticate } from '../middleware/auth';
 import { validateCsrfToken } from '../middleware/csrf';
 import { validateRequest } from '../middleware/validation';
-import { requireDeviceManagementAccess } from '../utils/groupAuth';
+import { requireDeviceManagementElevatedAccess } from '../utils/groupAuth';
 import * as controller from '../controllers/intuneDevice.controller';
 import {
   ModelIdParamSchema,
@@ -56,34 +56,34 @@ router.use(authenticate);
 
 router.get(
   '/reconciliation',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   controller.getReconciliationReport,
 );
 
 router.get(
   '/bitlocker/by-name/:deviceName',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(DeviceNameParamSchema, 'params'),
   controller.getBitLockerKeys,
 );
 
 router.get(
   '/devices/by-model/:modelId',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(ModelIdParamSchema, 'params'),
   controller.getDevicesByModel,
 );
 
 router.get(
   '/devices/:serialNumber/status',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(SerialNumberParamSchema, 'params'),
   controller.getDeviceStatus,
 );
 
 router.get(
   '/logs',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(ActionLogsQuerySchema, 'query'),
   controller.getActionLogs,
 );
@@ -95,7 +95,7 @@ router.get(
 router.post(
   '/actions/bulk',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(BulkActionSchema),
   controller.executeBulkAction,
 );
@@ -103,7 +103,7 @@ router.post(
 router.post(
   '/actions/single',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(SingleActionSchema),
   controller.executeSingleAction,
 );
@@ -111,7 +111,7 @@ router.post(
 router.post(
   '/devices/search',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(DeviceSearchSchema),
   controller.searchDevices,
 );
@@ -119,7 +119,7 @@ router.post(
 router.post(
   '/devices/search-by-model',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(SearchByModelSchema),
   controller.searchDevicesByModel,
 );
@@ -127,7 +127,7 @@ router.post(
 router.post(
   '/actions/by-device-ids',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(DeviceListActionSchema),
   controller.executeDeviceListAction,
 );
@@ -135,7 +135,7 @@ router.post(
 router.post(
   '/reconciliation/add-to-inventory',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(AddToInventoryFromReconciliationSchema),
   controller.addToInventoryFromReconciliation,
 );
@@ -147,7 +147,7 @@ router.post(
 router.post(
   '/devices/rename/preview',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(RenamePreviewSchema),
   controller.previewRename,
 );
@@ -155,7 +155,7 @@ router.post(
 router.post(
   '/devices/rename/preview-file',
   validateCsrfToken,
-  requireDeviceManagementAccess(), // NOTE: permission check before multer to prevent unprivileged uploads consuming memory
+  requireDeviceManagementElevatedAccess(), // NOTE: permission check before multer to prevent unprivileged uploads consuming memory
   upload.single('file'),
   controller.previewRenameFile,
 );
@@ -163,7 +163,7 @@ router.post(
 router.post(
   '/actions/rename',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(RenameExecuteSchema),
   controller.executeRename,
 );

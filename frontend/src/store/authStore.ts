@@ -18,6 +18,7 @@ interface User {
   roleLabel?: string | null;
   hasBaseAccess?: boolean;
   canAccessDeviceManagement?: boolean;
+  canAccessDeviceManagementElevated?: boolean;
   canAccessDeviceManagementDashboard?: boolean;
   canSeeAllLocations?: boolean;
   isPrincipalOrVP?: boolean;
@@ -100,6 +101,10 @@ export const selectCanAccessDeviceManagement = (state: AuthState): boolean =>
 /** True when the signed-in user may view the Device Management Dashboard (broader than full DM access — also includes DOS/Asst DOS). */
 export const selectCanAccessDeviceManagementDashboard = (state: AuthState): boolean =>
   state.user?.canAccessDeviceManagementDashboard ?? false;
+
+/** True for the narrower Device Management tier (Admin + Tech Assistants only — excludes Librarians). */
+export const selectCanAccessDeviceManagementElevated = (state: AuthState): boolean =>
+  state.user?.canAccessDeviceManagementElevated ?? false;
 
 /**
  * True when the signed-in user may select "All Locations" in reports

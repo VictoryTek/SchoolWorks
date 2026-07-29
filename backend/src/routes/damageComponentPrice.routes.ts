@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
 import { validateCsrfToken } from '../middleware/csrf';
 import { validateRequest } from '../middleware/validation';
-import { requireDeviceManagementAccess } from '../utils/groupAuth';
+import { requireDeviceManagementElevatedAccess } from '../utils/groupAuth';
 import * as controller from '../controllers/damageComponentPrice.controller';
 import {
   CreateComponentPriceSchema,
@@ -22,14 +22,14 @@ router.use(authenticate);
 
 router.get(
   '/',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(ListComponentPricesQuerySchema, 'query'),
   controller.list,
 );
 
 router.get(
   '/:id',
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(ComponentPriceIdParamSchema, 'params'),
   controller.getById,
 );
@@ -41,7 +41,7 @@ router.get(
 router.post(
   '/',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(CreateComponentPriceSchema),
   controller.create,
 );
@@ -49,7 +49,7 @@ router.post(
 router.put(
   '/:id',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(ComponentPriceIdParamSchema, 'params'),
   validateRequest(UpdateComponentPriceSchema),
   controller.update,
@@ -58,7 +58,7 @@ router.put(
 router.delete(
   '/:id',
   validateCsrfToken,
-  requireDeviceManagementAccess(),
+  requireDeviceManagementElevatedAccess(),
   validateRequest(ComponentPriceIdParamSchema, 'params'),
   controller.deactivate,
 );

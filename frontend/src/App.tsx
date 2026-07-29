@@ -456,7 +456,7 @@ function App() {
         <Route
           path="/device-management/carts"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireCheckoutLevel={1}>
               <AppLayout>
                 <CheckedOutCartsPage />
               </AppLayout>
@@ -466,7 +466,7 @@ function App() {
         <Route
           path="/device-management/carts/assign"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireCheckoutLevel={2}>
               <AppLayout>
                 <CartAssignmentWizardPage />
               </AppLayout>
@@ -506,7 +506,7 @@ function App() {
         <Route
           path="/device-management/room-checkout"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireTech>
               <AppLayout>
                 <RoomCheckoutPage />
               </AppLayout>
@@ -556,7 +556,7 @@ function App() {
         <Route
           path="/device-management/component-prices"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireDeviceManagementElevated>
               <AppLayout>
                 <ComponentPricesPage />
               </AppLayout>
@@ -576,7 +576,7 @@ function App() {
         <Route
           path="/device-management/reports"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireDeviceManagementElevated>
               <AppLayout>
                 <ReportsPage />
               </AppLayout>
@@ -606,7 +606,7 @@ function App() {
         <Route
           path="/device-management/intune-actions"
           element={
-            <ProtectedRoute requireDeviceManagement>
+            <ProtectedRoute requireDeviceManagementElevated>
               <AppLayout>
                 <IntuneDeviceActionsPage />
               </AppLayout>
