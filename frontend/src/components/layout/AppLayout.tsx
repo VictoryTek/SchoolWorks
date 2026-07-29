@@ -1,6 +1,6 @@
 // c:\Tech-V2\frontend\src\components\layout\AppLayout.tsx
 
-import { ReactNode, useRef, useState, Dispatch, SetStateAction } from 'react';
+import { ReactNode, useEffect, useRef, useState, Dispatch, SetStateAction } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Drawer, IconButton, Collapse, Tooltip, ClickAwayListener } from '@mui/material';
@@ -152,6 +152,11 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const { canAccess: canAccessRoomAssignments } = useRoomAssignmentAccess();
 
   const contentRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopChangelogOpen, setDesktopChangelogOpen] = useState(false);
   const [mobileChangelogOpen, setMobileChangelogOpen] = useState(false);

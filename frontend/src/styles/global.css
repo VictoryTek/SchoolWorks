@@ -400,6 +400,13 @@ body {
   white-space: nowrap !important;
 }
 
+/* Same guard for action buttons: they inherit overflow-wrap: anywhere from
+   the cell, which shreds a label like "Create a Ticket" one character per line */
+.table td .MuiButton-root,
+.MuiTableCell-root .MuiButton-root {
+  white-space: nowrap;
+}
+
 .table tbody tr {
   transition: background-color var(--transition-fast);
 }

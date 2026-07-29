@@ -12,7 +12,7 @@ import { Prisma, PrismaClient, TicketStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import { loggers } from '../lib/logger';
 import { SettingsService } from './settings.service';
-import { sendWorkOrderAssigned } from './email.service';
+import { sendWorkOrderAssigned, sendWorkOrderClosed } from './email.service';
 import { canChangeTicketPriority } from '../utils/groupAuth';
 import type {
   CreateWorkOrderDto,
@@ -195,6 +195,33 @@ export class WorkOrderService {
       { workOrderNumber, department, priority, locationName: location?.name, workOrderId, notInInventory },
       assignee.email,
       reporterName,
+    );
+  }
+
+  /**
+   * Fire-and-forget helper to send a work order closed/completed email to the submitter.
+   * Resolves reporter email and location name from the DB.
+   */
+  private async sendClosedEmail(
+    workOrderId: string,
+    workOrderNumber: string,
+    department: string,
+    priority: string,
+    officeLocationId: string | null,
+    reportedById: string,
+    notes?: string | null,
+  ): Promise<void> {
+    const [reporter, location] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: reportedById }, select: { email: true } }),
+      officeLocationId ? this.prisma.officeLocation.findUnique({ where: { id: officeLocationId }, select: { name: true } }) : null,
+    ]);
+
+    if (!reporter?.email) return;
+
+    await sendWorkOrderClosed(
+      { workOrderNumber, department, priority, locationName: location?.name, workOrderId },
+      reporter.email,
+      notes,
     );
   }
 
@@ -637,6 +664,10 @@ export class WorkOrderService {
       to: data.status,
       userId,
     });
+
+    if (data.status === 'CLOSED' && userId !== ticket.reportedById) {
+      this.sendClosedEmail(id, ticket.ticketNumber, ticket.department, ticket.priority, ticket.officeLocationId, ticket.reportedById, data.notes).catch(() => {});
+    }
 
     return updated;
   }

@@ -85,6 +85,12 @@ interface ResponsiveTableProps<T> {
   onSortChange?: (sort: SortState) => void;
   /** Custom class on the wrapper */
   className?: string;
+  /**
+   * Width (px) reserved for the actions column by the desktop fit calculation.
+   * The default suits icon buttons and short labels — raise it for wide
+   * labelled action buttons so the fit calculation does not under-budget them.
+   */
+  actionsMinWidth?: number;
 }
 
 export function ResponsiveTable<T>({
@@ -98,6 +104,7 @@ export function ResponsiveTable<T>({
   sort,
   onSortChange,
   className = '',
+  actionsMinWidth,
 }: ResponsiveTableProps<T>) {
   const isMobile = useIsMobile();
   const [internalSort, setInternalSort] = useState<SortState | undefined>(undefined);
@@ -125,7 +132,7 @@ export function ResponsiveTable<T>({
     priority: getPriority(col, index),
     min: estimateMinWidth(col),
   }));
-  const actionsWidth = rowActions ? ACTIONS_COLUMN_WIDTH_PX : 0;
+  const actionsWidth = rowActions ? actionsMinWidth ?? ACTIONS_COLUMN_WIDTH_PX : 0;
   const budget = containerWidth - actionsWidth;
   let required = columnEntries.reduce((sum, e) => sum + e.min, 0);
   const hiddenIndices = new Set<number>();

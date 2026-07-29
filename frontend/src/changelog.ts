@@ -9,6 +9,12 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       'Removed the "Not Listed" option from the Purchase Order Department/Program/School/District Office picker — it had no supervisor to route to, which blocked approval. Add missing departments/programs on the Locations & Supervisors admin page instead.',
       'Fixed the New Requisition page in dark mode: the vendor and ship-to address info boxes no longer render as solid white, and the Department/Program/School/District Office dropdown no longer shows a visible mismatch between its section headers and the items below them.',
+      'Fixed the My Equipment table squeezing cell text onto one character per line at narrow window widths.',
+      'Fixed the page not scrolling back to the top after selecting a different item from the sidebar menu.',
+      'Work order submitters are now emailed (and pushed) when their work order is closed.',
+      'Fixed the Tank label overlapping the placeholder text on the Log Fuel Entry page.',
+      'Fixed the Technology/Maintenance request icons being invisible in dark mode on the New Work Order page.',
+      'Fixed the back-to-top button never appearing when scrolling down a long page.',
     ],
   },
   {

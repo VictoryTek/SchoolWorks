@@ -2,9 +2,8 @@ import { RefObject, useEffect, useRef, useState } from 'react';
 import { Fab, Tooltip, Zoom } from '@mui/material';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 
-// How close to the bottom (in px) counts as "at the bottom" — accounts for
-// fractional scroll positions on some browsers/zoom levels.
-const BOTTOM_THRESHOLD = 40;
+// How far scrolled down from the top (in px) before the button appears.
+const VISIBILITY_THRESHOLD = 100;
 
 interface ScrollToTopButtonProps {
   containerRef: RefObject<HTMLElement | null>;
@@ -20,9 +19,7 @@ export function ScrollToTopButton({ containerRef }: ScrollToTopButtonProps) {
     if (!el) return;
 
     const handleScroll = () => {
-      const hasOverflow = el.scrollHeight > el.clientHeight;
-      const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= BOTTOM_THRESHOLD;
-      const next = hasOverflow && atBottom;
+      const next = el.scrollTop > VISIBILITY_THRESHOLD;
       if (visibleRef.current !== next) setVisible(next);
     };
 

@@ -374,6 +374,50 @@ export async function sendWorkOrderAssigned(
   });
 }
 
+/**
+ * Notify the submitter that their work order has been closed/completed.
+ * Called after a work order transitions to CLOSED.
+ * Email failures are logged but never block the main workflow.
+ */
+export async function sendWorkOrderClosed(
+  workOrder: {
+    workOrderNumber: string;
+    department: string;
+    priority: string;
+    locationName?: string | null;
+    workOrderId?: string;
+  },
+  reporterEmail: string,
+  actionsTaken?: string | null,
+): Promise<void> {
+  const deptLabel = workOrder.department === 'TECHNOLOGY' ? 'Technology' : 'Maintenance';
+  const deptColor = workOrder.department === 'TECHNOLOGY' ? '#1565C0' : '#E65100';
+
+  await sendMail({
+    to:      reporterEmail,
+    subject: `Work Order Completed: ${workOrder.workOrderNumber}`,
+    context: 'work_order_closed',
+    relatedEntityId: workOrder.workOrderId,
+    html: `
+      <h2 style="color:${deptColor};">Your ${escapeHtml(deptLabel)} Work Order Has Been Completed</h2>
+      <p>The work order you submitted has been marked as complete.</p>
+      ${workOrder.workOrderId ? `<p style="margin-top:16px;"><a href="${escapeHtml(process.env.APP_URL ?? '')}/work-orders/${escapeHtml(workOrder.workOrderId)}" style="display:inline-block;padding:10px 20px;background-color:${deptColor};color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View Work Order</a></p>` : ''}
+      <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+        <tr><td style="padding:4px 8px;font-weight:bold;">Work Order #:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.workOrderNumber)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Department:</td>
+            <td style="padding:4px 8px;">${escapeHtml(deptLabel)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Priority:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.priority)}</td></tr>
+        ${workOrder.locationName ? `<tr><td style="padding:4px 8px;font-weight:bold;">Location:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.locationName)}</td></tr>` : ''}
+      </table>
+      ${actionsTaken?.trim() ? `<div style="margin-top:16px;"><strong>Actions Taken:</strong><p style="margin:4px 0 0;white-space:pre-wrap;">${escapeHtml(actionsTaken)}</p></div>` : ''}
+      <p style="margin-top:24px;">If you have any questions or the issue persists, please reopen the work order or submit a new one.</p>
+    `,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Field Trip approver email snapshot
 // ---------------------------------------------------------------------------

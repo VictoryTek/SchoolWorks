@@ -210,7 +210,7 @@ export default function FuelEntryPage() {
               {fuelStationId && activeTanks.length > 0 && (
                 <Grid size={{ xs: 12 }}>
                   <FormControl size="small" fullWidth>
-                    <InputLabel>Tank (optional)</InputLabel>
+                    <InputLabel shrink>Tank (optional)</InputLabel>
                     <Select
                       label="Tank (optional)"
                       value={tankId}

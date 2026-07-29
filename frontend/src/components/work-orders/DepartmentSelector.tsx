@@ -1,7 +1,6 @@
 import { Box, Card, CardActionArea, CardContent, Typography } from '@mui/material';
 import ComputerIcon from '@mui/icons-material/Computer';
 import HandymanIcon from '@mui/icons-material/Handyman';
-import { useTheme } from '@mui/material/styles';
 import type { WorkOrderDepartment } from '@/types/work-order.types';
 
 interface DepartmentSelectorProps {
@@ -32,7 +31,6 @@ const DEPARTMENTS: {
 ];
 
 export function DepartmentSelector({ value, onChange, disabled = false, allowedDepartments }: DepartmentSelectorProps) {
-  const theme = useTheme();
   const visible = allowedDepartments
     ? DEPARTMENTS.filter((d) => allowedDepartments.includes(d.value))
     : DEPARTMENTS;
@@ -45,15 +43,15 @@ export function DepartmentSelector({ value, onChange, disabled = false, allowedD
           <Card
             key={deptValue}
             variant="outlined"
-            sx={{
+            sx={(theme) => ({
               flex: 1,
               borderWidth: isSelected ? 2 : 1,
-              borderColor: isSelected
-                ? theme.palette.primary.main
-                : theme.palette.divider,
+              borderColor: isSelected ? 'primary.main' : 'divider',
               transition: 'border-color 0.2s, box-shadow 0.2s',
-              boxShadow: isSelected ? `0 0 0 2px ${theme.palette.primary.light}` : 'none',
-            }}
+              boxShadow: isSelected
+                ? `0 0 0 2px ${(theme.vars ?? theme).palette.primary.light}`
+                : 'none',
+            })}
           >
             <CardActionArea
               onClick={() => !disabled && onChange(deptValue)}
@@ -72,9 +70,7 @@ export function DepartmentSelector({ value, onChange, disabled = false, allowedD
                 <Icon
                   sx={{
                     fontSize: 48,
-                    color: isSelected
-                      ? theme.palette.primary.main
-                      : theme.palette.text.secondary,
+                    color: isSelected ? 'primary.main' : 'text.primary',
                   }}
                 />
                 <Typography variant="h6" component="div" fontWeight={600}>

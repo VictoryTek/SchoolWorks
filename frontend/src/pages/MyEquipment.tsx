@@ -92,6 +92,7 @@ export const MyEquipment = () => {
       key: 'assetTag',
       label: 'Asset Tag',
       isPrimary: true,
+      minWidth: 110,
       render: (item) => (
         <Typography variant="body2" fontWeight="medium">
           {item.assetTag}
@@ -102,6 +103,9 @@ export const MyEquipment = () => {
       key: 'name',
       label: 'Name',
       isSecondary: true,
+      // Header text is far shorter than the rendered value (device name plus a
+      // serial-number caption), so the fit calculation needs the real width.
+      minWidth: 180,
       render: (item) => (
         <>
           <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>{item.name}</Typography>
@@ -117,6 +121,7 @@ export const MyEquipment = () => {
       key: 'officeLocation',
       label: 'Location',
       hideOnMobile: true,
+      minWidth: 150,
       render: (item) => (
         <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
           {item.officeLocation?.name || 'N/A'}
@@ -127,6 +132,7 @@ export const MyEquipment = () => {
       key: 'room',
       label: 'Room',
       hideOnMobile: true,
+      minWidth: 150,
       render: (item) => (
         <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
           {item.room?.name || 'N/A'}
@@ -136,6 +142,8 @@ export const MyEquipment = () => {
     {
       key: 'status',
       label: 'Status',
+      // Status chips never wrap, so the column cannot shrink to its header.
+      minWidth: 110,
       render: (item) => (
         <Chip label={item.status} size="small" color={getStatusColor(item.status)} />
       ),
@@ -213,6 +221,9 @@ export const MyEquipment = () => {
             getRowKey={(item) => item.id}
             loading={false}
             emptyMessage="No equipment found."
+            // Budget for the labelled "Create a Ticket" button below; the
+            // component default assumes a narrower icon/short-label action.
+            actionsMinWidth={180}
             rowActions={(item) => (
               <Button
                 size="small"
