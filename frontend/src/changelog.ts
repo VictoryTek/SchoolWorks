@@ -5,6 +5,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.3',
+    changes: [
+      'Removed the "Not Listed" option from the Purchase Order Department/Program/School/District Office picker — it had no supervisor to route to, which blocked approval. Add missing departments/programs on the Locations & Supervisors admin page instead.',
+      'Fixed the New Requisition page in dark mode: the vendor and ship-to address info boxes no longer render as solid white, and the Department/Program/School/District Office dropdown no longer shows a visible mismatch between its section headers and the items below them.',
+    ],
+  },
+  {
     version: '1.6.2',
     changes: [
       'Fixed Librarians not being able to see or search for students on the Device Management checkout pages.',

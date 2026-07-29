@@ -74,4 +74,19 @@ export const theme = createTheme({
       },
     },
   },
+  components: {
+    // Dark mode gives elevated Paper surfaces (Menus, Popovers, Dialogs, Cards) a
+    // light overlay wash on top of background.paper. Sticky ListSubheader rows
+    // paint their own flat background.paper instead, so grouped Select menus
+    // (e.g. the Purchase Order location picker) show a visible seam between
+    // header and item rows. Flattening the overlay keeps every elevated surface
+    // a consistent, flat background.paper.
+    MuiPaper: {
+      styleOverrides: {
+        root: ({ theme }) => [
+          theme.applyStyles('dark', { backgroundImage: 'none' }),
+        ],
+      },
+    },
+  },
 });
