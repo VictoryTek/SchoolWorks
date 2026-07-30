@@ -80,6 +80,7 @@ interface EntraUser {
   givenName:       string | null;
   surname:         string | null;
   officeLocation:  string | null;
+  companyName:     string | null;
   jobTitle:        string | null;
   department:      string | null;
   employeeId:      string | null;
@@ -108,6 +109,7 @@ const FIELD_LABELS: Record<string, string> = {
   surname:        'Last name',
   displayName:    'Display name',
   officeLocation: 'Office location',
+  companyName:    'Company name',
   jobTitle:       'Job title',
   department:     'Department',
   employeeType:   'Employee type',
@@ -304,7 +306,7 @@ async function fetchProtectedUpns(): Promise<Set<string>> {
 
 async function fetchEntraUsersByUpnDomain(domain: string, client: Client): Promise<EntraUser[]> {
   const users: EntraUser[] = [];
-  const select = 'id,userPrincipalName,displayName,givenName,surname,officeLocation,jobTitle,department,employeeId,employeeType,ageGroup,accountEnabled';
+  const select = 'id,userPrincipalName,displayName,givenName,surname,officeLocation,companyName,jobTitle,department,employeeId,employeeType,ageGroup,accountEnabled';
 
   let url: string | null = `/users?$select=${select}&$filter=endsWith(userPrincipalName,'@${domain}')&$count=true`;
 
@@ -685,6 +687,9 @@ async function runForType(
         if (mappedLocation !== null && mappedLocation !== (entraUser.officeLocation ?? null)) {
           patch['officeLocation'] = mappedLocation;
         }
+        if (mappedLocation !== null && mappedLocation !== (entraUser.companyName ?? null)) {
+          patch['companyName'] = mappedLocation;
+        }
 
         const expectedEmployeeType = type === 'STAFF' ? 'Staff' : 'Student';
         if (expectedEmployeeType !== (entraUser.employeeType ?? '')) patch['employeeType'] = expectedEmployeeType;
@@ -805,6 +810,7 @@ async function runForType(
           employeeId:      empId,
           usageLocation:   'US',
           officeLocation:  mappedLocation ?? undefined,
+          companyName:     mappedLocation ?? undefined,
           passwordProfile: {
             password:                      initialPassword,
             forceChangePasswordNextSignIn: true,

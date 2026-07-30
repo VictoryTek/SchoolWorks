@@ -15,6 +15,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed the Tank label overlapping the placeholder text on the Log Fuel Entry page.',
       'Fixed the Technology/Maintenance request icons being invisible in dark mode on the New Work Order page.',
       'Fixed the back-to-top button never appearing when scrolling down a long page.',
+      'Added Company Name to the user Provisioning process, so that the user\'s Microsoft Entra account is created with the correct company name.',
     ],
   },
   {
