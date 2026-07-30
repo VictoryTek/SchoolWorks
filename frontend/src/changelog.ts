@@ -5,6 +5,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.5',
+    changes: [
+      'Checked-out carts can now be edited: update the location, name, tag number, due date, or notes, or reassign which staff member the cart is checked out to — changing the location or staff reassigns every device still checked out under that cart.',
+      "Added the ability to add a device to a cart that's already checked out — it's checked out immediately to the cart's current assignee.",
+      "Added a per-device Return action inside a checked-out cart's device list, so one device can be returned without returning the whole cart.",
+      'Active Checkouts can now be edited: update the location, condition, or notes on a device that\'s still checked out.',
+      'Added the ability to assign or replace a charger for a device from the Active Checkouts page.',
+    ],
+  },
+  {
     version: '1.6.3',
     changes: [
       'Removed the "Not Listed" option from the Purchase Order Department/Program/School/District Office picker — it had no supervisor to route to, which blocked approval. Add missing departments/programs on the Locations & Supervisors admin page instead.',

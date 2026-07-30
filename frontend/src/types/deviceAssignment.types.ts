@@ -92,3 +92,9 @@ export interface CheckinFormData {
   createDamageIncident?: boolean;
   chargerReturned?: boolean;
 }
+
+export interface UpdateAssignmentRequest {
+  locationId?: string;
+  checkoutCondition?: CheckoutCondition;
+  notes?: string;
+}

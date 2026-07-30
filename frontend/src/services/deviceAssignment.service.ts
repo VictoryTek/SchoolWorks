@@ -6,6 +6,7 @@ import type {
   CheckoutFormData,
   CheckinFormData,
   ChargerAssignmentRecord,
+  UpdateAssignmentRequest,
 } from '../types/deviceAssignment.types';
 
 const BASE = '/device-assignments';
@@ -22,6 +23,9 @@ export const deviceAssignmentService = {
 
   assignCharger: (deviceAssignmentId: string, serialNumber: string): Promise<ChargerAssignmentRecord> =>
     api.post(`${BASE}/${deviceAssignmentId}/charger`, { serialNumber }).then((r) => r.data),
+
+  update: (id: string, data: UpdateAssignmentRequest): Promise<DeviceAssignment> =>
+    api.patch(`${BASE}/${id}`, data).then((r) => r.data),
 
   getActive: (params?: { page?: number; limit?: number; campusId?: string; assigneeType?: string; gradeLevel?: string; sourceType?: 'single' | 'cart' }): Promise<ActiveAssignmentsResponse> =>
     api.get(`${BASE}/active`, { params }).then((r) => r.data),

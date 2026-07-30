@@ -272,6 +272,7 @@ export interface DeviceCartItemSummary {
   sortOrder: number;
   addedAt: string;
   equipment: DeviceCartEquipmentSummary;
+  assignment: { returnedAt: string | null } | null;
 }
 
 export interface DeviceCartSummary {

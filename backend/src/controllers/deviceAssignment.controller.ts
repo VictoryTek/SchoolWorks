@@ -9,6 +9,7 @@ import type {
   CheckinSchema,
   ListAssignmentsQuerySchema,
   AssignChargerSchema,
+  UpdateAssignmentSchema,
 } from '../validators/deviceAssignment.validators';
 
 // ---------------------------------------------------------------------------
@@ -53,6 +54,21 @@ export const assignCharger = async (req: AuthRequest, res: Response): Promise<vo
     const data = req.body as z.infer<typeof AssignChargerSchema>;
     const chargerAssignment = await service.assignCharger(id, data, req.user!.id);
     res.status(201).json(chargerAssignment);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Update (edit an active checkout's location / condition / notes)
+// ---------------------------------------------------------------------------
+
+export const updateAssignment = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = req.params['id'] as string;
+    const data = req.body as z.infer<typeof UpdateAssignmentSchema>;
+    const assignment = await service.updateAssignment(id, data, req.user!.id);
+    res.json(assignment);
   } catch (error) {
     handleControllerError(error, res);
   }

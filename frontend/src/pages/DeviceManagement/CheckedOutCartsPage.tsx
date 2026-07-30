@@ -25,7 +25,10 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
+import EditIcon from '@mui/icons-material/Edit';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import SearchIcon from '@mui/icons-material/Search';
@@ -36,6 +39,9 @@ import { deviceCartService } from '../../services/deviceCart.service';
 import { locationService } from '../../services/location.service';
 import { ConditionChip } from '../../components/DeviceManagement/ConditionChip';
 import { ReturnCartDialog } from '../../components/DeviceManagement/ReturnCartDialog';
+import { EditCartDialog } from '../../components/DeviceManagement/EditCartDialog';
+import { AddDeviceToCartDialog } from '../../components/DeviceManagement/AddDeviceToCartDialog';
+import { ReturnCartItemDialog } from '../../components/DeviceManagement/ReturnCartItemDialog';
 import { useIsMobile } from '../../hooks/useResponsive';
 import type { CartStatus, DeviceCartDetail, DeviceCartItemSummary } from '../../types/deviceCart.types';
 
@@ -55,7 +61,14 @@ function CartStatusChip({ status }: { status: CartStatus }) {
 
 // ── Expanded device sub-table ─────────────────────────────────────────────
 
-function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mobile?: boolean }) {
+interface DeviceSubTableProps {
+  items: DeviceCartItemSummary[];
+  mobile?: boolean;
+  canReturnItem?: boolean;
+  onReturnItem?: (item: DeviceCartItemSummary) => void;
+}
+
+function DeviceSubTable({ items, mobile, canReturnItem, onReturnItem }: DeviceSubTableProps) {
   if (items.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1 }}>
@@ -71,6 +84,7 @@ function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mob
           const eq = item.equipment;
           const condition = item.condition ?? eq.condition ?? null;
           const isAssigned = item.assignmentId !== null;
+          const isReturned = !!item.assignment?.returnedAt;
           return (
             <Box key={item.id} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 0.5, borderBottom: '1px solid', borderColor: 'divider' }}>
               <Box>
@@ -80,6 +94,9 @@ function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mob
               <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
                 {condition && <ConditionChip condition={condition} />}
                 <Chip label={isAssigned ? 'Active' : 'Unassigned'} color={isAssigned ? 'success' : 'default'} size="small" variant="outlined" />
+                {canReturnItem && isAssigned && !isReturned && (
+                  <Button size="small" onClick={() => onReturnItem?.(item)}>Return</Button>
+                )}
               </Box>
             </Box>
           );
@@ -98,6 +115,7 @@ function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mob
           <TableCell>S/N</TableCell>
           <TableCell>Condition</TableCell>
           <TableCell>Status</TableCell>
+          {canReturnItem && <TableCell align="right">Actions</TableCell>}
         </TableRow>
       </TableHead>
       <TableBody>
@@ -105,6 +123,7 @@ function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mob
           const eq = item.equipment;
           const condition = item.condition ?? eq.condition ?? null;
           const isAssigned = item.assignmentId !== null;
+          const isReturned = !!item.assignment?.returnedAt;
 
           return (
             <TableRow key={item.id} hover>
@@ -137,6 +156,15 @@ function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mob
                   variant="outlined"
                 />
               </TableCell>
+              {canReturnItem && (
+                <TableCell align="right">
+                  {isAssigned && !isReturned && (
+                    <Button size="small" startIcon={<AssignmentReturnIcon />} onClick={() => onReturnItem?.(item)}>
+                      Return
+                    </Button>
+                  )}
+                </TableCell>
+              )}
             </TableRow>
           );
         })}
@@ -147,8 +175,19 @@ function DeviceSubTable({ items, mobile }: { items: DeviceCartItemSummary[]; mob
 
 // ── Mobile cart card ──────────────────────────────────────────────────────────
 
-function CartCard({ cart, onReturn, canReturn }: { cart: DeviceCartDetail; onReturn: (c: DeviceCartDetail) => void; canReturn: boolean }) {
+interface CartCardProps {
+  cart: DeviceCartDetail;
+  onReturn: (cart: DeviceCartDetail) => void;
+  onEdit: (cart: DeviceCartDetail) => void;
+  onAddDevice: (cart: DeviceCartDetail) => void;
+  onReturnItem: (cart: DeviceCartDetail, item: DeviceCartItemSummary) => void;
+  canReturn: boolean;
+}
+
+function CartCard({ cart, onReturn, onEdit, onAddDevice, onReturnItem, canReturn }: CartCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const canEditActive = canReturn && cart.status !== 'returned';
+  const canReturnItemInline = canReturn && ['checked_out', 'partially_returned'].includes(cart.status);
 
   const primaryUser = cart.users?.find((u) => u.role === 'primary')?.user ?? cart.assignedToUser;
   const secondaryUsers = cart.users?.filter((u) => u.role === 'secondary').map((u) => u.user) ?? [];
@@ -183,20 +222,37 @@ function CartCard({ cart, onReturn, canReturn }: { cart: DeviceCartDetail; onRet
           Due: {dueDateDisplay}{isOverdue ? ' — Overdue' : ''}
         </Typography>
       )}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
         <Button size="small" variant="text" onClick={() => setExpanded((v) => !v)}
           endIcon={expanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
         >
           {expanded ? 'Hide devices' : `Show devices (${itemCount})`}
         </Button>
-        {canReturn && cart.status !== 'returned' && (
-          <Button size="small" variant="outlined" color="warning" onClick={() => onReturn(cart)}>
-            Return All
-          </Button>
-        )}
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {canEditActive && (
+            <Button size="small" startIcon={<EditIcon fontSize="small" />} onClick={() => onEdit(cart)}>
+              Edit
+            </Button>
+          )}
+          {canEditActive && cart.status !== 'draft' && (
+            <Button size="small" startIcon={<AddCircleOutlineIcon fontSize="small" />} onClick={() => onAddDevice(cart)}>
+              Add Device
+            </Button>
+          )}
+          {canReturn && cart.status !== 'returned' && (
+            <Button size="small" variant="outlined" color="warning" onClick={() => onReturn(cart)}>
+              Return All
+            </Button>
+          )}
+        </Box>
       </Box>
       <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <DeviceSubTable items={cart.items ?? []} mobile />
+        <DeviceSubTable
+          items={cart.items ?? []}
+          mobile
+          canReturnItem={canReturnItemInline}
+          onReturnItem={(item) => onReturnItem(cart, item)}
+        />
       </Collapse>
     </Paper>
   );
@@ -207,12 +263,17 @@ function CartCard({ cart, onReturn, canReturn }: { cart: DeviceCartDetail; onRet
 interface CartRowProps {
   cart: DeviceCartDetail;
   onReturn: (cart: DeviceCartDetail) => void;
+  onEdit: (cart: DeviceCartDetail) => void;
+  onAddDevice: (cart: DeviceCartDetail) => void;
+  onReturnItem: (cart: DeviceCartDetail, item: DeviceCartItemSummary) => void;
   isMobile: boolean;
   canReturn: boolean;
 }
 
-function CartRow({ cart, onReturn, isMobile, canReturn }: CartRowProps) {
+function CartRow({ cart, onReturn, onEdit, onAddDevice, onReturnItem, isMobile, canReturn }: CartRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const canEditActive = canReturn && cart.status !== 'returned';
+  const canReturnItemInline = canReturn && ['checked_out', 'partially_returned'].includes(cart.status);
 
   const primaryUser = cart.users?.find((u) => u.role === 'primary')?.user ?? cart.assignedToUser;
   const secondaryUsers = cart.users?.filter((u) => u.role === 'secondary').map((u) => u.user) ?? [];
@@ -295,7 +356,17 @@ function CartRow({ cart, onReturn, isMobile, canReturn }: CartRowProps) {
         <TableCell align="center">
           <Chip label={itemCount} size="small" variant="outlined" />
         </TableCell>
-        <TableCell align="right" onClick={(e) => e.stopPropagation()}>
+        <TableCell align="right" onClick={(e) => e.stopPropagation()} sx={{ whiteSpace: 'nowrap' }}>
+          {canEditActive && (
+            <Button size="small" startIcon={<EditIcon fontSize="small" />} onClick={() => onEdit(cart)}>
+              Edit
+            </Button>
+          )}
+          {canEditActive && cart.status !== 'draft' && (
+            <Button size="small" startIcon={<AddCircleOutlineIcon fontSize="small" />} onClick={() => onAddDevice(cart)}>
+              Add Device
+            </Button>
+          )}
           {canReturn && cart.status !== 'returned' && (
             <Button
               size="small"
@@ -314,7 +385,11 @@ function CartRow({ cart, onReturn, isMobile, canReturn }: CartRowProps) {
         <TableCell colSpan={isMobile ? 5 : 9} sx={{ py: 0, px: 0 }}>
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <Box sx={{ bgcolor: 'grey.50', px: 2, py: 1 }}>
-              <DeviceSubTable items={cart.items ?? []} />
+              <DeviceSubTable
+                items={cart.items ?? []}
+                canReturnItem={canReturnItemInline}
+                onReturnItem={(item) => onReturnItem(cart, item)}
+              />
             </Box>
           </Collapse>
         </TableCell>
@@ -352,6 +427,9 @@ export default function CheckedOutCartsPage() {
 
   // Return dialog
   const [returnTarget, setReturnTarget] = useState<DeviceCartDetail | null>(null);
+  const [editTarget, setEditTarget] = useState<DeviceCartDetail | null>(null);
+  const [addDeviceTarget, setAddDeviceTarget] = useState<DeviceCartDetail | null>(null);
+  const [returnItemTarget, setReturnItemTarget] = useState<{ cart: DeviceCartDetail; item: DeviceCartItemSummary } | null>(null);
 
   // Debounce search
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -489,7 +567,15 @@ export default function CheckedOutCartsPage() {
           ) : (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
               {displayedCarts.map((cart) => (
-                <CartCard key={cart.id} cart={cart} onReturn={setReturnTarget} canReturn={canReturn} />
+                <CartCard
+                  key={cart.id}
+                  cart={cart}
+                  onReturn={setReturnTarget}
+                  onEdit={setEditTarget}
+                  onAddDevice={setAddDeviceTarget}
+                  onReturnItem={(c, item) => setReturnItemTarget({ cart: c, item })}
+                  canReturn={canReturn}
+                />
               ))}
             </Box>
           )}
@@ -542,6 +628,9 @@ export default function CheckedOutCartsPage() {
                     key={cart.id}
                     cart={cart}
                     onReturn={setReturnTarget}
+                    onEdit={setEditTarget}
+                    onAddDevice={setAddDeviceTarget}
+                    onReturnItem={(c, item) => setReturnItemTarget({ cart: c, item })}
                     isMobile={false}
                     canReturn={canReturn}
                   />
@@ -571,6 +660,31 @@ export default function CheckedOutCartsPage() {
           cart={returnTarget}
           open={true}
           onClose={() => setReturnTarget(null)}
+        />
+      )}
+
+      {editTarget && (
+        <EditCartDialog
+          cart={editTarget}
+          open={true}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {addDeviceTarget && (
+        <AddDeviceToCartDialog
+          cart={addDeviceTarget}
+          open={true}
+          onClose={() => setAddDeviceTarget(null)}
+        />
+      )}
+
+      {returnItemTarget && (
+        <ReturnCartItemDialog
+          cartId={returnItemTarget.cart.id}
+          item={returnItemTarget.item}
+          open={true}
+          onClose={() => setReturnItemTarget(null)}
         />
       )}
     </Box>

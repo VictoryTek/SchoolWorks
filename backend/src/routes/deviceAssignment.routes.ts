@@ -13,6 +13,7 @@ import {
   UserIdParamSchema,
   EquipmentIdParamSchema,
   AssignChargerSchema,
+  UpdateAssignmentSchema,
 } from '../validators/deviceAssignment.validators';
 
 const router = Router();
@@ -94,6 +95,15 @@ router.post(
   validateRequest(AssignmentIdParamSchema, 'params'),
   validateRequest(AssignChargerSchema),
   controller.assignCharger
+);
+
+router.patch(
+  '/:id',
+  validateCsrfToken,
+  requireDeviceManagementAccess(),
+  validateRequest(AssignmentIdParamSchema, 'params'),
+  validateRequest(UpdateAssignmentSchema),
+  controller.updateAssignment
 );
 
 export default router;

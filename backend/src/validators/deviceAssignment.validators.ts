@@ -33,6 +33,12 @@ export const AssignChargerSchema = z.object({
   serialNumber: z.string().min(1, 'Charger serial number is required').max(200),
 });
 
+export const UpdateAssignmentSchema = z.object({
+  locationId:        z.string().uuid('Invalid location ID').optional(),
+  checkoutCondition: checkoutConditionEnum.optional(),
+  notes:             z.string().max(1000).optional(),
+});
+
 export const ListAssignmentsQuerySchema = z.object({
   page: z.preprocess(
     (v) => v ?? '1',

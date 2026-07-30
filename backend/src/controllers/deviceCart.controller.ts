@@ -89,7 +89,7 @@ export async function deleteCart(req: AuthRequest, res: Response) {
 export async function addItem(req: AuthRequest, res: Response) {
   try {
     const body = req.body as z.infer<typeof AddCartItemSchema>;
-    const item = await deviceCartService.addItem(req.params['id'] as string, body);
+    const item = await deviceCartService.addItem(req.params['id'] as string, body, req.user!.id);
     res.status(201).json(item);
   } catch (error) {
     handleControllerError(error, res);
@@ -116,7 +116,7 @@ export async function removeItem(req: AuthRequest, res: Response) {
 export async function scanToCart(req: AuthRequest, res: Response) {
   try {
     const body = req.body as z.infer<typeof ScanToCartSchema>;
-    const item = await deviceCartService.scanToCart(req.params['id'] as string, body);
+    const item = await deviceCartService.scanToCart(req.params['id'] as string, body, req.user!.id);
     res.status(201).json(item);
   } catch (error) {
     handleControllerError(error, res);

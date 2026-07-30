@@ -62,6 +62,7 @@ const itemSelect = {
   sortOrder: true,
   addedAt: true,
   equipment: { select: equipmentSelect },
+  assignment: { select: { returnedAt: true } },
 } as const;
 
 const cartBaseSelect = {
@@ -263,12 +264,28 @@ export async function createCart(data: CreateCartData, createdById: string) {
 }
 
 /**
- * Update metadata on a draft cart.
+ * Update metadata on a cart. Drafts allow every field. Once checked out
+ * (or partially returned), locationId and assignedUserIds changes cascade to
+ * every still-active DeviceAssignment/equipment record under the cart, so the
+ * Active Checkouts view stays consistent with the cart. Fully returned carts
+ * cannot be edited — there's nothing active left to cascade to.
  */
 export async function updateCart(cartId: string, data: UpdateCartData) {
-  const cart = await prisma.deviceCart.findUnique({ where: { id: cartId }, select: { id: true, status: true } });
+  const cart = await prisma.deviceCart.findUnique({
+    where: { id: cartId },
+    select: {
+      id: true,
+      status: true,
+      assignedToUserId: true,
+      users: { where: { role: 'primary' }, select: { userId: true }, take: 1 },
+    },
+  });
   if (!cart) throw new NotFoundError('DeviceCart', cartId);
-  if (cart.status !== 'draft') throw new ConflictError('Cart is no longer in draft status', { code: 'CART_NOT_DRAFT' });
+  if (cart.status === 'returned') {
+    throw new ConflictError('Returned carts cannot be edited', { code: 'CART_RETURNED' });
+  }
+  const isDraft = cart.status === 'draft';
+  const currentPrimaryUserId = cart.users[0]?.userId ?? cart.assignedToUserId ?? null;
 
   // Resolve user IDs from new or legacy field
   const userIds: string[] | undefined = data.assignedUserIds !== undefined
@@ -276,6 +293,7 @@ export async function updateCart(cartId: string, data: UpdateCartData) {
     : data.assignedToUserId !== undefined
       ? [data.assignedToUserId]
       : undefined;
+  const newPrimaryUserId = userIds !== undefined ? (userIds[0] ?? null) : undefined;
 
   const updated = await prisma.$transaction(async (tx) => {
     if (userIds !== undefined) {
@@ -291,7 +309,7 @@ export async function updateCart(cartId: string, data: UpdateCartData) {
       }
     }
 
-    return tx.deviceCart.update({
+    const result = await tx.deviceCart.update({
       where: { id: cartId },
       data: {
         name:              data.name,
@@ -301,11 +319,46 @@ export async function updateCart(cartId: string, data: UpdateCartData) {
         assigneeType:      userIds !== undefined ? (userIds.length > 0 ? 'staff' : null) : undefined,
         locationId:        data.locationId,
         dueDate:           data.dueDate ? new Date(data.dueDate) : undefined,
-        checkoutCondition: data.checkoutCondition,
+        // checkoutCondition is only a draft-time default used by commitCart() —
+        // meaningless once the cart is committed, so ignore it post-draft.
+        checkoutCondition: isDraft ? data.checkoutCondition : undefined,
         notes:             data.notes,
       },
       select: { ...cartBaseSelect, items: { select: itemSelect } },
     });
+
+    if (!isDraft && (data.locationId !== undefined || (newPrimaryUserId !== undefined && newPrimaryUserId !== currentPrimaryUserId))) {
+      const activeItems = await tx.deviceCartItem.findMany({
+        where: { cartId, assignmentId: { not: null }, assignment: { returnedAt: null } },
+        select: { equipmentId: true, assignmentId: true },
+      });
+
+      for (const item of activeItems) {
+        const assignmentData: Prisma.DeviceAssignmentUpdateInput = {};
+        const equipmentData: Prisma.equipmentUpdateInput = {};
+
+        if (data.locationId !== undefined) {
+          assignmentData.location = { connect: { id: data.locationId } };
+          equipmentData.officeLocation = { connect: { id: data.locationId } };
+        }
+        if (newPrimaryUserId !== undefined && newPrimaryUserId !== currentPrimaryUserId && newPrimaryUserId) {
+          assignmentData.user = { connect: { id: newPrimaryUserId } };
+          equipmentData.assignedToUser = { connect: { id: newPrimaryUserId } };
+        }
+
+        await tx.deviceAssignment.update({ where: { id: item.assignmentId! }, data: assignmentData });
+        await tx.equipment.update({ where: { id: item.equipmentId }, data: equipmentData });
+
+        if (newPrimaryUserId !== undefined && newPrimaryUserId !== currentPrimaryUserId && newPrimaryUserId) {
+          await tx.chargerAssignment.updateMany({
+            where: { deviceAssignmentId: item.assignmentId!, returnedAt: null },
+            data: { userId: newPrimaryUserId },
+          });
+        }
+      }
+    }
+
+    return result;
   });
 
   return mapCartDetail(updated);
@@ -327,16 +380,110 @@ export async function deleteCart(cartId: string, requesterId: string, permLevel:
 }
 
 /**
- * Add an equipment item to a draft cart by UUID.
+ * Immediately check out one device into an already-checked-out (or
+ * partially-returned) cart — mirrors the per-item block in commitCart(), but
+ * for an ad-hoc addition made after the cart was already committed.
+ * Re-verifies equipment availability inside the transaction, same rigor as
+ * commitCart().
  */
-export async function addItem(cartId: string, data: AddCartItemData) {
+async function addAndCheckoutCartItem(
+  tx: Prisma.TransactionClient,
+  cartId: string,
+  equipmentId: string,
+  condition: AddCartItemData['condition'],
+  notes: AddCartItemData['notes'],
+  performedByUserId: string
+) {
   const [cart, equipment] = await Promise.all([
-    prisma.deviceCart.findUnique({ where: { id: cartId }, select: { id: true, status: true } }),
-    prisma.equipment.findUnique({ where: { id: data.equipmentId }, select: { id: true, isDisposed: true, status: true } }),
+    tx.deviceCart.findUnique({
+      where: { id: cartId },
+      select: {
+        assignedToUserId: true,
+        locationId: true,
+        checkoutCondition: true,
+        users: { where: { role: 'primary' }, select: { userId: true }, take: 1 },
+      },
+    }),
+    tx.equipment.findUnique({ where: { id: equipmentId }, select: { id: true, isDisposed: true } }),
   ]);
 
   if (!cart) throw new NotFoundError('DeviceCart', cartId);
-  if (cart.status !== 'draft') throw new ConflictError('Cart is no longer in draft status', { code: 'CART_NOT_DRAFT' });
+  if (!equipment) throw new NotFoundError('Equipment', equipmentId);
+  if (equipment.isDisposed) throw new AppError('Equipment is disposed and cannot be added to a cart', 409, 'DEVICE_DISPOSED');
+
+  const activeAssignment = await tx.deviceAssignment.findFirst({
+    where: { equipmentId, returnedAt: null },
+    select: { id: true },
+  });
+  if (activeAssignment) throw new AppError('Device is currently checked out', 409, 'DEVICE_CHECKED_OUT');
+
+  const existing = await tx.deviceCartItem.findUnique({
+    where: { cartId_equipmentId: { cartId, equipmentId } },
+    select: { id: true },
+  });
+  if (existing) throw new ConflictError('Device is already in this cart', { code: 'DEVICE_ALREADY_IN_CART' });
+
+  const primaryUserId = cart.users[0]?.userId ?? cart.assignedToUserId;
+  if (!primaryUserId) {
+    throw new AppError('Cart must have at least one assigned user before adding a device', 400, 'CART_MISSING_ASSIGNEE');
+  }
+
+  const maxSort = await tx.deviceCartItem.aggregate({
+    where: { cartId },
+    _max: { sortOrder: true },
+  });
+  const sortOrder = (maxSort._max.sortOrder ?? -1) + 1;
+  const now = new Date();
+
+  const assignment = await tx.deviceAssignment.create({
+    data: {
+      equipmentId,
+      userId:            primaryUserId,
+      assigneeType:      'staff',
+      checkoutBy:        performedByUserId,
+      checkoutAt:        now,
+      checkoutCondition: condition ?? cart.checkoutCondition ?? 'good',
+      notes:             notes ?? null,
+      locationId:        cart.locationId,
+      cartId,
+    },
+    select: { id: true },
+  });
+
+  const item = await tx.deviceCartItem.create({
+    data: { cartId, equipmentId, condition, notes, sortOrder, assignmentId: assignment.id },
+    select: itemSelect,
+  });
+
+  await tx.equipment.update({
+    where: { id: equipmentId },
+    data: { status: 'checked_out', assignedToUserId: primaryUserId, officeLocationId: cart.locationId },
+  });
+
+  log.info('Device checked out into active cart', { cartId, equipmentId, assignmentId: assignment.id, performedByUserId });
+  return item;
+}
+
+/**
+ * Add an equipment item to a cart by UUID. Draft carts stage the item
+ * unassigned (as before); an already checked-out/partially-returned cart
+ * checks the device out immediately to the cart's current primary user.
+ */
+export async function addItem(cartId: string, data: AddCartItemData, performedByUserId: string) {
+  const cart = await prisma.deviceCart.findUnique({ where: { id: cartId }, select: { id: true, status: true } });
+  if (!cart) throw new NotFoundError('DeviceCart', cartId);
+  if (cart.status === 'returned') throw new ConflictError('Cart is no longer accepting devices', { code: 'CART_RETURNED' });
+
+  if (cart.status !== 'draft') {
+    const item = await prisma.$transaction(
+      (tx) => addAndCheckoutCartItem(tx, cartId, data.equipmentId, data.condition, data.notes, performedByUserId),
+      { isolationLevel: 'Serializable' }
+    );
+    log.info('Item added and checked out into active cart', { cartId, equipmentId: data.equipmentId, performedByUserId });
+    return item;
+  }
+
+  const equipment = await prisma.equipment.findUnique({ where: { id: data.equipmentId }, select: { id: true, isDisposed: true, status: true } });
   if (!equipment) throw new NotFoundError('Equipment', data.equipmentId);
   if (equipment.isDisposed) throw new AppError('Equipment is disposed and cannot be added to a cart', 409, 'DEVICE_DISPOSED');
 
@@ -391,14 +538,16 @@ export async function removeItem(cartId: string, itemId: string) {
 }
 
 /**
- * Scan a device identifier (barcode / qrCode / assetTag / UUID) and add it to a cart.
+ * Scan a device identifier (barcode / qrCode / assetTag / UUID) and add it to
+ * a cart. Draft carts stage the item unassigned; an already checked-out /
+ * partially-returned cart checks the device out immediately (see addItem()).
  */
-export async function scanToCart(cartId: string, data: ScanToCartData) {
+export async function scanToCart(cartId: string, data: ScanToCartData, performedByUserId: string) {
   const { identifier } = data;
 
   const cart = await prisma.deviceCart.findUnique({ where: { id: cartId }, select: { id: true, status: true } });
   if (!cart) throw new NotFoundError('DeviceCart', cartId);
-  if (cart.status !== 'draft') throw new ConflictError('Cart is no longer in draft status', { code: 'CART_NOT_DRAFT' });
+  if (cart.status === 'returned') throw new ConflictError('Cart is no longer accepting devices', { code: 'CART_RETURNED' });
 
   const equipment = await prisma.equipment.findFirst({
     where: {
@@ -414,6 +563,16 @@ export async function scanToCart(cartId: string, data: ScanToCartData) {
   });
 
   if (!equipment) throw new NotFoundError('Equipment matching identifier', identifier);
+
+  if (cart.status !== 'draft') {
+    const item = await prisma.$transaction(
+      (tx) => addAndCheckoutCartItem(tx, cartId, equipment.id, undefined, undefined, performedByUserId),
+      { isolationLevel: 'Serializable' }
+    );
+    log.info('Device scanned and checked out into active cart', { cartId, equipmentId: equipment.id, identifier, performedByUserId });
+    return item;
+  }
+
   if (equipment.isDisposed) throw new AppError('Equipment is disposed and cannot be added to a cart', 409, 'DEVICE_DISPOSED');
 
   // Check for active assignment

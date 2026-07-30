@@ -21,6 +21,8 @@ import {
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
+import EditIcon from '@mui/icons-material/Edit';
+import PowerIcon from '@mui/icons-material/Power';
 import ReportProblemIcon from '@mui/icons-material/ReportProblem';
 import SearchIcon from '@mui/icons-material/Search';
 import { ResponsiveTable, MobileFilterBar } from '../../components/responsive';
@@ -34,6 +36,8 @@ import { DeviceStatusChip } from '../../components/DeviceManagement/DeviceStatus
 import { ConditionChip } from '../../components/DeviceManagement/ConditionChip';
 import { CheckinForm } from '../../components/DeviceManagement/CheckinForm';
 import { ChargerNotReturnedInvoiceDialog } from '../../components/DeviceManagement/ChargerNotReturnedInvoiceDialog';
+import { EditAssignmentDialog } from '../../components/DeviceManagement/EditAssignmentDialog';
+import { AssignChargerDialog } from '../../components/DeviceManagement/AssignChargerDialog';
 import { GRADE_LEVELS, gradeLevelLabel, toDbGradeLevel } from '../../constants/gradeLevel';
 import type { DeviceAssignment, DeviceAssignmentUser } from '../../types/deviceAssignment.types';
 
@@ -55,6 +59,8 @@ export default function CheckoutPage() {
 
   // Checkin dialog state
   const [checkinTarget, setCheckinTarget] = useState<DeviceAssignment | null>(null);
+  const [editTarget, setEditTarget] = useState<DeviceAssignment | null>(null);
+  const [chargerTarget, setChargerTarget] = useState<DeviceAssignment | null>(null);
   const [chargerInvoiceTarget, setChargerInvoiceTarget] = useState<{
     equipmentId: string;
     userId?: string;
@@ -212,23 +218,32 @@ export default function CheckoutPage() {
     {
       key:    'actions',
       label:  '',
-      render: (r) => (
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button size="small" startIcon={<AssignmentReturnIcon />} onClick={(e) => { e.stopPropagation(); setCheckinTarget(r); }}>
-            Check In
-          </Button>
-          <Button
-            size="small"
-            startIcon={<ReportProblemIcon />}
-            component={RouterLink}
-            to={`/incidents/new?equipmentId=${r.equipmentId}&userId=${r.userId ?? ''}&assignmentId=${r.id}&damageDate=${r.checkoutAt.slice(0, 10)}`}
-            onClick={(e) => e.stopPropagation()}
-            sx={{ whiteSpace: 'nowrap' }}
-          >
-            Create Incident
-          </Button>
-        </Box>
-      ),
+      render: (r) => {
+        const hasOpenCharger = !!r.chargerAssignment && !r.chargerAssignment.returnedAt;
+        return (
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Button size="small" startIcon={<AssignmentReturnIcon />} onClick={(e) => { e.stopPropagation(); setCheckinTarget(r); }}>
+              Check In
+            </Button>
+            <Button size="small" startIcon={<EditIcon />} onClick={(e) => { e.stopPropagation(); setEditTarget(r); }}>
+              Edit
+            </Button>
+            <Button size="small" startIcon={<PowerIcon />} onClick={(e) => { e.stopPropagation(); setChargerTarget(r); }} sx={{ whiteSpace: 'nowrap' }}>
+              {hasOpenCharger ? 'Replace Charger' : 'Assign Charger'}
+            </Button>
+            <Button
+              size="small"
+              startIcon={<ReportProblemIcon />}
+              component={RouterLink}
+              to={`/incidents/new?equipmentId=${r.equipmentId}&userId=${r.userId ?? ''}&assignmentId=${r.id}&damageDate=${r.checkoutAt.slice(0, 10)}`}
+              onClick={(e) => e.stopPropagation()}
+              sx={{ whiteSpace: 'nowrap' }}
+            >
+              Create Incident
+            </Button>
+          </Box>
+        );
+      },
     },
   ];
 
@@ -402,6 +417,22 @@ export default function CheckoutPage() {
           assignmentId={chargerInvoiceTarget.assignmentId}
           chargerAssignmentId={chargerInvoiceTarget.chargerAssignmentId}
           chargerSerialNumber={chargerInvoiceTarget.chargerSerialNumber}
+        />
+      )}
+
+      {editTarget && (
+        <EditAssignmentDialog
+          assignment={editTarget}
+          open={true}
+          onClose={() => setEditTarget(null)}
+        />
+      )}
+
+      {chargerTarget && (
+        <AssignChargerDialog
+          assignment={chargerTarget}
+          open={true}
+          onClose={() => setChargerTarget(null)}
         />
       )}
     </Box>

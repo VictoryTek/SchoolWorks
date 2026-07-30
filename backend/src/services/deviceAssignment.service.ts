@@ -9,6 +9,7 @@ import type {
   CheckinSchema,
   ListAssignmentsQuerySchema,
   AssignChargerSchema,
+  UpdateAssignmentSchema,
 } from '../validators/deviceAssignment.validators';
 
 const log = createLogger('DeviceAssignmentService');
@@ -18,6 +19,7 @@ type CheckoutData      = z.infer<typeof CheckoutSchema>;
 type CheckinData       = z.infer<typeof CheckinSchema>;
 type ListAssignmentsQuery = z.infer<typeof ListAssignmentsQuerySchema>;
 type AssignChargerData = z.infer<typeof AssignChargerSchema>;
+type UpdateAssignmentData = z.infer<typeof UpdateAssignmentSchema>;
 
 // ---------------------------------------------------------------------------
 // Select helpers
@@ -219,9 +221,42 @@ export async function checkout(data: CheckoutData, performedByUserId: string) {
 }
 
 /**
+ * Find a charger by serial number (creating it if new), and throw a CONFLICT
+ * if it's already checked out to a different, still-open charger assignment.
+ */
+async function resolveChargerForCheckout(tx: Prisma.TransactionClient, serialNumber: string) {
+  let charger = await tx.charger.findUnique({ where: { serialNumber } });
+  if (!charger) {
+    charger = await tx.charger.create({
+      data: { serialNumber, status: 'active' },
+    });
+  } else if (charger.status === 'checked_out') {
+    const activeElsewhere = await tx.chargerAssignment.findFirst({
+      where:  { chargerId: charger.id, returnedAt: null },
+      select: { user: { select: { firstName: true, lastName: true } } },
+    });
+    const holder = activeElsewhere?.user
+      ? `${activeElsewhere.user.firstName} ${activeElsewhere.user.lastName}`
+      : 'someone else';
+    throw new AppError(
+      `Charger ${serialNumber} is already checked out to ${holder}`,
+      409,
+      'CONFLICT'
+    );
+  }
+  return charger;
+}
+
+/**
  * Pair a charger (identified by serial number) with a device checkout.
  * Finds-or-creates the Charger by serial, and blocks if it's already
  * checked out elsewhere. One charger per DeviceAssignment.
+ *
+ * ChargerAssignment.deviceAssignmentId is unique — a device checkout can
+ * only ever have ONE ChargerAssignment row (active or historical), so
+ * replacing an already-assigned charger updates that same row in place
+ * (new chargerId, reset checkout fields) rather than creating a second row,
+ * which would collide with the still-existing first row on that unique key.
  */
 export async function assignCharger(
   deviceAssignmentId: string,
@@ -238,33 +273,51 @@ export async function assignCharger(
 
       const existingPairing = await tx.chargerAssignment.findUnique({
         where:  { deviceAssignmentId },
-        select: { id: true },
+        select: { id: true, chargerId: true, charger: { select: { serialNumber: true } } },
       });
+
       if (existingPairing) {
-        throw new AppError('This device checkout already has a charger assigned', 409, 'CONFLICT');
+        if (existingPairing.charger.serialNumber === data.serialNumber) {
+          throw new AppError('This charger is already assigned to this checkout', 409, 'CONFLICT');
+        }
+
+        // Return the old charger to inventory, then resolve the new one.
+        await tx.charger.update({
+          where: { id: existingPairing.chargerId },
+          data:  { status: 'active' },
+        });
+        const charger = await resolveChargerForCheckout(tx, data.serialNumber);
+
+        // Re-point the SAME ChargerAssignment row at the new charger instead of
+        // creating a second row (see function doc comment for why).
+        const chargerAssignment = await tx.chargerAssignment.update({
+          where: { id: existingPairing.id },
+          data: {
+            chargerId:  charger.id,
+            checkoutBy: performedByUserId,
+            checkoutAt: new Date(),
+            returnedAt: null,
+            returnedBy: null,
+          },
+          include: { charger: true },
+        });
+
+        await tx.charger.update({
+          where: { id: charger.id },
+          data:  { status: 'checked_out' },
+        });
+
+        log.info('Charger replaced', {
+          chargerAssignmentId: chargerAssignment.id,
+          chargerId:           charger.id,
+          deviceAssignmentId,
+          performedBy:         performedByUserId,
+        });
+
+        return chargerAssignment;
       }
 
-      let charger = await tx.charger.findUnique({
-        where: { serialNumber: data.serialNumber },
-      });
-      if (!charger) {
-        charger = await tx.charger.create({
-          data: { serialNumber: data.serialNumber, status: 'active' },
-        });
-      } else if (charger.status === 'checked_out') {
-        const activeElsewhere = await tx.chargerAssignment.findFirst({
-          where:  { chargerId: charger.id, returnedAt: null },
-          select: { user: { select: { firstName: true, lastName: true } } },
-        });
-        const holder = activeElsewhere?.user
-          ? `${activeElsewhere.user.firstName} ${activeElsewhere.user.lastName}`
-          : 'someone else';
-        throw new AppError(
-          `Charger ${data.serialNumber} is already checked out to ${holder}`,
-          409,
-          'CONFLICT'
-        );
-      }
+      const charger = await resolveChargerForCheckout(tx, data.serialNumber);
 
       const chargerAssignment = await tx.chargerAssignment.create({
         data: {
@@ -293,6 +346,56 @@ export async function assignCharger(
     },
     { isolationLevel: 'Serializable' }
   );
+}
+
+/**
+ * Edit an active (not yet returned) device checkout's location, condition, or notes.
+ * Reassigning the checkout to a different user is out of scope — that's a new checkout,
+ * not an edit.
+ */
+export async function updateAssignment(
+  id: string,
+  data: UpdateAssignmentData,
+  performedByUserId: string
+) {
+  const assignment = await prisma.deviceAssignment.findUnique({
+    where:  { id },
+    select: { id: true, equipmentId: true, returnedAt: true },
+  });
+  if (!assignment) throw new NotFoundError('DeviceAssignment', id);
+  if (assignment.returnedAt) {
+    throw new ConflictError('Cannot edit a returned checkout', { code: 'ASSIGNMENT_RETURNED' });
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const result = await tx.deviceAssignment.update({
+      where: { id },
+      data: {
+        locationId:        data.locationId,
+        checkoutCondition: data.checkoutCondition,
+        notes:             data.notes,
+      },
+      include: {
+        user:      { select: userSelect },
+        equipment: { select: equipmentSelect },
+        checkedOutByUser: { select: { firstName: true, lastName: true } },
+        location:  { select: { id: true, name: true } },
+        chargerAssignment: { select: openChargerAssignmentSelect },
+      },
+    });
+
+    if (data.locationId !== undefined) {
+      await tx.equipment.update({
+        where: { id: assignment.equipmentId },
+        data:  { officeLocationId: data.locationId },
+      });
+    }
+
+    return result;
+  });
+
+  log.info('DeviceAssignment updated', { assignmentId: id, performedBy: performedByUserId });
+  return updated;
 }
 
 /**
