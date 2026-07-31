@@ -72,6 +72,26 @@ const GRADE_OPTIONS = [
   'High School',
 ];
 
+const ELEMENTARY_GRADES  = ['Pre-K', 'Kindergarten', '1st Grade', '2nd Grade', '3rd Grade', '4th Grade', '5th Grade'];
+const MIDDLE_GRADES      = ['6th Grade', '7th Grade', '8th Grade'];
+const HIGH_SCHOOL_GRADES = ['High School'];
+
+// Grade options are scoped to the grade band each school actually serves.
+// Any school not listed here (e.g. a newly reactivated/renamed building) falls
+// back to the full GRADE_OPTIONS list rather than showing an empty dropdown.
+const SCHOOL_GRADE_BANDS: Record<string, string[]> = {
+  'Hillcrest Elementary':               ELEMENTARY_GRADES,
+  'Lake Road Elementary':               ELEMENTARY_GRADES,
+  'South Fulton Elementary':            ELEMENTARY_GRADES,
+  'Obion County Middle School':         MIDDLE_GRADES,
+  'Obion County Central High School':   HIGH_SCHOOL_GRADES,
+  'South Fulton Middle/High School':    [...MIDDLE_GRADES, ...HIGH_SCHOOL_GRADES],
+};
+
+function getGradeOptions(school: string): string[] {
+  return SCHOOL_GRADE_BANDS[school] ?? GRADE_OPTIONS;
+}
+
 const SUBJECT_OPTIONS = [
   'English',
   'Math',
@@ -107,6 +127,8 @@ interface FormState {
   gradeClass:            string;
   subjectArea:           string;
   studentCount:          string;
+  isSpecialProgramOrClub: boolean;
+  specialProgramClubName: string;
   tripDate:              string;
   destination:           string;
   destinationAddress:    string;
@@ -157,6 +179,8 @@ const EMPTY_FORM: FormState = {
   gradeClass:            '',
   subjectArea:           '',
   studentCount:          '',
+  isSpecialProgramOrClub: false,
+  specialProgramClubName: '',
   tripDate:              '',
   destination:           '',
   destinationAddress:    '',
@@ -206,6 +230,8 @@ function tripToFormState(trip: FieldTripRequest): FormState {
     gradeClass:            trip.gradeClass,
     subjectArea:           trip.subjectArea           ?? '',
     studentCount:          String(trip.studentCount),
+    isSpecialProgramOrClub: trip.isSpecialProgramOrClub ?? false,
+    specialProgramClubName: trip.specialProgramClubName ?? '',
     tripDate:              trip.tripDate.slice(0, 10),
     destination:           trip.destination,
     destinationAddress:    trip.destinationAddress   ?? '',
@@ -256,6 +282,8 @@ function formToDto(form: FormState): CreateFieldTripDto {
     gradeClass:            form.gradeClass.trim(),
     subjectArea:           form.gradeClass === 'High School' ? (form.subjectArea.trim() || null) : null,
     studentCount:          parseInt(form.studentCount, 10),
+    isSpecialProgramOrClub: form.isSpecialProgramOrClub,
+    specialProgramClubName: form.isSpecialProgramOrClub ? (form.specialProgramClubName.trim() || null) : null,
     tripDate:              new Date(form.tripDate + 'T12:00:00').toISOString(),
     destination:           form.destination.trim(),
     destinationAddress:    form.destinationAddress.trim(),
@@ -311,6 +339,8 @@ function validateStep(step: number, form: FormState, isRevision = false, isBusQu
     const count = parseInt(form.studentCount, 10);
     if (!form.studentCount || isNaN(count) || count < 1 || count > 500)
       errors.studentCount = 'Enter a number between 1 and 500';
+    if (form.isSpecialProgramOrClub && !form.specialProgramClubName.trim())
+      errors.specialProgramClubName = 'Please enter the program or club name';
     if (!form.tripDate) {
       errors.tripDate = 'Trip date is required';
     } else if (!isRevision) {
@@ -526,6 +556,10 @@ export function FieldTripRequestPage() {
   const handleChange = (field: keyof FormState, value: string | boolean | ChaperoneEntry[] | string[] | Array<{ name: string; arriveTime: string; leaveTime: string }>) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value } as FormState;
+      if (field === 'schoolBuilding' && !getGradeOptions(value as string).includes(next.gradeClass)) {
+        next.gradeClass  = '';
+        next.subjectArea = '';
+      }
       if (field === 'gradeClass' && value !== 'High School') next.subjectArea = '';
       // Auto-calculate total cost when costPerStudent or studentCount changes
       if (field === 'costPerStudent' || field === 'studentCount') {
@@ -710,7 +744,7 @@ export function FieldTripRequestPage() {
                   value={form.gradeClass}
                   onChange={(e) => handleChange('gradeClass', e.target.value)}
                 >
-                  {GRADE_OPTIONS.map((g) => (
+                  {getGradeOptions(form.schoolBuilding).map((g) => (
                     <MenuItem key={g} value={g}>{g}</MenuItem>
                   ))}
                 </Select>
@@ -753,6 +787,34 @@ export function FieldTripRequestPage() {
                 required
               />
             </Grid>
+
+            {/* Is this trip for a special program or club? */}
+            <Grid size={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={form.isSpecialProgramOrClub}
+                    onChange={(e) => handleChange('isSpecialProgramOrClub', e.target.checked)}
+                    disabled={isReadOnly}
+                  />
+                }
+                label="Is this trip for a special program or club?"
+              />
+            </Grid>
+            {form.isSpecialProgramOrClub && (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Program or Club Name"
+                  value={form.specialProgramClubName}
+                  onChange={(e) => handleChange('specialProgramClubName', e.target.value)}
+                  error={!!errors.specialProgramClubName}
+                  helperText={errors.specialProgramClubName}
+                  disabled={isReadOnly}
+                  required
+                />
+              </Grid>
+            )}
 
             {/* Date of Trip — inline calendar with availability */}
             <Grid size={12}>

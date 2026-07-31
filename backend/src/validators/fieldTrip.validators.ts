@@ -108,6 +108,12 @@ const FieldTripBodyShape = {
     .int('Number of students must be a whole number')
     .min(1, 'Number of students must be at least 1')
     .max(500, 'Number of students must be 500 or less'),
+  isSpecialProgramOrClub: z.boolean(),
+  specialProgramClubName: z
+    .string()
+    .max(200, 'Program or club name must be 200 characters or less')
+    .nullable()
+    .optional(),
   tripDate: z
     .string()
     .refine((val) => !isNaN(Date.parse(val)), 'Trip date must be a valid date')
@@ -274,6 +280,13 @@ export const CreateFieldTripSchema = z
       message: 'Overnight safety precautions are required for overnight trips',
       path: ['overnightSafetyPrecautions'],
     },
+  )
+  .refine(
+    (data) => !data.isSpecialProgramOrClub || (data.specialProgramClubName && data.specialProgramClubName.trim().length > 0),
+    {
+      message: 'Please enter the program or club name',
+      path: ['specialProgramClubName'],
+    },
   );
 
 export type CreateFieldTripDto = z.infer<typeof CreateFieldTripSchema>;
@@ -288,6 +301,8 @@ export const UpdateFieldTripSchema = z
     schoolBuilding: z.string().min(1).max(200).optional(),
     gradeClass: z.string().min(1).max(100).optional(),
     studentCount: z.number().int().min(1).max(500).optional(),
+    isSpecialProgramOrClub: z.boolean().optional(),
+    specialProgramClubName: z.string().max(200).nullable().optional(),
     tripDate: z
       .string()
       .optional()

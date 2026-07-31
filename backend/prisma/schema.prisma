@@ -688,6 +688,8 @@ model FieldTripRequest {
   schoolBuilding        String                  @db.VarChar(200)
   gradeClass            String                  @db.VarChar(100)
   studentCount          Int
+  isSpecialProgramOrClub Boolean                @default(false)
+  specialProgramClubName String?                @db.VarChar(200)
   tripDate              DateTime
   destination           String                  @db.VarChar(500)
   destinationAddress    String?                 @db.VarChar(500)

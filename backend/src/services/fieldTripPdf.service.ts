@@ -51,6 +51,8 @@ export interface FieldTripForPdf {
   gradeClass:                 string;
   subjectArea:                string | null;
   studentCount:               number;
+  isSpecialProgramOrClub:     boolean;
+  specialProgramClubName:     string | null;
   tripDate:                   Date;
   isOvernightTrip:            boolean;
   returnDate:                 Date | null;
@@ -265,6 +267,9 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
         ['Grade / Class',         trip.gradeClass],
         ...(trip.subjectArea ? [['Subject Area', trip.subjectArea] as [string, string]] : []),
         ['Number of Students',    String(trip.studentCount)],
+        ...(trip.isSpecialProgramOrClub
+          ? [['Special Program / Club', trip.specialProgramClubName ?? ''] as [string, string]]
+          : []),
         ['Trip Date',             formatDate(trip.tripDate)],
         ['Overnight Trip',        yesNo(trip.isOvernightTrip)],
         ...(trip.returnDate

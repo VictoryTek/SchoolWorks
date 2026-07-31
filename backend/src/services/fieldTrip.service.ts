@@ -132,6 +132,8 @@ export class FieldTripService {
         schoolBuilding:       data.schoolBuilding,
         gradeClass:           data.gradeClass,
         studentCount:         data.studentCount,
+        isSpecialProgramOrClub: data.isSpecialProgramOrClub,
+        specialProgramClubName: data.isSpecialProgramOrClub ? (data.specialProgramClubName ?? null) : null,
         tripDate:             new Date(data.tripDate),
         destination:          data.destination,
         destinationAddress:   data.destinationAddress,
@@ -189,6 +191,8 @@ export class FieldTripService {
     if (data.schoolBuilding        !== undefined) updateData.schoolBuilding        = data.schoolBuilding;
     if (data.gradeClass            !== undefined) updateData.gradeClass            = data.gradeClass;
     if (data.studentCount          !== undefined) updateData.studentCount          = data.studentCount;
+    if (data.isSpecialProgramOrClub !== undefined) updateData.isSpecialProgramOrClub = data.isSpecialProgramOrClub;
+    if (data.specialProgramClubName !== undefined) updateData.specialProgramClubName = data.specialProgramClubName ?? null;
     if (data.tripDate              !== undefined) updateData.tripDate              = new Date(data.tripDate);
     if (data.destination           !== undefined) updateData.destination           = data.destination;
     if (data.destinationAddress    !== undefined) updateData.destinationAddress    = data.destinationAddress ?? null;

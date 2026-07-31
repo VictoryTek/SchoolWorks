@@ -80,6 +80,8 @@ export interface FieldTripRequest {
   schoolBuilding:        string;
   gradeClass:            string;
   studentCount:          number;
+  isSpecialProgramOrClub?: boolean;
+  specialProgramClubName?: string | null;
   tripDate:              string;
   destination:           string;
   destinationAddress?:   string | null;
@@ -146,6 +148,8 @@ export interface CreateFieldTripDto {
   schoolBuilding:        string;
   gradeClass:            string;
   studentCount:          number;
+  isSpecialProgramOrClub:  boolean;
+  specialProgramClubName?: string | null;
   tripDate:              string;
   destination:           string;
   destinationAddress:    string;

@@ -12,7 +12,9 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Added a per-device Return action inside a checked-out cart's device list, so one device can be returned without returning the whole cart.",
       'Active Checkouts can now be edited: update the location, condition, or notes on a device that\'s still checked out.',
       'Added the ability to assign or replace a charger for a device from the Active Checkouts page.',
-      'Add back permission to the librarians for cart assignment.',
+      'Added back permission to the librarians for cart assignment.',
+      'Added a "Is this trip for a special program or club?" question to the Field Trip Request form, right after Number of Students — check the box to enter the program or club name.',
+      "The Field Trip Request Grade dropdown now only shows grades relevant to the selected School/Building (e.g. Obion County Middle School shows 6th-8th Grade only, Obion County Central High School shows High School only).",
     ],
   },
   {

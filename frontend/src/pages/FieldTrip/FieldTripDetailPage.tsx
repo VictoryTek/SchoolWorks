@@ -404,6 +404,9 @@ export function FieldTripDetailPage() {
             <DetailField label="Subject Area" value={trip.subjectArea} />
           )}
           <DetailField label="Number of Students"   value={String(trip.studentCount)} />
+          {trip.isSpecialProgramOrClub && (
+            <DetailField label="Special Program / Club" value={trip.specialProgramClubName ?? ''} />
+          )}
           <DetailField label="Overnight Trip"        value={trip.isOvernightTrip ? 'Yes' : 'No'} />
           {trip.returnDate && (
             <DetailField label="Trip End Date" value={new Date(trip.returnDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })} />

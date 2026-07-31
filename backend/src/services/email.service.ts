@@ -515,6 +515,8 @@ function fieldTripDetailHtml(trip: {
   schoolBuilding: string;
   gradeClass:     string;
   studentCount:   number;
+  isSpecialProgramOrClub?: boolean;
+  specialProgramClubName?: string | null;
   purpose:        string;
 }): string {
   const dateStr = formatTripDateRange(trip.tripDate, trip.returnDate, {
@@ -534,6 +536,9 @@ function fieldTripDetailHtml(trip: {
           <td style="padding:4px 8px;">${escapeHtml(trip.gradeClass)}</td></tr>
       <tr><td style="padding:4px 8px;font-weight:bold;">Number of Students:</td>
           <td style="padding:4px 8px;">${trip.studentCount}</td></tr>
+      ${trip.isSpecialProgramOrClub ? `
+      <tr><td style="padding:4px 8px;font-weight:bold;">Special Program / Club:</td>
+          <td style="padding:4px 8px;">${escapeHtml(trip.specialProgramClubName ?? '')}</td></tr>` : ''}
       <tr><td style="padding:4px 8px;font-weight:bold;vertical-align:top;">Educational Purpose:</td>
           <td style="padding:4px 8px;">${escapeHtml(trip.purpose)}</td></tr>
     </table>
