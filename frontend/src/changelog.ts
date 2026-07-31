@@ -15,6 +15,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Added back permission to the librarians for cart assignment.',
       'Added a "Is this trip for a special program or club?" question to the Field Trip Request form, right after Number of Students — check the box to enter the program or club name.',
       "The Field Trip Request Grade dropdown now only shows grades relevant to the selected School/Building (e.g. Obion County Middle School shows 6th-8th Grade only, Obion County Central High School shows High School only).",
+      'Added an "Other" option to the Field Trip Request Subject Area dropdown (for both high schools) and to the Grade dropdown for elementary schools and Obion County Middle School.',
     ],
   },
   {

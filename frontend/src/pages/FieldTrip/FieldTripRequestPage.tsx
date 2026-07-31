@@ -80,10 +80,10 @@ const HIGH_SCHOOL_GRADES = ['High School'];
 // Any school not listed here (e.g. a newly reactivated/renamed building) falls
 // back to the full GRADE_OPTIONS list rather than showing an empty dropdown.
 const SCHOOL_GRADE_BANDS: Record<string, string[]> = {
-  'Hillcrest Elementary':               ELEMENTARY_GRADES,
-  'Lake Road Elementary':               ELEMENTARY_GRADES,
-  'South Fulton Elementary':            ELEMENTARY_GRADES,
-  'Obion County Middle School':         MIDDLE_GRADES,
+  'Hillcrest Elementary':               [...ELEMENTARY_GRADES, 'Other'],
+  'Lake Road Elementary':               [...ELEMENTARY_GRADES, 'Other'],
+  'South Fulton Elementary':            [...ELEMENTARY_GRADES, 'Other'],
+  'Obion County Middle School':         [...MIDDLE_GRADES, 'Other'],
   'Obion County Central High School':   HIGH_SCHOOL_GRADES,
   'South Fulton Middle/High School':    [...MIDDLE_GRADES, ...HIGH_SCHOOL_GRADES],
 };
@@ -99,6 +99,7 @@ const SUBJECT_OPTIONS = [
   'Science',
   'Fine Art / Music / Band',
   'CTE',
+  'Other',
 ];
 
 const REIMBURSEMENT_OPTIONS = ['Registration', 'Meals', 'Mileage', 'Lodging', 'Other'] as const;
