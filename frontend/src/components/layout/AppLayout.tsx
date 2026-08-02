@@ -273,6 +273,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           open={changelogOpen}
           onOpen={() => setChangelogOpen(true)}
           onClose={() => setChangelogOpen(false)}
+          placement="top-start"
           disableTouchListener
           title={
             CURRENT_VERSION_CHANGES ? (

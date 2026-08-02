@@ -53,7 +53,7 @@ export function WhatsNewDialog() {
 
     const seen = getSeenVersion();
     const previous = seen ? parseVersion(seen) : null;
-    if (!previous || !isFeatureRelease(previous, current)) {
+    if (previous && !isFeatureRelease(previous, current)) {
       setSeenVersion(__APP_VERSION__);
       return;
     }
