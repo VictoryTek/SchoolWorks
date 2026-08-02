@@ -342,7 +342,14 @@ export class PurchaseOrderService {
     if (pendingMyApproval) {
       // Build a composite clause that finds POs at any approval stage this user can act on.
       // Each stage has its own status + authorization requirements.
-      const pendingOrClauses: Prisma.purchase_ordersWhereInput[] = [];
+      //
+      // Split into two groups because the self-history exclusion below (mirroring
+      // approvePurchaseOrder's "no double-stage approval" guard) only applies to stages
+      // routed through approvePurchaseOrder. PO Entry (stage 4/4b) is routed through
+      // issuePurchaseOrder instead, which has no such restriction — so it must not be
+      // excluded just because this user also acted on the PO at an earlier stage.
+      const approvalStageClauses: Prisma.purchase_ordersWhereInput[] = [];
+      const entryStageClauses: Prisma.purchase_ordersWhereInput[] = [];
 
       // Stage 1: Supervisor approval (status = 'submitted')
       // User must be the primary supervisor for the PO's entity location.
@@ -370,14 +377,14 @@ export class PurchaseOrderService {
         )
         .map((ls) => ls.locationId);
       if (schoolLocationIds.length > 0) {
-        pendingOrClauses.push({
+        approvalStageClauses.push({
           status: 'submitted',
           officeLocationId: { in: schoolLocationIds },
           entityType: 'SCHOOL',
         });
       }
       if (otherLocationIds.length > 0) {
-        pendingOrClauses.push({
+        approvalStageClauses.push({
           status: 'submitted',
           officeLocationId: { in: otherLocationIds },
           entityType: { not: 'SCHOOL' },
@@ -388,7 +395,7 @@ export class PurchaseOrderService {
       const fsSupervisorGroupId = process.env.ENTRA_FOOD_SERVICES_SUPERVISOR_GROUP_ID;
       const isFsSupervisor = fsSupervisorGroupId ? userGroups.includes(fsSupervisorGroupId) : false;
       if (isFsSupervisor) {
-        pendingOrClauses.push({ status: 'submitted', workflowType: 'food_service' });
+        approvalStageClauses.push({ status: 'submitted', workflowType: 'food_service' });
       }
 
       // Stage 2: Finance Director approval (status = 'supervisor_approved') — standard flow only
@@ -402,39 +409,43 @@ export class PurchaseOrderService {
         // those route straight to DoS and should never appear in a Finance Director's own queue.
         // This also covers routeToFinanceDirector locations: their POs auto-advance to
         // supervisor_approved at submit, so the Finance Director sees them here.
-        pendingOrClauses.push({ status: 'supervisor_approved', workflowType: 'standard', skipFinanceDirectorApproval: false });
+        approvalStageClauses.push({ status: 'supervisor_approved', workflowType: 'standard', skipFinanceDirectorApproval: false });
       }
 
       // Stage 3: Director of Schools approval (status = 'finance_director_approved') — standard flow
       if (isDoS) {
-        pendingOrClauses.push({ status: 'finance_director_approved' });
+        approvalStageClauses.push({ status: 'finance_director_approved' });
       }
 
       // Stage 3b: DoS approval when the finance_director_approved stage is skipped —
       // Food Service POs, or standard POs whose requestor is a Finance Director.
       if (isDoS) {
-        pendingOrClauses.push({ status: 'supervisor_approved', workflowType: 'food_service' });
-        pendingOrClauses.push({ status: 'supervisor_approved', skipFinanceDirectorApproval: true });
+        approvalStageClauses.push({ status: 'supervisor_approved', workflowType: 'food_service' });
+        approvalStageClauses.push({ status: 'supervisor_approved', skipFinanceDirectorApproval: true });
       }
 
-      // Stage 4: PO Entry / Issue (status = 'dos_approved') — standard flow
+      // Stage 4: PO Entry / Issue (status = 'dos_approved') — standard flow.
+      // Routed through issuePurchaseOrder, not approvePurchaseOrder — no self-history
+      // exclusion applies here (see comment above approvalStageClauses/entryStageClauses).
       const poEntryGroupId = process.env.ENTRA_FINANCE_PO_ENTRY_GROUP_ID;
       const isPoEntry = poEntryGroupId ? userGroups.includes(poEntryGroupId) : false;
       if (isPoEntry) {
-        pendingOrClauses.push({ status: 'dos_approved', workflowType: 'standard' });
+        entryStageClauses.push({ status: 'dos_approved', workflowType: 'standard' });
       }
 
       // Stage 4b: Food Service PO Entry / Issue (status = 'dos_approved', workflowType = 'food_service')
       const fsPoEntryGroupId = process.env.ENTRA_FOOD_SERVICES_PO_ENTRY_GROUP_ID;
       const isFsPoEntry = fsPoEntryGroupId ? userGroups.includes(fsPoEntryGroupId) : false;
       if (isFsPoEntry) {
-        pendingOrClauses.push({ status: 'dos_approved', workflowType: 'food_service' });
+        entryStageClauses.push({ status: 'dos_approved', workflowType: 'food_service' });
       }
 
-      if (pendingOrClauses.length > 0) {
-        andClauses.push({ OR: pendingOrClauses });
-        // Exclude POs where this user has already acted (approved/rejected) at any stage
-        andClauses.push({
+      const combinedOrClauses: Prisma.purchase_ordersWhereInput[] = [];
+      if (approvalStageClauses.length > 0) {
+        combinedOrClauses.push({
+          OR: approvalStageClauses,
+          // Exclude POs where this user has already acted (approved/rejected) at an
+          // earlier approval stage — mirrors approvePurchaseOrder's own guard.
           NOT: {
             statusHistory: {
               some: {
@@ -444,6 +455,11 @@ export class PurchaseOrderService {
             },
           },
         });
+      }
+      combinedOrClauses.push(...entryStageClauses);
+
+      if (combinedOrClauses.length > 0) {
+        andClauses.push({ OR: combinedOrClauses });
       } else {
         // User cannot approve anything — return empty result
         andClauses.push({ id: 'no-match' });
