@@ -17,6 +17,8 @@ import type {
   CreateWorkOrderDto,
   UpdateWorkOrderDto,
   WorkOrderPriority,
+  MyInputRequest,
+  WorkOrderInputRequest,
 } from '../types/work-order.types';
 
 const BASE = '/work-orders';
@@ -41,6 +43,8 @@ const workOrderService = {
     if (filters.reportedById)              q.append('reportedById',     filters.reportedById);
     if (filters.fiscalYear)                q.append('fiscalYear',       filters.fiscalYear);
     if (filters.search)                    q.append('search',           filters.search);
+    if (filters.sortBy)                    q.append('sortBy',           filters.sortBy);
+    if (filters.sortOrder)                 q.append('sortOrder',        filters.sortOrder);
 
     const qs = q.toString();
     const res = await api.get<WorkOrderListResponse>(`${BASE}${qs ? `?${qs}` : ''}`);
@@ -78,8 +82,12 @@ const workOrderService = {
   // Status Transition
   // -------------------------------------------------------------------------
 
-  updateStatus: async (id: string, status: string, notes?: string): Promise<WorkOrderDetail> => {
-    const res = await api.put<WorkOrderDetail>(`${BASE}/${id}/status`, { status, notes });
+  updateStatus: async (id: string, status: string, notes?: string, notifySubmitter?: boolean): Promise<WorkOrderDetail> => {
+    const res = await api.put<WorkOrderDetail>(`${BASE}/${id}/status`, {
+      status,
+      notes,
+      ...(notifySubmitter !== undefined && { notifySubmitter }),
+    });
     return res.data;
   },
 
@@ -129,6 +137,25 @@ const workOrderService = {
     if (params?.fiscalYear)       q.append('fiscalYear',       params.fiscalYear);
     const qs = q.toString();
     const res = await api.get<Record<string, number>>(`${BASE}/stats/summary${qs ? `?${qs}` : ''}`);
+    return res.data;
+  },
+
+  // -------------------------------------------------------------------------
+  // Input Requests
+  // -------------------------------------------------------------------------
+
+  getMyInputRequests: async (): Promise<MyInputRequest[]> => {
+    const res = await api.get<MyInputRequest[]>(`${BASE}/input-requests/mine`);
+    return res.data;
+  },
+
+  requestInput: async (workOrderId: string, requestedOfId: string, message?: string): Promise<WorkOrderInputRequest> => {
+    const res = await api.post<WorkOrderInputRequest>(`${BASE}/${workOrderId}/input-requests`, { requestedOfId, message });
+    return res.data;
+  },
+
+  dismissInputRequest: async (workOrderId: string, requestId: string): Promise<WorkOrderInputRequest> => {
+    const res = await api.post<WorkOrderInputRequest>(`${BASE}/${workOrderId}/input-requests/${requestId}/dismiss`);
     return res.data;
   },
 };

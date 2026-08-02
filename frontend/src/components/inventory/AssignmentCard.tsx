@@ -42,7 +42,7 @@ export const AssignmentCard = ({
   // If nothing is assigned, show empty state
   if (!hasUserAssignment && !hasRoomAssignment && !hasLocationAssignment) {
     return (
-      <Card variant="outlined" sx={{ bgcolor: 'grey.50' }}>
+      <Card variant="outlined" sx={{ bgcolor: 'action.hover' }}>
         <CardContent>
           <Typography variant="body2" color="text.secondary" align="center">
             Not currently assigned

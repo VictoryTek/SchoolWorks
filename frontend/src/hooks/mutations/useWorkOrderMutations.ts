@@ -51,8 +51,8 @@ export function useUpdateWorkOrderStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, status, notes }: { id: string; status: string; notes?: string }) =>
-      workOrderService.updateStatus(id, status, notes),
+    mutationFn: ({ id, status, notes, notifySubmitter }: { id: string; status: string; notes?: string; notifySubmitter?: boolean }) =>
+      workOrderService.updateStatus(id, status, notes, notifySubmitter),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.detail(id) });
@@ -106,6 +106,7 @@ export function useAddWorkOrderComment() {
       workOrderService.addComment(id, body, isInternal ?? false),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.lists() });
     },
   });
 }
@@ -121,6 +122,40 @@ export function useDeleteWorkOrder() {
     mutationFn: (id: string) => workOrderService.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.all });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useRequestInput
+// ---------------------------------------------------------------------------
+
+export function useRequestInput() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ workOrderId, requestedOfId, message }: { workOrderId: string; requestedOfId: string; message?: string }) =>
+      workOrderService.requestInput(workOrderId, requestedOfId, message),
+    onSuccess: (_, { workOrderId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.detail(workOrderId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inputRequests.mine() });
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useDismissInputRequest
+// ---------------------------------------------------------------------------
+
+export function useDismissInputRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ workOrderId, requestId }: { workOrderId: string; requestId: string }) =>
+      workOrderService.dismissInputRequest(workOrderId, requestId),
+    onSuccess: (_, { workOrderId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.detail(workOrderId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inputRequests.mine() });
     },
   });
 }

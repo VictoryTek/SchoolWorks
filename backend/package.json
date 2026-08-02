@@ -1,6 +1,6 @@
 {
   "name": "tech-v2-backend",
-  "version": "1.6.5",
+  "version": "1.7.0",
   "description": "Backend API for Tech Department Management System",
   "main": "dist/server.js",
   "scripts": {

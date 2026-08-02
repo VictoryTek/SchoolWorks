@@ -4,8 +4,9 @@
  */
 
 export type WorkOrderDepartment = 'TECHNOLOGY' | 'MAINTENANCE';
-export type WorkOrderStatus     = 'OPEN' | 'IN_PROGRESS' | 'ON_HOLD' | 'CLOSED';
+export type WorkOrderStatus     = 'OPEN' | 'IN_PROGRESS' | 'ON_HOLD' | 'LONG_TERM' | 'CLOSED';
 export type WorkOrderPriority   = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type WorkOrderSortField  = 'createdAt' | 'location' | 'category' | 'status';
 
 export const TECH_CATEGORIES: { value: string; label: string }[] = [
   { value: 'HARDWARE_FAILURE',     label: 'Hardware Failure' },
@@ -63,6 +64,7 @@ export interface WorkOrderSummary {
   notInInventory: boolean;
   description: string;
   _count?: { comments: number };
+  hasUnreadComments: boolean;
 }
 
 export interface WorkOrderComment {
@@ -93,6 +95,33 @@ export interface WorkOrderPriorityHistoryEntry {
   changedBy: WorkOrderUser;
 }
 
+export interface WorkOrderInputRequestSummary {
+  id: string;
+  message: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+  requestedBy: WorkOrderUser;
+  requestedOf: WorkOrderUser;
+}
+
+export interface WorkOrderInputRequest extends WorkOrderInputRequestSummary {
+  workOrderId: string;
+}
+
+export interface MyInputRequest extends WorkOrderInputRequest {
+  hasUnreadComment: boolean;
+  workOrder: {
+    id: string;
+    workOrderNumber: string;
+    title: string | null;
+    status: WorkOrderStatus;
+    priority: WorkOrderPriority;
+    department: WorkOrderDepartment;
+    officeLocation: { id: string; name: string } | null;
+    room: { id: string; name: string } | null;
+  };
+}
+
 export interface WorkOrderDetail extends WorkOrderSummary {
   description: string;
   equipmentId: string | null;
@@ -106,6 +135,7 @@ export interface WorkOrderDetail extends WorkOrderSummary {
   comments: WorkOrderComment[];
   statusHistory: WorkOrderStatusHistoryEntry[];
   priorityHistory: WorkOrderPriorityHistoryEntry[];
+  inputRequests: WorkOrderInputRequestSummary[];
 }
 
 export interface CreateWorkOrderDto {
@@ -155,6 +185,8 @@ export interface WorkOrderQuery {
   reportedById?: string;
   fiscalYear?: string;
   search?: string;
+  sortBy?: WorkOrderSortField;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface WorkOrderListResponse {
@@ -169,6 +201,7 @@ export const WORK_ORDER_STATUS_LABELS: Record<WorkOrderStatus, string> = {
   OPEN:        'Open',
   IN_PROGRESS: 'In Progress',
   ON_HOLD:     'On Hold',
+  LONG_TERM:   'Long Term',
   CLOSED:      'Closed',
 };
 

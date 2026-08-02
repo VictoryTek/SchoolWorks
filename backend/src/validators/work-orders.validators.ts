@@ -12,8 +12,9 @@ import { z } from 'zod';
 // ---------------------------------------------------------------------------
 
 export const TicketDepartmentEnum = z.enum(['TECHNOLOGY', 'MAINTENANCE']);
-export const TicketStatusEnum     = z.enum(['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'CLOSED']);
+export const TicketStatusEnum     = z.enum(['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'LONG_TERM', 'CLOSED']);
 export const TicketPriorityEnum   = z.enum(['LOW', 'MEDIUM', 'HIGH', 'URGENT']);
+export const WorkOrderSortFieldEnum = z.enum(['createdAt', 'location', 'category', 'status']);
 
 // ---------------------------------------------------------------------------
 // ID param schema
@@ -63,6 +64,8 @@ export const WorkOrderQuerySchema = z.object({
   reportedById:     z.string().uuid('Invalid user ID').optional(),
   fiscalYear:       z.string().max(20).optional(),
   search:           z.string().max(200, 'Search query too long').optional(),
+  sortBy:           WorkOrderSortFieldEnum.default('createdAt'),
+  sortOrder:        z.enum(['asc', 'desc']).default('desc'),
 });
 
 // ---------------------------------------------------------------------------
@@ -158,6 +161,7 @@ export const UpdateStatusSchema = z
   .object({
     status: TicketStatusEnum,
     notes:  z.string().max(1000).optional(),
+    notifySubmitter: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.status === 'CLOSED' && !data.notes?.trim()) {
@@ -196,13 +200,33 @@ export const AddCommentSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
+// POST /work-orders/:id/input-requests — request input
+// ---------------------------------------------------------------------------
+
+export const RequestInputSchema = z.object({
+  requestedOfId: z.string().uuid('Invalid user ID'),
+  message:       z.string().max(2000).optional(),
+});
+
+// ---------------------------------------------------------------------------
+// POST /work-orders/:id/input-requests/:requestId/dismiss — param schema
+// ---------------------------------------------------------------------------
+
+export const InputRequestIdParamSchema = z.object({
+  id:        z.string().uuid('Invalid work order ID format'),
+  requestId: z.string().uuid('Invalid request ID format'),
+});
+
+// ---------------------------------------------------------------------------
 // Inferred DTO types
 // ---------------------------------------------------------------------------
 
 export type WorkOrderQueryDto   = z.infer<typeof WorkOrderQuerySchema>;
+export type WorkOrderSortField  = z.infer<typeof WorkOrderSortFieldEnum>;
 export type CreateWorkOrderDto  = z.infer<typeof CreateWorkOrderSchema>;
 export type UpdateWorkOrderDto  = z.infer<typeof UpdateWorkOrderSchema>;
 export type UpdateStatusDto     = z.infer<typeof UpdateStatusSchema>;
 export type AssignWorkOrderDto  = z.infer<typeof AssignWorkOrderSchema>;
 export type AddCommentDto       = z.infer<typeof AddCommentSchema>;
 export type UpdatePriorityDto   = z.infer<typeof UpdatePrioritySchema>;
+export type RequestInputDto     = z.infer<typeof RequestInputSchema>;

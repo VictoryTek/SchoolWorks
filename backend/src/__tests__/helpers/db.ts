@@ -131,10 +131,59 @@ export async function createTestWorkOrder(params: {
   });
 }
 
+/**
+ * Creates a TicketComment on a work order.
+ */
+export async function createTestComment(params: {
+  ticketId: string;
+  authorId: string;
+  body?: string;
+  isInternal?: boolean;
+  isSystem?: boolean;
+}): Promise<{ id: string }> {
+  const prisma = getTestPrisma();
+  return prisma.ticketComment.create({
+    data: {
+      ticketId: params.ticketId,
+      authorId: params.authorId,
+      body: params.body ?? 'Test comment',
+      isInternal: params.isInternal ?? false,
+      isSystem: params.isSystem ?? false,
+    },
+    select: { id: true },
+  });
+}
+
+/**
+ * Creates a TicketInputRequest on a work order.
+ */
+export async function createTestInputRequest(params: {
+  ticketId: string;
+  requestedById: string;
+  requestedOfId: string;
+  message?: string;
+  dismissedAt?: Date;
+}): Promise<{ id: string }> {
+  const prisma = getTestPrisma();
+  return prisma.ticketInputRequest.create({
+    data: {
+      ticketId: params.ticketId,
+      requestedById: params.requestedById,
+      requestedOfId: params.requestedOfId,
+      message: params.message ?? null,
+      dismissedAt: params.dismissedAt ?? null,
+    },
+    select: { id: true },
+  });
+}
+
 // ─── Cleanup helpers ──────────────────────────────────────────────────────────
 // FK ordering: tickets must be deleted before users and locations.
 // User delete cascades: RefreshToken, LocationSupervisor.
 // OfficeLocation delete cascades: LocationSupervisor.
+// TicketInputRequest FKs to users are RESTRICT — must be deleted before users
+// (cleanupTickets also cascades them away via the ticketId FK, but tests that
+// create requests without a wrapping ticket cleanup should call this first).
 
 export async function cleanupUsers(userIds: string[]): Promise<void> {
   if (userIds.length === 0) return;
@@ -152,4 +201,10 @@ export async function cleanupTickets(ticketIds: string[]): Promise<void> {
   if (ticketIds.length === 0) return;
   const prisma = getTestPrisma();
   await prisma.ticket.deleteMany({ where: { id: { in: ticketIds } } });
+}
+
+export async function cleanupInputRequests(requestIds: string[]): Promise<void> {
+  if (requestIds.length === 0) return;
+  const prisma = getTestPrisma();
+  await prisma.ticketInputRequest.deleteMany({ where: { id: { in: requestIds } } });
 }

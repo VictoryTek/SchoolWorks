@@ -27,6 +27,8 @@ import {
   AssignWorkOrderSchema,
   AddCommentSchema,
   UpdatePrioritySchema,
+  RequestInputSchema,
+  InputRequestIdParamSchema,
 } from '../validators/work-orders.validators';
 import * as workOrdersController from '../controllers/work-orders.controller';
 
@@ -50,6 +52,17 @@ router.get(
   '/stats/summary',
   requireModule('WORK_ORDERS', 4),
   workOrdersController.getWorkOrderStats,
+);
+
+/**
+ * GET /api/work-orders/input-requests/mine
+ * Active input requests for the current user, most recent first.
+ * Registered before /:id to avoid Express matching "input-requests" as an id.
+ */
+router.get(
+  '/input-requests/mine',
+  requireModule('WORK_ORDERS', 1),
+  workOrdersController.getMyInputRequests,
 );
 
 // ---------------------------------------------------------------------------
@@ -155,6 +168,30 @@ router.post(
   validateRequest(AddCommentSchema, 'body'),
   requireModule('WORK_ORDERS', 2),
   workOrdersController.addComment,
+);
+
+/**
+ * POST /api/work-orders/:id/input-requests
+ * Ask another user for input on a work order (grants them read access).
+ * Level 1 is sufficient — requestInput asserts the caller's own access itself.
+ */
+router.post(
+  '/:id/input-requests',
+  validateRequest(WorkOrderIdParamSchema, 'params'),
+  validateRequest(RequestInputSchema, 'body'),
+  requireModule('WORK_ORDERS', 1),
+  workOrdersController.requestInput,
+);
+
+/**
+ * POST /api/work-orders/:id/input-requests/:requestId/dismiss
+ * Dismiss an input request. Restricted (in the service) to the requester or recipient.
+ */
+router.post(
+  '/:id/input-requests/:requestId/dismiss',
+  validateRequest(InputRequestIdParamSchema, 'params'),
+  requireModule('WORK_ORDERS', 1),
+  workOrdersController.dismissInputRequest,
 );
 
 /**

@@ -3,14 +3,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 40%, #3b82f6 100%);
+  background:
+    radial-gradient(900px 650px at 50% 30%, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(160deg, #eaf0fe 0%, #c3d5f6 45%, #8fb2ec 100%);
   padding: 20px;
 }
 
 .login-card {
   background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.18);
   padding: 40px;
   max-width: 450px;
   width: 100%;
@@ -43,7 +46,7 @@
 .error-message {
   background-color: #fee;
   border: 1px solid #fcc;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 12px 16px;
   margin-bottom: 20px;
   color: #c33;
@@ -63,7 +66,7 @@
   padding: 14px 24px;
   background-color: #fff;
   border: 1px solid #8c8c8c;
-  border-radius: 4px;
+  border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   color: #5e5e5e;
@@ -147,49 +150,87 @@
 /* Dark mode — Login.css predates the shared --slate-* token set, so its
    colors are overridden directly rather than through variables. */
 :root.dark .login-container {
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #3b82f6 100%);
+  background:
+    radial-gradient(1000px 700px at 50% 38%, rgba(96, 165, 250, 0.20) 0%, rgba(96, 165, 250, 0) 62%),
+    radial-gradient(700px 500px at 82% 88%, rgba(37, 99, 235, 0.14) 0%, rgba(37, 99, 235, 0) 60%),
+    linear-gradient(180deg, #0a1020 0%, #0d1729 55%, #090f1d 100%);
 }
 
+/* Light band behind the logo (its navy wordmark/gear would otherwise
+   disappear on a flat dark card), settling onto an elevated body that's
+   lighter than the page behind it so the card reads as raised, not sunken.
+   Pixel stops, not percentages — the card's height varies with the error
+   banner and the 480px breakpoint, but the logo's position (40px padding +
+   70px logo height) is fixed. */
 :root.dark .login-card {
-  background: #1e293b;
+  background: linear-gradient(
+    180deg,
+    #7cb5fc 0,
+    var(--primary-blue, #3b82f6) 152px,
+    #2a5296 196px,
+    #1c2b4d 224px,
+    #16203a 248px,
+    #16203a 100%
+  );
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow:
+    0 32px 64px -12px rgba(2, 6, 23, 0.75),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+}
+
+/* The loading/spinner state reuses .login-card with no logo — without this
+   modifier it would render as a bright blue slab under the gradient above. */
+:root.dark .login-card--loading {
+  background: #16203a;
 }
 
 :root.dark .login-header h1 {
   color: #f1f5f9;
 }
 
-:root.dark .login-header p,
-:root.dark .login-info,
+/* Sits inside the light band — white measures ~2.4:1 there; this navy
+   matches the wordmark and measures ~4.9:1. */
+:root.dark .login-header p {
+  color: #0b1a3a;
+}
+
+:root.dark .login-info {
+  color: rgba(255, 255, 255, 0.68);
+}
+
 :root.dark .login-spinner p {
-  color: #94a3b8;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 :root.dark .error-message {
-  background-color: rgba(239, 68, 68, 0.16);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
+  background-color: #7f1d1d;
+  border-color: #b91c1c;
+  color: #fee2e2;
 }
 
+/* The primary action must be the brightest element on the card, not the
+   dullest — matches light mode and Microsoft's own sign-in button styling. */
 :root.dark .microsoft-login-button {
-  background-color: #334155;
-  border-color: #475569;
-  color: #f1f5f9;
+  background-color: #ffffff;
+  border-color: #ffffff;
+  color: #1f2937;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 :root.dark .microsoft-login-button:hover:not(:disabled) {
-  background-color: #475569;
-  border-color: #64748b;
+  background-color: #f1f5f9;
+  border-color: #f1f5f9;
 }
 
 :root.dark .login-footer {
-  border-top-color: #334155;
+  border-top-color: rgba(255, 255, 255, 0.09);
 }
 
 :root.dark .login-footer p {
-  color: #64748b;
+  color: rgba(255, 255, 255, 0.42);
 }
 
 :root.dark .spinner {
-  border-color: #334155;
+  border-color: rgba(255, 255, 255, 0.14);
   border-top-color: #60a5fa;
 }

@@ -67,7 +67,7 @@ const EquipmentDetailDrawer = ({ item, open, onClose }: EquipmentDetailDrawerPro
           height: '100vh',
           width: '480px',
           maxWidth: '100vw',
-          background: 'white',
+          background: 'var(--slate-100)',
           zIndex: 1001,
           overflowY: 'auto',
           boxShadow: '-4px 0 20px rgba(0, 0, 0, 0.15)',

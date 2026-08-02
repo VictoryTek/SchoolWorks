@@ -10,8 +10,9 @@
  * Route: /work-orders/:id
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link as RouterLink } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useGoBack } from '@/hooks/useGoBack';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import {
@@ -46,6 +47,7 @@ import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import ReplayIcon from '@mui/icons-material/Replay';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import { useWorkOrder } from '@/hooks/queries/useWorkOrders';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -53,10 +55,12 @@ import {
   useUpdateWorkOrderPriority,
   useAssignWorkOrder,
   useAddWorkOrderComment,
+  useDismissInputRequest,
 } from '@/hooks/mutations/useWorkOrderMutations';
 import { WorkOrderStatusChip } from '@/components/work-orders/WorkOrderStatusChip';
 import { WorkOrderPriorityChip } from '@/components/work-orders/WorkOrderPriorityChip';
 import { UserSearchAutocomplete } from '@/components/UserSearchAutocomplete';
+import { RequestInputDialog } from '@/components/work-orders/RequestInputDialog';
 import type {
   WorkOrderStatus,
   WorkOrderPriority,
@@ -66,6 +70,7 @@ import type {
 } from '@/types/work-order.types';
 import { WORK_ORDER_STATUS_LABELS, WORK_ORDER_PRIORITY_LABELS } from '@/types/work-order.types';
 import { useIsMobile } from '@/hooks/useResponsive';
+import { queryKeys } from '@/lib/queryKeys';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -84,15 +89,23 @@ const STATUSES: { value: WorkOrderStatus; label: string }[] = [
   { value: 'OPEN',        label: 'Open' },
   { value: 'IN_PROGRESS', label: 'In Progress' },
   { value: 'ON_HOLD',     label: 'On Hold' },
+  { value: 'LONG_TERM',   label: 'Long Term' },
   { value: 'CLOSED',      label: 'Closed' },
 ];
 
 const ALLOWED_NEXT_STATUSES: Record<string, string[]> = {
-  OPEN:        ['IN_PROGRESS', 'CLOSED'],
-  IN_PROGRESS: ['ON_HOLD', 'CLOSED'],
-  ON_HOLD:     ['IN_PROGRESS', 'CLOSED'],
-  CLOSED:      ['OPEN'],
+  OPEN:        ['IN_PROGRESS', 'ON_HOLD', 'LONG_TERM', 'CLOSED'],
+  IN_PROGRESS: ['ON_HOLD', 'LONG_TERM', 'CLOSED'],
+  ON_HOLD:     ['IN_PROGRESS', 'LONG_TERM', 'CLOSED'],
+  LONG_TERM:   ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'CLOSED'],
+  CLOSED:      ['OPEN', 'ON_HOLD', 'LONG_TERM'],
 };
+
+const STATUS_KEY_LEGEND: { label: string; description: string }[] = [
+  { label: 'In Progress', description: 'Actively Working On' },
+  { label: 'On Hold',     description: 'Temporarily Paused' },
+  { label: 'Long Term',   description: 'Long Term Project' },
+];
 
 const PRIORITIES: { value: WorkOrderPriority; label: string }[] = [
   { value: 'LOW',    label: 'Low' },
@@ -229,17 +242,32 @@ export default function WorkOrderDetailPage() {
   const canAssign = (user?.permLevels?.WORK_ORDERS ?? 0) >= 4;
   const canChangePriority = user?.permLevels?.canChangeWorkOrderPriority ?? false;
 
+  // Opening the detail view clears the unread flag server-side (TicketView upsert
+  // in getWorkOrderById) — invalidate the list cache so it doesn't linger stale
+  // for the list's 30s staleTime after Back navigation.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (workOrder) {
+      queryClient.invalidateQueries({ queryKey: queryKeys.workOrders.lists() });
+    }
+  }, [workOrder?.id, queryClient]);
+
   // Mutations
   const updateStatus   = useUpdateWorkOrderStatus();
   const updatePriority = useUpdateWorkOrderPriority();
   const assignWorkOrder  = useAssignWorkOrder();
   const addComment    = useAddWorkOrderComment();
+  const dismissInputRequest = useDismissInputRequest();
+
+  // Request Input dialog
+  const [requestInputOpen, setRequestInputOpen] = useState(false);
 
   // Status dialog
-  const [statusOpen, setStatusOpen]   = useState(false);
-  const [newStatus, setNewStatus]     = useState<WorkOrderStatus>('OPEN');
-  const [statusNote, setStatusNote]   = useState('');
-  const [statusError, setStatusError] = useState<string | null>(null);
+  const [statusOpen, setStatusOpen]           = useState(false);
+  const [newStatus, setNewStatus]             = useState<WorkOrderStatus>('OPEN');
+  const [statusNote, setStatusNote]           = useState('');
+  const [statusError, setStatusError]         = useState<string | null>(null);
+  const [notifySubmitter, setNotifySubmitter] = useState(true);
 
   // Priority dialog
   const [priorityOpen, setPriorityOpen]   = useState(false);
@@ -265,6 +293,7 @@ export default function WorkOrderDetailPage() {
     }
     setStatusNote('');
     setStatusError(null);
+    setNotifySubmitter(true);
     setStatusOpen(true);
   };
 
@@ -276,7 +305,12 @@ export default function WorkOrderDetailPage() {
       return;
     }
     try {
-      await updateStatus.mutateAsync({ id, status: newStatus, notes: statusNote || undefined });
+      await updateStatus.mutateAsync({
+        id,
+        status: newStatus,
+        notes: statusNote || undefined,
+        ...(newStatus === 'LONG_TERM' && { notifySubmitter }),
+      });
       setStatusOpen(false);
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -448,8 +482,47 @@ export default function WorkOrderDetailPage() {
             Assign To
           </Button>
           )}
+          <Button
+            variant="outlined"
+            startIcon={<HelpOutlineIcon />}
+            onClick={() => setRequestInputOpen(true)}
+            size="small"
+          >
+            Request Input
+          </Button>
         </Box>
       </Box>
+
+      {workOrder.inputRequests.some((r) => r.requestedBy.id === user?.id || r.requestedOf.id === user?.id) && (
+        <Box sx={{ mb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          {workOrder.inputRequests
+            .filter((r) => r.requestedBy.id === user?.id || r.requestedOf.id === user?.id)
+            .map((r) => (
+              <Alert
+                key={r.id}
+                severity="info"
+                action={
+                  <Button
+                    size="small"
+                    color="inherit"
+                    disabled={dismissInputRequest.isPending}
+                    onClick={() => id && dismissInputRequest.mutate({ workOrderId: id, requestId: r.id })}
+                  >
+                    Dismiss
+                  </Button>
+                }
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <span>
+                    Input requested from <strong>{r.requestedOf.displayName ?? r.requestedOf.email}</strong> by{' '}
+                    <strong>{r.requestedBy.displayName ?? r.requestedBy.email}</strong>
+                  </span>
+                  <Chip label={r.respondedAt ? 'Responded' : 'Awaiting response'} size="small" color={r.respondedAt ? 'success' : 'warning'} variant="outlined" />
+                </Box>
+              </Alert>
+            ))}
+        </Box>
+      )}
 
       {statusError && !statusOpen && (
         <Alert severity="error" onClose={() => setStatusError(null)} sx={{ mb: 2 }}>
@@ -686,6 +759,25 @@ export default function WorkOrderDetailPage() {
                 : undefined
             }
           />
+          {newStatus === 'LONG_TERM' && (
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={notifySubmitter}
+                  onChange={(e) => setNotifySubmitter(e.target.checked)}
+                />
+              }
+              label={<Typography variant="body2">Notify the submitter of this status change</Typography>}
+            />
+          )}
+          <Box>
+            {STATUS_KEY_LEGEND.map((entry) => (
+              <Typography key={entry.label} variant="caption" color="text.secondary" display="block">
+                <strong>{entry.label}</strong> — {entry.description}
+              </Typography>
+            ))}
+          </Box>
           {statusError && <Alert severity="error" onClose={() => setStatusError(null)}>{statusError}</Alert>}
         </DialogContent>
         <DialogActions>
@@ -766,6 +858,15 @@ export default function WorkOrderDetailPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* ── Request Input Dialog ──────────────────────────────────────────── */}
+      {id && (
+        <RequestInputDialog
+          open={requestInputOpen}
+          onClose={() => setRequestInputOpen(false)}
+          workOrderId={id}
+        />
+      )}
     </Box>
   );
 }

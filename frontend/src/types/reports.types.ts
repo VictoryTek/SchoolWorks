@@ -2,6 +2,7 @@ export interface WorkOrderStatusCounts {
   OPEN: number;
   IN_PROGRESS: number;
   ON_HOLD: number;
+  LONG_TERM: number;
   CLOSED: number;
 }
 

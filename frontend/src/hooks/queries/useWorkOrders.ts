@@ -54,3 +54,14 @@ export function useWorkOrderStats(params?: { officeLocationId?: string; departme
     staleTime: 60_000,
   });
 }
+
+// ---------------------------------------------------------------------------
+// useMyInputRequests
+// ---------------------------------------------------------------------------
+
+export function useMyInputRequests() {
+  return useQuery({
+    queryKey: queryKeys.inputRequests.mine(),
+    queryFn:  () => workOrderService.getMyInputRequests(),
+  });
+}

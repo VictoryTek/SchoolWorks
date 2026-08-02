@@ -12,7 +12,44 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.6.5',
+    version: '1.7.0',
+    highlights: [
+      {
+        icon: '📦',
+        title: 'Edit checked-out carts & checkouts',
+        body: 'Update the location, name, tag, due date, notes, or staff assignment on a checked-out cart or an active checkout — no more full return/recheckout cycle just to fix a mistake.',
+      },
+      {
+        icon: '🚌',
+        title: 'Smarter Field Trip Request form',
+        body: 'The Grade dropdown now only shows grades relevant to the selected school, both Subject Area and Grade support "Other," and there\'s a new question for special program/club trips.',
+      },
+      {
+        icon: '🌙',
+        title: 'Dark mode polish',
+        body: 'Fixed several tables and cards — including the Checked-Out Carts device list — plus the login page logo and overall color scheme, rendering unreadable or broken in dark mode.',
+      },
+      {
+        icon: '🔄',
+        title: 'Synergy CSV Export',
+        body: 'A new scheduled Admin Job exports staff and student UPNs to the Synergy SIS share so Synergy can pull them back in automatically.',
+      },
+      {
+        icon: '🆕',
+        title: "What's New popup",
+        body: "You're looking at it — SchoolWorks now shows a quick summary of what changed after a feature update. Turn it off anytime by checking the \"Do not show again\" box, or from the Notifications setting under the bell icon in the header.",
+      },
+      {
+        icon: '🙋',
+        title: 'Request Input on work orders',
+        body: 'Pull a colleague into a work order for a second opinion without reassigning it — they\'re notified and gain access, and their reply notifies you back.',
+      },
+      {
+        icon: '⏳',
+        title: 'Long Term work order status',
+        body: 'A new status and list category for projects that can\'t be completed quickly, so they stop cluttering the Open list — with an optional notification to the submitter when it\'s used.',
+      },
+    ],
     changes: [
       'Checked-out carts can now be edited: update the location, name, tag number, due date, or notes, or reassign which staff member the cart is checked out to — changing the location or staff reassigns every device still checked out under that cart.',
       "Added the ability to add a device to a cart that's already checked out — it's checked out immediately to the cart's current assignee.",
@@ -23,6 +60,17 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Added a "Is this trip for a special program or club?" question to the Field Trip Request form, right after Number of Students — check the box to enter the program or club name.',
       "The Field Trip Request Grade dropdown now only shows grades relevant to the selected School/Building (e.g. Obion County Middle School shows 6th-8th Grade only, Obion County Central High School shows High School only).",
       'Added an "Other" option to the Field Trip Request Subject Area dropdown (for both high schools) and to the Grade dropdown for elementary schools and Obion County Middle School.',
+      'Fixed the Checked-Out Carts expanded device table, plus three other surfaces, rendering unreadable near-white text on a near-white background in dark mode.',
+      'Added a scheduled "Synergy CSV Export" Admin Job that exports active staff and student employeeId-to-UPN mappings to SynergyStaff.csv and SynergyStudents.csv on the Synergy SIS share, which Synergy reads back in to update the SIS.',
+      'Added a "What\'s New" popup that summarizes what changed after a feature or major update; patch releases stay silent. Opt out anytime from Settings > Notifications.',
+      'The Work Orders list now highlights the View button in amber with a "New comment" tooltip when a work order you submitted or are assigned to has a comment you haven\'t seen yet.',
+      'Fixed the charger serial number running off the edge of the card on the Active Checkouts page on mobile — it now shows just the last few characters, which is what actually distinguishes one charger from another.',
+      'Added a "Long Term" work order status and list category for projects that can\'t be completed quickly, with its own badge color and an optional notification to the submitter when a work order is set to Long Term.',
+      'On Hold can now be set from any work order status, not just In Progress.',
+      'Added a status key to the Update Status dialog explaining what In Progress, On Hold, and Long Term mean.',
+      'Added "Request Input" on the work order detail page — pull in a colleague for a second opinion without reassigning the work order. They\'re emailed and see it in a new panel at the top of their Work Orders list until they dismiss it, and their reply notifies you.',
+      'The Work Orders list can now be sorted by location, category, or status (ascending or descending) in addition to the default newest-first order, including on mobile. Room numbers now sort in natural numeric order everywhere in the app instead of alphabetically (e.g. Room 9 before Room 10).',
+      'Fixed the login page logo rendering in a solid white box in dark mode, and gave the login page a general dark-mode polish so the card reads as raised instead of sunken and the sign-in button is clearly the primary action.',
     ],
   },
   {

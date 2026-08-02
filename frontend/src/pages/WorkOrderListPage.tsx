@@ -40,12 +40,13 @@ import { locationService } from '@/services/location.service';
 import { useAuthStore } from '@/store/authStore';
 import { WorkOrderStatusChip } from '@/components/work-orders/WorkOrderStatusChip';
 import { WorkOrderPriorityChip } from '@/components/work-orders/WorkOrderPriorityChip';
+import { InputRequestedPanel } from '@/components/work-orders/InputRequestedPanel';
 import settingsService from '@/services/settingsService';
 import { queryKeys } from '@/lib/queryKeys';
 import AccessDenied from '@/pages/AccessDenied';
 import { ResponsiveTable, MobileFilterBar, Column } from '@/components/responsive';
 import { useIsMobile } from '@/hooks/useResponsive';
-import type { WorkOrderQuery, WorkOrderDepartment, WorkOrderPriority, WorkOrderSummary } from '@/types/work-order.types';
+import type { WorkOrderQuery, WorkOrderDepartment, WorkOrderPriority, WorkOrderStatus, WorkOrderSummary, WorkOrderSortField } from '@/types/work-order.types';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,24 @@ const formatDate = (iso: string) =>
     day: 'numeric',
     year: 'numeric',
   });
+
+type StatusBucket = 'open' | 'longTerm' | 'closed';
+
+const BUCKET_STATUSES: Record<StatusBucket, WorkOrderStatus[]> = {
+  open:     ['OPEN', 'IN_PROGRESS', 'ON_HOLD'],
+  longTerm: ['LONG_TERM'],
+  closed:   ['CLOSED'],
+};
+
+const SORT_FIELD_BY_COLUMN: Record<string, WorkOrderSortField> = {
+  officeLocation:    'location',
+  workOrderCategory: 'category',
+  status:            'status',
+  createdAt:         'createdAt',
+};
+const COLUMN_BY_SORT_FIELD = Object.fromEntries(
+  Object.entries(SORT_FIELD_BY_COLUMN).map(([column, field]) => [field, column]),
+) as Record<WorkOrderSortField, string>;
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -77,16 +96,22 @@ export default function WorkOrderListPage() {
     fiscalYear: '',
     page: '0',
     rows: '25',
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
   });
 
   const search = filters.search;
   const department = filters.department as WorkOrderDepartment | '';
-  const statusBucket: 'open' | 'closed' = filters.status === 'closed' ? 'closed' : 'open';
+  const statusBucket: StatusBucket =
+    filters.status === 'closed' || filters.status === 'longTerm' ? filters.status : 'open';
   const priority = filters.priority as WorkOrderPriority | '';
   const locationFilter = filters.location;
   const fiscalYearFilter = filters.fiscalYear;
   const page = Number(filters.page) || 0;
   const rowsPerPage = Number(filters.rows) || 25;
+  const sortBy: WorkOrderSortField =
+    filters.sortBy in COLUMN_BY_SORT_FIELD ? (filters.sortBy as WorkOrderSortField) : 'createdAt';
+  const sortOrder = filters.sortOrder === 'asc' ? 'asc' : 'desc';
 
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const defaultLocationApplied = useRef(false);
@@ -143,13 +168,19 @@ export default function WorkOrderListPage() {
     limit: rowsPerPage,
     ...(search.trim() && { search: search.trim() }),
     ...(department && { department }),
-    statuses: statusBucket === 'open' ? ['OPEN', 'IN_PROGRESS', 'ON_HOLD'] : ['CLOSED'],
+    statuses: BUCKET_STATUSES[statusBucket],
     ...(priority && { priority }),
     ...(locationFilter && { officeLocationId: locationFilter }),
     ...(activeFiscalYear && { fiscalYear: activeFiscalYear }),
+    sortBy,
+    sortOrder,
   };
 
   const { data, isLoading, error } = useWorkOrderList(query);
+
+  const applySort = (field: WorkOrderSortField, direction: 'asc' | 'desc') => {
+    setFilters({ sortBy: field, sortOrder: direction, page: '0' });
+  };
 
   // If the main data query returned 403 — user lacks permissions
   const is403 = (error as any)?.response?.status === 403;
@@ -194,6 +225,7 @@ export default function WorkOrderListPage() {
       label: 'Status',
       isSecondary: true,
       width: 120,
+      sortable: true,
       render: (wo) => <WorkOrderStatusChip status={wo.status} />,
     },
     {
@@ -205,6 +237,7 @@ export default function WorkOrderListPage() {
     {
       key: 'workOrderCategory',
       label: 'Category',
+      sortable: true,
       render: (wo) => (wo.workOrderCategory?.name ?? wo.category ?? '—').replace(/_/g, ' '),
     },
     {
@@ -213,6 +246,7 @@ export default function WorkOrderListPage() {
       // Outranks Work Order #/Status/Priority so the narrowest desktop layout
       // still answers where the work order is.
       priority: -3,
+      sortable: true,
       render: (wo) =>
         locationFilter ? (
           <span>{wo.room?.name ?? '—'}</span>
@@ -269,6 +303,7 @@ export default function WorkOrderListPage() {
     {
       key: 'createdAt',
       label: 'Created',
+      sortable: true,
       render: (wo) => formatDate(wo.createdAt),
     },
   ];
@@ -296,14 +331,23 @@ export default function WorkOrderListPage() {
               sx={{ ml: 1 }}
             />
           )}
-          {statusBucket === 'open' ? (
+          {statusBucket === 'open' && (
             <Chip
               label={`${isLoading ? '…' : totalCount} Open`}
               size="small"
               color="statusOpen"
               sx={{ ml: 1, fontWeight: 600 }}
             />
-          ) : (
+          )}
+          {statusBucket === 'longTerm' && (
+            <Chip
+              label={`${isLoading ? '…' : totalCount} Long Term`}
+              size="small"
+              color="statusLongTerm"
+              sx={{ ml: 1, fontWeight: 600 }}
+            />
+          )}
+          {statusBucket === 'closed' && (
             <Chip
               label={`${isLoading ? '…' : totalCount} Closed`}
               size="small"
@@ -322,6 +366,8 @@ export default function WorkOrderListPage() {
           New Work Order
         </Button>
       </Box>
+
+      <InputRequestedPanel />
 
       {/* Filter bar */}
       {isMobile ? (
@@ -355,6 +401,7 @@ export default function WorkOrderListPage() {
                   fullWidth
                 >
                   <ToggleButton value="open">Open</ToggleButton>
+                  <ToggleButton value="longTerm">Long Term</ToggleButton>
                   <ToggleButton value="closed">Closed</ToggleButton>
                 </ToggleButtonGroup>
                 <Select
@@ -385,6 +432,19 @@ export default function WorkOrderListPage() {
                       <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
                     ))}
                 </Select>
+                <Select size="small" value={sortBy}
+                        onChange={(e) => applySort(e.target.value as WorkOrderSortField, sortOrder)} fullWidth>
+                  <MenuItem value="createdAt">Sort by Date Created</MenuItem>
+                  <MenuItem value="location">Sort by Location</MenuItem>
+                  <MenuItem value="category">Sort by Category</MenuItem>
+                  <MenuItem value="status">Sort by Status</MenuItem>
+                </Select>
+                <ToggleButtonGroup exclusive value={sortOrder}
+                                   onChange={(_, v) => { if (v !== null) applySort(sortBy, v); }}
+                                   size="small" fullWidth>
+                  <ToggleButton value="asc">Ascending</ToggleButton>
+                  <ToggleButton value="desc">Descending</ToggleButton>
+                </ToggleButtonGroup>
                 <Button
                   size="small"
                   variant="text"
@@ -398,6 +458,8 @@ export default function WorkOrderListPage() {
                       locationChosen: '',
                       fiscalYear: '',
                       page: '0',
+                      sortBy: 'createdAt',
+                      sortOrder: 'desc',
                     });
                     setFilterDrawerOpen(false);
                   }}
@@ -444,6 +506,7 @@ export default function WorkOrderListPage() {
             size="small"
           >
             <ToggleButton value="open">Open</ToggleButton>
+            <ToggleButton value="longTerm">Long Term</ToggleButton>
             <ToggleButton value="closed">Closed</ToggleButton>
           </ToggleButtonGroup>
 
@@ -510,14 +573,22 @@ export default function WorkOrderListPage() {
           onRowClick={(wo) => handleRowClick(wo.id)}
           loading={isLoading}
           emptyMessage="No work orders found."
+          sort={{ key: COLUMN_BY_SORT_FIELD[sortBy], direction: sortOrder }}
+          onSortChange={(s) => {
+            const field = SORT_FIELD_BY_COLUMN[s.key];
+            if (field) applySort(field, s.direction);
+          }}
           rowActions={(wo) => (
-            <Button
-              size="small"
-              variant="outlined"
-              onClick={() => navigate(`/work-orders/${wo.id}`)}
-            >
-              View
-            </Button>
+            <Tooltip title={wo.hasUnreadComments ? 'New comment' : ''}>
+              <Button
+                size="small"
+                variant={wo.hasUnreadComments ? 'contained' : 'outlined'}
+                color={wo.hasUnreadComments ? 'warning' : 'primary'}
+                onClick={() => navigate(`/work-orders/${wo.id}`)}
+              >
+                View
+              </Button>
+            </Tooltip>
           )}
         />
       </Paper>

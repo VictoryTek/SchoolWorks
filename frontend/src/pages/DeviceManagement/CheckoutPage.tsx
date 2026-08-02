@@ -41,6 +41,16 @@ import { AssignChargerDialog } from '../../components/DeviceManagement/AssignCha
 import { GRADE_LEVELS, gradeLevelLabel, toDbGradeLevel } from '../../constants/gradeLevel';
 import type { DeviceAssignment, DeviceAssignmentUser } from '../../types/deviceAssignment.types';
 
+// Charger serials share a long common prefix — the trailing characters are what
+// distinguish one charger from another, so mobile shows only the tail.
+const CHARGER_SERIAL_TAIL_CHARS = 10;
+
+function chargerSerialDisplay(serial: string, truncate: boolean): string {
+  return truncate && serial.length > CHARGER_SERIAL_TAIL_CHARS
+    ? `…${serial.slice(-CHARGER_SERIAL_TAIL_CHARS)}`
+    : serial;
+}
+
 // Active checkouts page — /device-management/checkouts
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -186,7 +196,11 @@ export default function CheckoutPage() {
       render: (r) => {
         const serial = r.chargerAssignment?.charger.serialNumber;
         return serial
-          ? <span style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{serial}</span>
+          ? (
+            <span title={serial} style={{ fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+              {chargerSerialDisplay(serial, isMobile)}
+            </span>
+          )
           : <span>—</span>;
       },
     },

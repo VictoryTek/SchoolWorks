@@ -108,7 +108,7 @@ function DeviceSubTable({ items, mobile, canReturnItem, onReturnItem }: DeviceSu
   return (
     <Table size="small">
       <TableHead>
-        <TableRow sx={{ '& th': { fontWeight: 700, bgcolor: 'grey.100' } }}>
+        <TableRow sx={{ '& th': { fontWeight: 700, bgcolor: 'action.hover' } }}>
           <TableCell>Asset Tag</TableCell>
           <TableCell>Device Name</TableCell>
           <TableCell>Brand / Model</TableCell>
@@ -384,7 +384,7 @@ function CartRow({ cart, onReturn, onEdit, onAddDevice, onReturnItem, isMobile, 
       <TableRow>
         <TableCell colSpan={isMobile ? 5 : 9} sx={{ py: 0, px: 0 }}>
           <Collapse in={expanded} timeout="auto" unmountOnExit>
-            <Box sx={{ bgcolor: 'grey.50', px: 2, py: 1 }}>
+            <Box sx={{ bgcolor: 'action.hover', px: 2, py: 1 }}>
               <DeviceSubTable
                 items={cart.items ?? []}
                 canReturnItem={canReturnItemInline}

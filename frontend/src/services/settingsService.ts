@@ -76,6 +76,7 @@ export interface WorkOrderYearSummary {
     OPEN:        number;
     IN_PROGRESS: number;
     ON_HOLD:     number;
+    LONG_TERM:   number;
     CLOSED:      number;
     total:       number;
   };
@@ -83,6 +84,7 @@ export interface WorkOrderYearSummary {
     OPEN:        number;
     IN_PROGRESS: number;
     ON_HOLD:     number;
+    LONG_TERM:   number;
     CLOSED:      number;
     total:       number;
   }>;

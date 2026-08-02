@@ -9,6 +9,7 @@ const STATUS_COLOR: Record<WorkOrderStatus, ChipProps['color']> = {
   OPEN:        'statusOpen',
   IN_PROGRESS: 'statusInProgress',
   ON_HOLD:     'statusOnHold',
+  LONG_TERM:   'statusLongTerm',
   CLOSED:      'statusClosed',
 };
 

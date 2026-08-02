@@ -4,8 +4,9 @@
  */
 
 export type WorkOrderDepartment = 'TECHNOLOGY' | 'MAINTENANCE';
-export type WorkOrderStatus = 'OPEN' | 'IN_PROGRESS' | 'ON_HOLD' | 'CLOSED';
+export type WorkOrderStatus = 'OPEN' | 'IN_PROGRESS' | 'ON_HOLD' | 'LONG_TERM' | 'CLOSED';
 export type WorkOrderPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+export type WorkOrderSortField = 'createdAt' | 'location' | 'category' | 'status';
 
 export type TechWorkOrderCategory =
   | 'HARDWARE_FAILURE'
@@ -124,6 +125,34 @@ export interface WorkOrderSummary {
   notInInventory: boolean;
   description: string;
   _count?: { comments: number };
+  hasUnreadComments: boolean;
+}
+
+export interface WorkOrderInputRequestSummary {
+  id: string;
+  message: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+  requestedBy: WorkOrderUser;
+  requestedOf: WorkOrderUser;
+}
+
+export interface WorkOrderInputRequest extends WorkOrderInputRequestSummary {
+  workOrderId: string;
+}
+
+export interface MyInputRequest extends WorkOrderInputRequest {
+  hasUnreadComment: boolean;
+  workOrder: {
+    id: string;
+    workOrderNumber: string;
+    title: string | null;
+    status: WorkOrderStatus;
+    priority: WorkOrderPriority;
+    department: WorkOrderDepartment;
+    officeLocation: WorkOrderLocation | null;
+    room: WorkOrderRoom | null;
+  };
 }
 
 export interface WorkOrderDetail extends WorkOrderSummary {
@@ -140,6 +169,7 @@ export interface WorkOrderDetail extends WorkOrderSummary {
   closedAt: string | null;
   comments: WorkOrderComment[];
   statusHistory: WorkOrderStatusHistory[];
+  inputRequests: WorkOrderInputRequestSummary[];
 }
 
 export interface CreateWorkOrderDto {
@@ -183,6 +213,8 @@ export interface WorkOrderQuery {
   reportedById?: string;
   fiscalYear?: string;
   search?: string;
+  sortBy?: WorkOrderSortField;
+  sortOrder?: 'asc' | 'desc';
 }
 
 export interface WorkOrderListResponse {
@@ -197,5 +229,6 @@ export interface WorkOrderStatsSummary {
   OPEN: number;
   IN_PROGRESS: number;
   ON_HOLD: number;
+  LONG_TERM: number;
   CLOSED: number;
 }

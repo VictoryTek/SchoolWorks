@@ -277,7 +277,7 @@ export class SettingsService {
 
       // 3. Carry over open work orders to the new fiscal year
       //    OPEN, IN_PROGRESS, ON_HOLD are re-stamped; CLOSED stays in the old year.
-      const openWorkOrderStatuses = ['OPEN', 'IN_PROGRESS', 'ON_HOLD'] as const;
+      const openWorkOrderStatuses = ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'LONG_TERM'] as const;
       const carriedOverWorkOrders = await tx.ticket.findMany({
         where: {
           fiscalYear: currentSettings?.currentFiscalYear ?? undefined,
@@ -357,7 +357,7 @@ export class SettingsService {
     if (!fiscalYear) {
       return {
         fiscalYear: null,
-        totals: { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, CLOSED: 0, total: 0 },
+        totals: { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, LONG_TERM: 0, CLOSED: 0, total: 0 },
         byDepartment: {},
         openToCarryCount: 0,
       };
@@ -371,7 +371,7 @@ export class SettingsService {
     });
 
     const totals: Record<string, number> = {
-      OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, CLOSED: 0, total: 0,
+      OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, LONG_TERM: 0, CLOSED: 0, total: 0,
     };
     for (const row of statusCounts) {
       totals[row.status] = row._count.id;
@@ -389,7 +389,7 @@ export class SettingsService {
     for (const row of deptCounts) {
       const dept = row.department as string;
       if (!byDepartment[dept]) {
-        byDepartment[dept] = { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, CLOSED: 0, total: 0 };
+        byDepartment[dept] = { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, LONG_TERM: 0, CLOSED: 0, total: 0 };
       }
       byDepartment[dept][row.status] = row._count.id;
       byDepartment[dept].total = (byDepartment[dept].total ?? 0) + row._count.id;
@@ -399,7 +399,7 @@ export class SettingsService {
     const openToCarryCount = await this.prisma.ticket.count({
       where: {
         fiscalYear,
-        status: { in: ['OPEN', 'IN_PROGRESS', 'ON_HOLD'] },
+        status: { in: ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'LONG_TERM'] },
       },
     });
 

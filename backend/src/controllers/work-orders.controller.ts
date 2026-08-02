@@ -22,6 +22,7 @@ import {
   AssignWorkOrderSchema,
   AddCommentSchema,
   UpdatePrioritySchema,
+  RequestInputSchema,
 } from '../validators/work-orders.validators';
 
 // ---------------------------------------------------------------------------
@@ -40,6 +41,15 @@ function mapTicket<T extends { ticketNumber: string }>(ticket: T | null): (Omit<
   if (!ticket) return null;
   const { ticketNumber, ...rest } = ticket;
   return { ...rest, workOrderNumber: ticketNumber };
+}
+
+// ---------------------------------------------------------------------------
+// Response mapper — renames DB field `ticketId` → `workOrderId`
+// ---------------------------------------------------------------------------
+
+function mapInputRequest<T extends { ticketId: string }>(request: T): Omit<T, 'ticketId'> & { workOrderId: string } {
+  const { ticketId, ...rest } = request;
+  return { ...rest, workOrderId: ticketId };
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +245,52 @@ export const addComment = async (req: AuthRequest, res: Response): Promise<void>
 
     const comment = await service.addComment(req.params.id as string, data, userId, permLevel);
     res.status(201).json(comment);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+/**
+ * GET /api/work-orders/input-requests/mine
+ */
+export const getMyInputRequests = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId    = req.user!.id;
+    const permLevel = req.user!.permLevel ?? 1;
+
+    const requests = await service.getMyInputRequests(userId, permLevel);
+    res.json(requests.map(mapInputRequest));
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+/**
+ * POST /api/work-orders/:id/input-requests
+ */
+export const requestInput = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const data      = RequestInputSchema.parse(req.body);
+    const userId    = req.user!.id;
+    const permLevel = req.user!.permLevel ?? 1;
+    const maintenanceRole = getMaintenanceRole(req.user!.groups ?? []);
+
+    const request = await service.requestInput(req.params.id as string, data, userId, permLevel, maintenanceRole);
+    res.status(201).json(mapInputRequest(request));
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+/**
+ * POST /api/work-orders/:id/input-requests/:requestId/dismiss
+ */
+export const dismissInputRequest = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    const request = await service.dismissInputRequest(req.params.requestId as string, userId);
+    res.json(mapInputRequest(request));
   } catch (error) {
     handleControllerError(error, res);
   }

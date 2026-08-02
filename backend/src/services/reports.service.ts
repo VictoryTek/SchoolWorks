@@ -206,7 +206,7 @@ export async function getReportsOverview(filters: ReportsOverviewFilters): Promi
   const locationNames = new Map(locations.map((l) => [l.id, l.name]));
 
   // ---- Work order status / priority counts ----
-  const statusCounts: Record<string, number> = { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, CLOSED: 0 };
+  const statusCounts: Record<string, number> = { OPEN: 0, IN_PROGRESS: 0, ON_HOLD: 0, LONG_TERM: 0, CLOSED: 0 };
   for (const row of statusGrouped) statusCounts[row.status] = row._count.status;
   const openCount = statusCounts.OPEN + statusCounts.IN_PROGRESS + statusCounts.ON_HOLD;
   const closedCount = statusCounts.CLOSED;

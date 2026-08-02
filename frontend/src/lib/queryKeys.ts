@@ -148,6 +148,12 @@ export const queryKeys = {
     stats: (params?: Record<string, unknown>) => [...queryKeys.workOrders.all, 'stats', params] as const,
   },
 
+  // Work Order Input Request queries
+  inputRequests: {
+    all:  ['inputRequests'] as const,
+    mine: () => [...queryKeys.inputRequests.all, 'mine'] as const,
+  },
+
   // Inventory Audit queries
   inventoryAudit: {
     all: ['inventoryAudit'] as const,

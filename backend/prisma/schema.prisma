@@ -550,6 +550,9 @@ model User {
   reportedTickets                                           Ticket[]               @relation("TicketReporter")
   assignedTickets                                           Ticket[]               @relation("TicketAssignee")
   ticketComments                                            TicketComment[]        @relation("TicketCommentAuthor")
+  ticketViews                                               TicketView[]           @relation("TicketViewer")
+  inputRequestsMade                                         TicketInputRequest[]   @relation("InputRequestRequester")
+  inputRequestsReceived                                     TicketInputRequest[]   @relation("InputRequestRecipient")
   ticketStatusHistory                                       TicketStatusHistory[]    @relation("TicketStatusChangedBy")
   ticketPriorityHistory                                     TicketPriorityHistory[]  @relation("TicketPriorityChangedBy")
   primaryRoomId                                             String?
@@ -1002,6 +1005,7 @@ enum TicketStatus {
   OPEN
   IN_PROGRESS
   ON_HOLD
+  LONG_TERM
   CLOSED
 }
 
@@ -1096,6 +1100,8 @@ model Ticket {
   comments         TicketComment[]
   statusHistory    TicketStatusHistory[]
   priorityHistory  TicketPriorityHistory[]
+  views            TicketView[]
+  inputRequests    TicketInputRequest[]
 
   @@index([department])
   @@index([status])
@@ -1117,6 +1123,8 @@ model TicketComment {
   authorId   String
   body       String
   isInternal Boolean  @default(false)
+  // Never counted as unread — set true only on system-generated comments (e.g. assignment).
+  isSystem   Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -1126,6 +1134,47 @@ model TicketComment {
   @@index([ticketId])
   @@index([authorId])
   @@map("ticket_comments")
+}
+
+/// Per-user read state for a work order. One row per (work order, user),
+/// written when the user opens the work order detail view.
+model TicketView {
+  id           String   @id @default(uuid())
+  ticketId     String
+  userId       String
+  lastViewedAt DateTime @default(now())
+
+  ticket       Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user         User     @relation("TicketViewer", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId])
+  @@index([userId])
+  @@map("ticket_views")
+}
+
+/// A request for input/review from another user on a work order. Grants the
+/// recipient read access to the work order — a third path alongside reporter
+/// and assignee — until dismissed. "At most one ACTIVE request per (ticket,
+/// recipient)" is a partial-unique constraint Prisma cannot express; enforced
+/// in the service instead.
+model TicketInputRequest {
+  id            String    @id @default(uuid())
+  ticketId      String
+  requestedById String
+  requestedOfId String
+  message       String?   @db.Text
+  createdAt     DateTime  @default(now())
+  respondedAt   DateTime?
+  dismissedAt   DateTime?
+
+  ticket        Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  requestedBy   User      @relation("InputRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  requestedOf   User      @relation("InputRequestRecipient", fields: [requestedOfId], references: [id], onDelete: Restrict)
+
+  @@index([ticketId])
+  @@index([requestedOfId, dismissedAt])
+  @@index([requestedById])
+  @@map("ticket_input_requests")
 }
 
 model TicketStatusHistory {

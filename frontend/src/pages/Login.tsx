@@ -123,7 +123,7 @@ export const Login = () => {
   if (loading || silentPending || isLoading) {
     return (
       <div className="login-container">
-        <div className="login-card">
+        <div className="login-card login-card--loading">
           <div className="login-spinner">
             <div className="spinner"></div>
             <p>{silentPending ? 'Signing you in...' : 'Authenticating...'}</p>
@@ -137,7 +137,7 @@ export const Login = () => {
     <div className="login-container">
       <div className="login-card">
         <div className="login-header">
-          <img src="/logo.png" alt="SchoolWorks" className="login-logo" />
+          <img src="/schoolworks_logo.png" alt="SchoolWorks" className="login-logo" />
           <p>Sign in to continue</p>
         </div>
 

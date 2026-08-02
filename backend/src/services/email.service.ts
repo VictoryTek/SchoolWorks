@@ -418,6 +418,143 @@ export async function sendWorkOrderClosed(
   });
 }
 
+/**
+ * Notify the submitter that their work order has been marked as long term.
+ * Called after a work order transitions to LONG_TERM, opt-in per the caller.
+ * Email failures are logged but never block the main workflow.
+ */
+export async function sendWorkOrderLongTerm(
+  workOrder: {
+    workOrderNumber: string;
+    department: string;
+    priority: string;
+    locationName?: string | null;
+    workOrderId?: string;
+  },
+  reporterEmail: string,
+  actionsTaken?: string | null,
+): Promise<void> {
+  const deptLabel = workOrder.department === 'TECHNOLOGY' ? 'Technology' : 'Maintenance';
+  const deptColor = workOrder.department === 'TECHNOLOGY' ? '#1565C0' : '#E65100';
+
+  await sendMail({
+    to:      reporterEmail,
+    subject: `Work Order Marked Long Term: ${workOrder.workOrderNumber}`,
+    context: 'work_order_long_term',
+    relatedEntityId: workOrder.workOrderId,
+    html: `
+      <h2 style="color:${deptColor};">Your ${escapeHtml(deptLabel)} Work Order Has Been Marked Long Term</h2>
+      <p>The work order you submitted has been moved to long-term status and will remain open for extended work.</p>
+      ${workOrder.workOrderId ? `<p style="margin-top:16px;"><a href="${escapeHtml(process.env.APP_URL ?? '')}/work-orders/${escapeHtml(workOrder.workOrderId)}" style="display:inline-block;padding:10px 20px;background-color:${deptColor};color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View Work Order</a></p>` : ''}
+      <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+        <tr><td style="padding:4px 8px;font-weight:bold;">Work Order #:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.workOrderNumber)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Department:</td>
+            <td style="padding:4px 8px;">${escapeHtml(deptLabel)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Priority:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.priority)}</td></tr>
+        ${workOrder.locationName ? `<tr><td style="padding:4px 8px;font-weight:bold;">Location:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.locationName)}</td></tr>` : ''}
+      </table>
+      ${actionsTaken?.trim() ? `<div style="margin-top:16px;"><strong>Notes:</strong><p style="margin:4px 0 0;white-space:pre-wrap;">${escapeHtml(actionsTaken)}</p></div>` : ''}
+      <p style="margin-top:24px;">If you have any questions, please contact the department handling this work order.</p>
+    `,
+  });
+}
+
+/**
+ * Notify a user that someone has requested their input on a work order.
+ * Called after WorkOrderService.requestInput().
+ * Email failures are logged but never block the main workflow.
+ */
+export async function sendWorkOrderInputRequested(
+  workOrder: {
+    workOrderNumber: string;
+    department: string;
+    priority: string;
+    locationName?: string | null;
+    workOrderId?: string;
+  },
+  recipientEmail: string,
+  requesterName: string,
+  message?: string | null,
+): Promise<void> {
+  const deptLabel = workOrder.department === 'TECHNOLOGY' ? 'Technology' : 'Maintenance';
+  const deptColor = workOrder.department === 'TECHNOLOGY' ? '#1565C0' : '#E65100';
+
+  await sendMail({
+    to:      recipientEmail,
+    subject: `Input Requested on Work Order: ${workOrder.workOrderNumber}`,
+    context: 'work_order_input_requested',
+    relatedEntityId: workOrder.workOrderId,
+    html: `
+      <h2 style="color:${deptColor};">${escapeHtml(requesterName)} Has Requested Your Input</h2>
+      <p>You've been asked to review a ${escapeHtml(deptLabel)} work order and provide your input.</p>
+      ${workOrder.workOrderId ? `<p style="margin-top:16px;"><a href="${escapeHtml(process.env.APP_URL ?? '')}/work-orders/${escapeHtml(workOrder.workOrderId)}" style="display:inline-block;padding:10px 20px;background-color:${deptColor};color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View Work Order</a></p>` : ''}
+      <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+        <tr><td style="padding:4px 8px;font-weight:bold;">Work Order #:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.workOrderNumber)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Department:</td>
+            <td style="padding:4px 8px;">${escapeHtml(deptLabel)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Priority:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.priority)}</td></tr>
+        ${workOrder.locationName ? `<tr><td style="padding:4px 8px;font-weight:bold;">Location:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.locationName)}</td></tr>` : ''}
+        <tr><td style="padding:4px 8px;font-weight:bold;">Requested By:</td>
+            <td style="padding:4px 8px;">${escapeHtml(requesterName)}</td></tr>
+      </table>
+      ${message?.trim() ? `<div style="margin-top:16px;"><strong>Message:</strong><p style="margin:4px 0 0;white-space:pre-wrap;">${escapeHtml(message)}</p></div>` : ''}
+      <p style="margin-top:24px;">Please log in to the system to review the work order and add your input.</p>
+    `,
+  });
+}
+
+/**
+ * Notify the original requester that the recipient has responded to their
+ * input request (by commenting on the work order).
+ * Called after WorkOrderService.notifyInputRequestResponse().
+ * Email failures are logged but never block the main workflow.
+ */
+export async function sendWorkOrderInputRequestResponded(
+  workOrder: {
+    workOrderNumber: string;
+    department: string;
+    priority: string;
+    locationName?: string | null;
+    workOrderId?: string;
+  },
+  requesterEmail: string,
+  recipientName: string,
+): Promise<void> {
+  const deptLabel = workOrder.department === 'TECHNOLOGY' ? 'Technology' : 'Maintenance';
+  const deptColor = workOrder.department === 'TECHNOLOGY' ? '#1565C0' : '#E65100';
+
+  await sendMail({
+    to:      requesterEmail,
+    subject: `Input Received on Work Order: ${workOrder.workOrderNumber}`,
+    context: 'work_order_input_request_responded',
+    relatedEntityId: workOrder.workOrderId,
+    html: `
+      <h2 style="color:${deptColor};">${escapeHtml(recipientName)} Has Responded to Your Input Request</h2>
+      <p>The input you requested on a ${escapeHtml(deptLabel)} work order has been provided.</p>
+      ${workOrder.workOrderId ? `<p style="margin-top:16px;"><a href="${escapeHtml(process.env.APP_URL ?? '')}/work-orders/${escapeHtml(workOrder.workOrderId)}" style="display:inline-block;padding:10px 20px;background-color:${deptColor};color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View Work Order</a></p>` : ''}
+      <table style="border-collapse:collapse;width:100%;margin-top:16px;">
+        <tr><td style="padding:4px 8px;font-weight:bold;">Work Order #:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.workOrderNumber)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Department:</td>
+            <td style="padding:4px 8px;">${escapeHtml(deptLabel)}</td></tr>
+        <tr><td style="padding:4px 8px;font-weight:bold;">Priority:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.priority)}</td></tr>
+        ${workOrder.locationName ? `<tr><td style="padding:4px 8px;font-weight:bold;">Location:</td>
+            <td style="padding:4px 8px;">${escapeHtml(workOrder.locationName)}</td></tr>` : ''}
+        <tr><td style="padding:4px 8px;font-weight:bold;">Responded By:</td>
+            <td style="padding:4px 8px;">${escapeHtml(recipientName)}</td></tr>
+      </table>
+      <p style="margin-top:24px;">Please log in to the system to review their response.</p>
+    `,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Field Trip approver email snapshot
 // ---------------------------------------------------------------------------

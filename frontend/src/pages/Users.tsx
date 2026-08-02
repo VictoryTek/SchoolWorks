@@ -936,7 +936,7 @@ const SupervisorModal: React.FC<SupervisorModalProps> = ({ user, onClose }) => {
                       <div
                         key={supervisor.id}
                         className="card"
-                        style={{ backgroundColor: 'white', border: '1px solid var(--slate-200)' }}
+                        style={{ border: '1px solid var(--slate-200)' }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
                           <div style={{ flex: 1 }}>

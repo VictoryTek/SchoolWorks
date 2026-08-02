@@ -12,7 +12,7 @@ import { Prisma, PrismaClient, TicketStatus } from '@prisma/client';
 import { NotFoundError, ValidationError, AuthorizationError } from '../utils/errors';
 import { loggers } from '../lib/logger';
 import { SettingsService } from './settings.service';
-import { sendWorkOrderAssigned, sendWorkOrderClosed } from './email.service';
+import { sendWorkOrderAssigned, sendWorkOrderClosed, sendWorkOrderLongTerm, sendWorkOrderInputRequested, sendWorkOrderInputRequestResponded } from './email.service';
 import { canChangeTicketPriority } from '../utils/groupAuth';
 import type {
   CreateWorkOrderDto,
@@ -22,6 +22,8 @@ import type {
   AddCommentDto,
   WorkOrderQueryDto,
   UpdatePriorityDto,
+  RequestInputDto,
+  WorkOrderSortField,
 } from '../validators/work-orders.validators';
 
 // ---------------------------------------------------------------------------
@@ -41,18 +43,30 @@ type MaintenanceRole = 'county_wide' | 'school_only' | 'director' | undefined;
 const VALID_TRANSITIONS: Record<string, { to: TicketStatus; minLevel: number }[]> = {
   OPEN: [
     { to: 'IN_PROGRESS', minLevel: 3 },
+    { to: 'ON_HOLD',     minLevel: 3 },
+    { to: 'LONG_TERM',   minLevel: 3 },
     { to: 'CLOSED',      minLevel: 3 },
   ],
   IN_PROGRESS: [
     { to: 'ON_HOLD',   minLevel: 3 },
+    { to: 'LONG_TERM', minLevel: 3 },
     { to: 'CLOSED',    minLevel: 3 },
   ],
   ON_HOLD: [
     { to: 'IN_PROGRESS', minLevel: 3 },
+    { to: 'LONG_TERM',   minLevel: 3 },
+    { to: 'CLOSED',      minLevel: 3 },
+  ],
+  LONG_TERM: [
+    { to: 'OPEN',        minLevel: 3 },
+    { to: 'IN_PROGRESS', minLevel: 3 },
+    { to: 'ON_HOLD',     minLevel: 3 },
     { to: 'CLOSED',      minLevel: 3 },
   ],
   CLOSED: [
-    { to: 'OPEN', minLevel: 3 },
+    { to: 'OPEN',      minLevel: 3 },
+    { to: 'ON_HOLD',   minLevel: 3 },
+    { to: 'LONG_TERM', minLevel: 3 },
   ],
 };
 
@@ -89,6 +103,15 @@ const WORK_ORDER_DETAIL_INCLUDE = {
     orderBy: { changedAt: 'asc' as const },
     include: { changedBy: { select: { id: true, displayName: true, email: true } } },
   },
+  inputRequests: {
+    where:   { dismissedAt: null },
+    orderBy: { createdAt: 'desc' as const },
+    select: {
+      id: true, message: true, createdAt: true, respondedAt: true,
+      requestedBy: { select: { id: true, displayName: true, email: true } },
+      requestedOf: { select: { id: true, displayName: true, email: true } },
+    },
+  },
   _count: { select: { comments: true } },
 } as const;
 
@@ -96,8 +119,10 @@ const WORK_ORDER_DETAIL_INCLUDE = {
 // Response type
 // ---------------------------------------------------------------------------
 
+type WorkOrderSummaryRow = Awaited<ReturnType<WorkOrderService['getWorkOrderSummaryList']>>[number];
+
 export interface WorkOrderListResponse {
-  items: Awaited<ReturnType<WorkOrderService['getWorkOrderSummaryList']>>;
+  items: (WorkOrderSummaryRow & { hasUnreadComments: boolean })[];
   total: number;
   page: number;
   limit: number;
@@ -226,17 +251,58 @@ export class WorkOrderService {
   }
 
   /**
+   * Fire-and-forget helper to send a work order long-term notification to the submitter.
+   * Resolves reporter email and location name from the DB.
+   */
+  private async sendLongTermEmail(
+    workOrderId: string,
+    workOrderNumber: string,
+    department: string,
+    priority: string,
+    officeLocationId: string | null,
+    reportedById: string,
+    notes?: string | null,
+  ): Promise<void> {
+    const [reporter, location] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: reportedById }, select: { email: true } }),
+      officeLocationId ? this.prisma.officeLocation.findUnique({ where: { id: officeLocationId }, select: { name: true } }) : null,
+    ]);
+
+    if (!reporter?.email) return;
+
+    await sendWorkOrderLongTerm(
+      { workOrderNumber, department, priority, locationName: location?.name, workOrderId },
+      reporter.email,
+      notes,
+    );
+  }
+
+  /**
+   * True when the user has an active (undismissed) input request on this
+   * work order — a third access path alongside reporter/assignee.
+   */
+  private async hasActiveInputRequest(ticketId: string, userId: string): Promise<boolean> {
+    const request = await this.prisma.ticketInputRequest.findFirst({
+      where:  { ticketId, requestedOfId: userId, dismissedAt: null },
+      select: { id: true },
+    });
+    return request !== null;
+  }
+
+  /**
    * Enforce location-scoped access for level-3 and level-4 users (SP-2).
    * Mirrors the scopeWhere logic in getWorkOrders so list and direct-object
    * access apply identical rules.
    */
   private async assertTicketAccess(
-    ticket: { reportedById: string | null; assignedToId: string | null; officeLocationId: string | null; department: string },
+    ticket: { id: string; reportedById: string | null; assignedToId: string | null; officeLocationId: string | null; department: string },
     userId: string,
     permLevel: number,
     maintenanceRole?: MaintenanceRole,
   ): Promise<void> {
     if (permLevel >= 5) return;
+
+    if (await this.hasActiveInputRequest(ticket.id, userId)) return;
 
     if (permLevel <= 2) {
       if (ticket.reportedById !== userId) {
@@ -310,6 +376,32 @@ export class WorkOrderService {
   // -------------------------------------------------------------------------
   // getWorkOrders
   // -------------------------------------------------------------------------
+
+  private buildOrderBy(
+    sortBy: WorkOrderSortField,
+    sortOrder: 'asc' | 'desc',
+  ): Prisma.TicketOrderByWithRelationInput[] {
+    switch (sortBy) {
+      case 'location':
+        return [
+          { officeLocation: { name: sortOrder } },
+          { room: { name: sortOrder } },
+          { createdAt: 'desc' },
+          { id: 'asc' },
+        ];
+      case 'category':
+        return [
+          { workOrderCategory: { name: sortOrder } },
+          { createdAt: 'desc' },
+          { id: 'asc' },
+        ];
+      case 'status':
+        return [{ status: sortOrder }, { createdAt: 'desc' }, { id: 'asc' }];
+      case 'createdAt':
+      default:
+        return [{ createdAt: sortOrder }, { id: 'asc' }];
+    }
+  }
 
   async getWorkOrders(
     query: WorkOrderQueryDto,
@@ -390,6 +482,17 @@ export class WorkOrderService {
     }
     // permLevel >= 5: no additional scope restriction
 
+    // Grant read access to work orders where the user has an active input
+    // request, alongside whatever scope already applies. Only unioned when
+    // scopeWhere is non-empty — for unrestricted roles (permLevel >= 5, and
+    // county_wide/director at 3/4) scopeWhere is `{}`, which already means
+    // "no restriction"; unioning into it would be a no-op.
+    if (Object.keys(scopeWhere).length > 0) {
+      scopeWhere = {
+        OR: [scopeWhere, { inputRequests: { some: { requestedOfId: userId, dismissedAt: null } } }],
+      };
+    }
+
     const where: Prisma.TicketWhereInput = {
       AND: [baseWhere, scopeWhere].filter(w => Object.keys(w).length > 0),
     };
@@ -398,20 +501,70 @@ export class WorkOrderService {
       this.prisma.ticket.findMany({
         where,
         include:  WORK_ORDER_SUMMARY_INCLUDE,
-        orderBy:  { createdAt: 'desc' },
+        orderBy:  this.buildOrderBy(query.sortBy, query.sortOrder),
         skip,
         take:     limit,
       }),
       this.prisma.ticket.count({ where }),
     ]);
 
+    const ownIds = items
+      .filter((item) => item.reportedById === userId || item.assignedToId === userId)
+      .map((item) => item.id);
+    const unreadIds = await this.getUnreadTicketIds(ownIds, userId, permLevel);
+
     return {
-      items,
+      items: items.map((item) => ({ ...item, hasUnreadComments: unreadIds.has(item.id) })),
       total,
       page,
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Computes which of the given (already own-scoped) ticket IDs have an unread
+   * comment for this user: authored by someone else, not a system comment,
+   * visible under the caller's internal-comment permission, and newer than the
+   * viewer's last recorded TicketView for that ticket (no view = always unread).
+   */
+  private async getUnreadTicketIds(
+    ticketIds: string[],
+    userId: string,
+    permLevel: number,
+  ): Promise<Set<string>> {
+    if (ticketIds.length === 0) return new Set();
+
+    const [views, latestComments] = await Promise.all([
+      this.prisma.ticketView.findMany({
+        where:  { ticketId: { in: ticketIds }, userId },
+        select: { ticketId: true, lastViewedAt: true },
+      }),
+      this.prisma.ticketComment.groupBy({
+        by:   ['ticketId'],
+        where: {
+          ticketId: { in: ticketIds },
+          authorId: { not: userId },
+          isSystem: false,
+          ...(permLevel >= 3 ? {} : { isInternal: false }),
+        },
+        _max: { createdAt: true },
+      }),
+    ]);
+
+    const viewedAtByTicketId = new Map(views.map((v) => [v.ticketId, v.lastViewedAt]));
+    const unreadIds = new Set<string>();
+
+    for (const row of latestComments) {
+      const latestCommentAt = row._max.createdAt;
+      if (!latestCommentAt) continue;
+      const lastViewedAt = viewedAtByTicketId.get(row.ticketId);
+      if (!lastViewedAt || latestCommentAt > lastViewedAt) {
+        unreadIds.add(row.ticketId);
+      }
+    }
+
+    return unreadIds;
   }
 
   // -------------------------------------------------------------------------
@@ -442,6 +595,12 @@ export class WorkOrderService {
     }
 
     await this.assertTicketAccess(ticket, userId, permLevel, maintenanceRole);
+
+    await this.prisma.ticketView.upsert({
+      where:  { ticketId_userId: { ticketId: id, userId } },
+      update: { lastViewedAt: new Date() },
+      create: { ticketId: id, userId },
+    });
 
     return ticket;
   }
@@ -629,8 +788,8 @@ export class WorkOrderService {
 
     if (data.status === 'CLOSED') {
       timestamps.closedAt = now;
-    } else if (data.status === 'OPEN' && ticket.status === 'CLOSED') {
-      // Reopen clears closedAt and any historical resolvedAt
+    } else if (ticket.status === 'CLOSED') {
+      // Reopen (to OPEN, ON_HOLD, or LONG_TERM) clears closedAt and any historical resolvedAt
       timestamps.closedAt = null;
       timestamps.resolvedAt = null;
     }
@@ -655,6 +814,13 @@ export class WorkOrderService {
         },
       });
 
+      if (data.status === 'CLOSED') {
+        await tx.ticketInputRequest.updateMany({
+          where: { ticketId: id, dismissedAt: null },
+          data:  { dismissedAt: now },
+        });
+      }
+
       return result;
     });
 
@@ -667,6 +833,10 @@ export class WorkOrderService {
 
     if (data.status === 'CLOSED' && userId !== ticket.reportedById) {
       this.sendClosedEmail(id, ticket.ticketNumber, ticket.department, ticket.priority, ticket.officeLocationId, ticket.reportedById, data.notes).catch(() => {});
+    }
+
+    if (data.status === 'LONG_TERM' && data.notifySubmitter && userId !== ticket.reportedById) {
+      this.sendLongTermEmail(id, ticket.ticketNumber, ticket.department, ticket.priority, ticket.officeLocationId, ticket.reportedById, data.notes).catch(() => {});
     }
 
     return updated;
@@ -768,6 +938,7 @@ export class WorkOrderService {
           authorId:   userId,
           body:       commentBody,
           isInternal: true,
+          isSystem:   true,
         },
       });
 
@@ -813,7 +984,285 @@ export class WorkOrderService {
     });
 
     loggers.workOrders.info('Comment added to work order', { ticketId, commentId: comment.id, isInternal });
+
+    this.notifyInputRequestResponse(ticketId, userId).catch(() => {});
+
     return comment;
+  }
+
+  // -------------------------------------------------------------------------
+  // Input Requests
+  // -------------------------------------------------------------------------
+
+  /**
+   * Fire-and-forget helper to send a "you've been asked for input" email.
+   * Resolves recipient email and location name from the DB.
+   */
+  private async sendInputRequestedEmail(
+    workOrderId: string,
+    workOrderNumber: string,
+    department: string,
+    priority: string,
+    officeLocationId: string | null,
+    recipientId: string,
+    requesterName: string,
+    message?: string | null,
+  ): Promise<void> {
+    const [recipient, location] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: recipientId }, select: { email: true } }),
+      officeLocationId ? this.prisma.officeLocation.findUnique({ where: { id: officeLocationId }, select: { name: true } }) : null,
+    ]);
+
+    if (!recipient?.email) return;
+
+    await sendWorkOrderInputRequested(
+      { workOrderNumber, department, priority, locationName: location?.name, workOrderId },
+      recipient.email,
+      requesterName,
+      message,
+    );
+  }
+
+  /**
+   * Fire-and-forget helper to notify the original requester that the
+   * recipient has responded (commented) on the work order.
+   */
+  private async sendInputRequestRespondedEmail(
+    workOrderId: string,
+    workOrderNumber: string,
+    department: string,
+    priority: string,
+    officeLocationId: string | null,
+    requesterId: string,
+    recipientName: string,
+  ): Promise<void> {
+    const [requester, location] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: requesterId }, select: { email: true } }),
+      officeLocationId ? this.prisma.officeLocation.findUnique({ where: { id: officeLocationId }, select: { name: true } }) : null,
+    ]);
+
+    if (!requester?.email) return;
+
+    await sendWorkOrderInputRequestResponded(
+      { workOrderNumber, department, priority, locationName: location?.name, workOrderId },
+      requester.email,
+      recipientName,
+    );
+  }
+
+  /**
+   * Ask another user for input on a work order. Grants them read access
+   * (via hasActiveInputRequest) until the request is dismissed.
+   */
+  async requestInput(
+    ticketId: string,
+    data: RequestInputDto,
+    userId: string,
+    permLevel: number,
+    maintenanceRole?: MaintenanceRole,
+  ) {
+    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } });
+    if (!ticket) throw new NotFoundError('Work order', ticketId);
+
+    // Caller must already have (scoped) access to this ticket — otherwise this
+    // primitive would be an arbitrary access-granting backdoor: a caller who
+    // can't see the ticket can't grant anyone else access to it either.
+    await this.assertTicketAccess(ticket, userId, permLevel, maintenanceRole);
+
+    if (data.requestedOfId === userId) {
+      throw new ValidationError('You cannot request input from yourself', 'requestedOfId');
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where:  { id: data.requestedOfId },
+      select: { isActive: true, displayName: true, firstName: true, lastName: true },
+    });
+    if (!targetUser || !targetUser.isActive) {
+      throw new ValidationError('The selected user is not available', 'requestedOfId');
+    }
+
+    const existing = await this.prisma.ticketInputRequest.findFirst({
+      where:  { ticketId, requestedOfId: data.requestedOfId, dismissedAt: null },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new ValidationError('An active input request already exists for this user on this work order', 'requestedOfId');
+    }
+
+    const requesterUser = await this.prisma.user.findUnique({
+      where:  { id: userId },
+      select: { displayName: true, firstName: true, lastName: true },
+    });
+
+    const recipientName = (targetUser.displayName
+      ?? `${targetUser.firstName ?? ''} ${targetUser.lastName ?? ''}`.trim())
+      || 'Unknown';
+    const requesterName = (requesterUser?.displayName
+      ?? `${requesterUser?.firstName ?? ''} ${requesterUser?.lastName ?? ''}`.trim())
+      || 'Unknown';
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const request = await tx.ticketInputRequest.create({
+        data: {
+          ticketId,
+          requestedById: userId,
+          requestedOfId: data.requestedOfId,
+          message:       data.message ?? null,
+        },
+        include: {
+          requestedBy: { select: { id: true, displayName: true, email: true } },
+          requestedOf: { select: { id: true, displayName: true, email: true } },
+        },
+      });
+
+      const commentBody = `Input requested from ${recipientName} by ${requesterName}${data.message ? `: ${data.message}` : ''}`;
+
+      await tx.ticketComment.create({
+        data: {
+          ticketId,
+          authorId:   userId,
+          body:       commentBody,
+          isInternal: false,
+          isSystem:   true,
+        },
+      });
+
+      return request;
+    });
+
+    loggers.workOrders.info('Input requested on work order', {
+      ticketId, requestId: created.id, requestedById: userId, requestedOfId: data.requestedOfId,
+    });
+
+    // Send email notification to the requested user (fire-and-forget)
+    this.sendInputRequestedEmail(
+      ticketId, ticket.ticketNumber, ticket.department, ticket.priority, ticket.officeLocationId,
+      data.requestedOfId, requesterName, data.message,
+    ).catch(() => {});
+
+    return created;
+  }
+
+  /**
+   * Active input requests addressed to the caller, most recent first, with
+   * scoped ticket summary fields and the reused unread-comment flag from the
+   * unread-comments feature (getUnreadTicketIds) — see spec's "Deliberate
+   * design simplification" note: no separate lastViewedAt mechanism here.
+   */
+  async getMyInputRequests(userId: string, permLevel: number) {
+    const requests = await this.prisma.ticketInputRequest.findMany({
+      where: {
+        requestedOfId: userId,
+        dismissedAt:   null,
+        ticket:        { status: { not: 'CLOSED' } },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, ticketId: true, message: true, createdAt: true, respondedAt: true,
+        requestedBy: { select: { id: true, displayName: true, email: true } },
+        requestedOf: { select: { id: true, displayName: true, email: true } },
+        ticket: {
+          select: {
+            id: true, ticketNumber: true, title: true, status: true, priority: true, department: true,
+            officeLocation: { select: { id: true, name: true } },
+            room:           { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+
+    const ticketIds = requests.map((r) => r.ticketId);
+    const unreadIds = await this.getUnreadTicketIds(ticketIds, userId, permLevel);
+
+    return requests.map((r) => ({
+      id:               r.id,
+      ticketId:         r.ticketId,
+      message:          r.message,
+      createdAt:        r.createdAt,
+      respondedAt:      r.respondedAt,
+      requestedBy:      r.requestedBy,
+      requestedOf:      r.requestedOf,
+      hasUnreadComment: unreadIds.has(r.ticketId),
+      workOrder: {
+        id:              r.ticket.id,
+        workOrderNumber: r.ticket.ticketNumber,
+        title:           r.ticket.title,
+        status:          r.ticket.status,
+        priority:        r.ticket.priority,
+        department:      r.ticket.department,
+        officeLocation:  r.ticket.officeLocation,
+        room:            r.ticket.room,
+      },
+    }));
+  }
+
+  /**
+   * Dismiss an input request. Idempotent — dismissing an already-dismissed
+   * request succeeds as a no-op. Only the requester or the recipient may dismiss.
+   */
+  async dismissInputRequest(requestId: string, userId: string) {
+    const request = await this.prisma.ticketInputRequest.findUnique({
+      where: { id: requestId },
+      include: {
+        requestedBy: { select: { id: true, displayName: true, email: true } },
+        requestedOf: { select: { id: true, displayName: true, email: true } },
+      },
+    });
+    if (!request) throw new NotFoundError('Input request', requestId);
+
+    if (request.dismissedAt) return request;
+
+    if (request.requestedById !== userId && request.requestedOfId !== userId) {
+      throw new AuthorizationError('You do not have access to this input request');
+    }
+
+    const updated = await this.prisma.ticketInputRequest.update({
+      where: { id: requestId },
+      data:  { dismissedAt: new Date() },
+      include: {
+        requestedBy: { select: { id: true, displayName: true, email: true } },
+        requestedOf: { select: { id: true, displayName: true, email: true } },
+      },
+    });
+
+    loggers.workOrders.info('Input request dismissed', { requestId, ticketId: request.ticketId, userId });
+
+    return updated;
+  }
+
+  /**
+   * Called (fire-and-forget) from addComment: if the commenter is the
+   * recipient of an active, not-yet-responded input request on this ticket,
+   * stamp respondedAt and notify the original requester.
+   */
+  private async notifyInputRequestResponse(ticketId: string, commenterId: string): Promise<void> {
+    const request = await this.prisma.ticketInputRequest.findFirst({
+      where: { ticketId, requestedOfId: commenterId, dismissedAt: null },
+    });
+    if (!request || request.respondedAt) return;
+
+    await this.prisma.ticketInputRequest.update({
+      where: { id: request.id },
+      data:  { respondedAt: new Date() },
+    });
+
+    const [ticket, recipient] = await Promise.all([
+      this.prisma.ticket.findUnique({ where: { id: ticketId } }),
+      this.prisma.user.findUnique({
+        where:  { id: commenterId },
+        select: { displayName: true, firstName: true, lastName: true },
+      }),
+    ]);
+    if (!ticket) return;
+
+    const recipientName = (recipient?.displayName
+      ?? `${recipient?.firstName ?? ''} ${recipient?.lastName ?? ''}`.trim())
+      || 'Unknown';
+
+    await this.sendInputRequestRespondedEmail(
+      ticketId, ticket.ticketNumber, ticket.department, ticket.priority, ticket.officeLocationId,
+      request.requestedById, recipientName,
+    );
   }
 
   // -------------------------------------------------------------------------
