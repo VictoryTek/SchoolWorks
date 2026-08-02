@@ -20,6 +20,7 @@ import {
 } from '@mui/material';
 import NotificationsActiveIcon from '@mui/icons-material/NotificationsActive';
 import MailOutlineIcon from '@mui/icons-material/MailOutline';
+import NewReleasesIcon from '@mui/icons-material/NewReleases';
 import {
   isPushSupported,
   getCurrentSubscription,
@@ -32,6 +33,10 @@ import {
   getEmailNotificationsEnabled,
   setEmailNotificationsEnabled,
 } from '../services/notificationPreferencesService';
+import {
+  isReleaseNotesOptedOut,
+  setReleaseNotesOptedOut,
+} from '../utils/releaseNotesPreference';
 
 type PushState = 'loading' | 'unsupported' | 'unconfigured' | 'denied' | 'ready';
 
@@ -48,6 +53,8 @@ export default function NotificationSettings() {
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+
+  const [releaseNotesEnabled, setReleaseNotesEnabled] = useState(() => !isReleaseNotesOptedOut());
 
   const refresh = useCallback(async () => {
     if (!isPushSupported()) {
@@ -96,6 +103,11 @@ export default function NotificationSettings() {
     } finally {
       setEmailBusy(false);
     }
+  };
+
+  const handleReleaseNotesToggle = (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+    setReleaseNotesEnabled(checked);
+    setReleaseNotesOptedOut(!checked);
   };
 
   const handleToggle = async (_e: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
@@ -215,6 +227,26 @@ export default function NotificationSettings() {
               {emailError}
             </Alert>
           )}
+        </CardContent>
+      </Card>
+
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <NewReleasesIcon color="primary" />
+            <Typography variant="h6">Release Notes</Typography>
+          </Box>
+
+          <FormControlLabel
+            control={
+              <Switch checked={releaseNotesEnabled} onChange={handleReleaseNotesToggle} />
+            }
+            label={releaseNotesEnabled ? 'Enabled on this device' : 'Disabled on this device'}
+          />
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Show a popup on this device with what's new whenever SchoolWorks updates to a new
+            feature release.
+          </Typography>
         </CardContent>
       </Card>
     </Box>

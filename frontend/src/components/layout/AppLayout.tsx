@@ -18,6 +18,7 @@ import { PUSH_STATUS_QUERY_KEY, isPushEnabled } from '../../services/pushService
 import { useRoomAssignmentAccess } from '../../hooks/useRoomAssignmentAccess';
 import { OfflineIndicator } from '../responsive/OfflineIndicator';
 import { ScrollToTopButton } from './ScrollToTopButton';
+import { WhatsNewDialog } from './WhatsNewDialog';
 import { CHANGELOG } from '../../changelog';
 import './AppLayout.css';
 
@@ -383,6 +384,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         </main>
         <ScrollToTopButton containerRef={contentRef} />
       </div>
+      <WhatsNewDialog />
     </div>
   );
 };

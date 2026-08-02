@@ -1,6 +1,13 @@
+export interface ReleaseHighlight {
+  icon: string;
+  title: string;
+  body: string;
+}
+
 export interface ChangelogEntry {
   version: string;
   changes: string[];
+  highlights?: ReleaseHighlight[];
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
