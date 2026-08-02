@@ -81,6 +81,8 @@ services:
       SIS_STAFF_CSV: ${SIS_STAFF_CSV:-/sis-data/staff.csv}
       SIS_STUDENT_CSV: ${SIS_STUDENT_CSV:-/sis-data/students.csv}
       SIS_SMB_SHARE: ${SIS_SMB_SHARE:-}
+      SYNERGY_STAFF_EXPORT_CSV: ${SYNERGY_STAFF_EXPORT_CSV:-/sis-data/SynergyStaff.csv}
+      SYNERGY_STUDENT_EXPORT_CSV: ${SYNERGY_STUDENT_EXPORT_CSV:-/sis-data/SynergyStudents.csv}
       PROVISIONING_REPORT_EMAIL: ${PROVISIONING_REPORT_EMAIL:-}
       PROVISIONING_TEST_MODE: ${PROVISIONING_TEST_MODE:-true}
       PROVISIONING_DEFAULT_STAFF_PASSWORD: ${PROVISIONING_DEFAULT_STAFF_PASSWORD:-}
@@ -94,7 +96,7 @@ services:
       - backend_logs_dev:/workspace/backend/logs
       - backend_uploads_dev:/workspace/backend/public/uploads
       - backup_local_dev:/backups
-      - sis_data_dev:/sis-data:ro
+      - sis_data_dev:/sis-data
     ports:
       - "3000:3000"
     command: sh -c "npx prisma migrate deploy && node dist/server.js"
@@ -169,4 +171,4 @@ volumes:
     driver_opts:
       type: cifs
       device: "${SIS_SMB_SHARE:-//10.0.10.83/homes/edupoint}"
-      o: "username=${SMB_USER:-},password=${SMB_PASS:-},vers=3.0,ro"
+      o: "username=${SMB_USER:-},password=${SMB_PASS:-},vers=3.0"

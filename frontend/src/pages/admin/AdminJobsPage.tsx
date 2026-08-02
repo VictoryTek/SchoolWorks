@@ -32,6 +32,7 @@ import SupervisorAccountIcon from '@mui/icons-material/SupervisorAccount';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import SaveIcon from '@mui/icons-material/Save';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import cronstrue from 'cronstrue';
 import { useSyncStaffUsers, useSyncStudentUsers } from '@/hooks/mutations/useAdminMutations';
 import { useUpdateSchedule, useRunJobNow } from '@/hooks/mutations/useJobMutations';
@@ -41,8 +42,8 @@ import type { JobSchedule, JobResult, SyncResult } from '@/services/adminService
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-type JobKey = 'syncStaff' | 'syncStudents' | 'syncLocations' | 'syncSupervisors' | 'auditCleanup';
-type ScheduleJobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'provisioning-audit-cleanup';
+type JobKey = 'syncStaff' | 'syncStudents' | 'syncLocations' | 'syncSupervisors' | 'auditCleanup' | 'synergyCsvExport';
+type ScheduleJobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'provisioning-audit-cleanup' | 'synergy-csv-export';
 
 interface CardState {
   lastResult: string | null;
@@ -338,6 +339,7 @@ function AdminJobsInner() {
     syncLocations:   { lastResult: null, lastError: null },
     syncSupervisors: { lastResult: null, lastError: null },
     auditCleanup:    { lastResult: null, lastError: null },
+    synergyCsvExport: { lastResult: null, lastError: null },
   });
 
   const { data: schedules, isLoading: isSchedulesLoading } = useJobSchedules();
@@ -403,6 +405,9 @@ function AdminJobsInner() {
       case 'auditCleanup':
         handleRunNow('provisioning-audit-cleanup', 'auditCleanup')();
         break;
+      case 'synergyCsvExport':
+        handleRunNow('synergy-csv-export', 'synergyCsvExport')();
+        break;
     }
   }
 
@@ -428,6 +433,10 @@ function AdminJobsInner() {
       title: 'Run Audit Log Cleanup?',
       body: 'This will permanently delete provisioning audit log entries older than 2 years. This action cannot be undone.',
       isDestructive: true,
+    },
+    synergyCsvExport: {
+      title: 'Run Synergy CSV Export?',
+      body: 'This will export active staff and student employeeId-to-UPN mappings to SynergyStaff.csv and SynergyStudents.csv on the Synergy SIS share, overwriting any existing files there.',
     },
   };
 
@@ -578,6 +587,27 @@ function AdminJobsInner() {
             lastError={cardState.syncSupervisors.lastError}
             onRunNow={() => setConfirmJob('syncSupervisors')}
             onSaveSchedule={handleSaveSchedule('sync-supervisors', 'syncSupervisors')}
+          />
+        </Grid>
+
+        <Grid size={{ xs: 12, md: 6 }}>
+          <ScheduledJobCard
+            title="Synergy CSV Export"
+            description="Exports active staff and student employeeId-to-UPN mappings to SynergyStaff.csv and SynergyStudents.csv on the Synergy SIS share, which Synergy reads back in to update the SIS."
+            icon={<CloudUploadIcon />}
+            statusLine={`Last run: ${formatTimestamp(getSchedule('synergy-csv-export')?.lastRunAt)}`}
+            schedule={getSchedule('synergy-csv-export')}
+            isRunningNow={
+              runJobNowMutation.isPending && runJobNowMutation.variables === 'synergy-csv-export'
+            }
+            isSavingSchedule={
+              updateScheduleMutation.isPending &&
+              updateScheduleMutation.variables?.jobKey === 'synergy-csv-export'
+            }
+            lastResult={cardState.synergyCsvExport.lastResult}
+            lastError={cardState.synergyCsvExport.lastError}
+            onRunNow={() => setConfirmJob('synergyCsvExport')}
+            onSaveSchedule={handleSaveSchedule('synergy-csv-export', 'synergyCsvExport')}
           />
         </Grid>
       </Grid>

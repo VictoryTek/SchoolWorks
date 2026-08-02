@@ -13,8 +13,9 @@ import { DriverLicenseService } from './driverLicense.service';
 import { MvrRecordService } from './mvrRecord.service';
 import { runProvisioningJob } from './userProvision.service';
 import { sendProvisioningReport } from './email.service';
+import { runSynergyCsvExportJob } from './synergyExport.service';
 
-type JobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'transportation-dot-reminders' | 'transportation-monthly-report' | 'transportation-license-reminders' | 'transportation-mvr-reminders' | 'provisioning-sync' | 'provisioning-sync-staff' | 'provisioning-sync-students' | 'provisioning-audit-cleanup';
+type JobKey = 'sync-staff' | 'sync-students' | 'sync-locations' | 'sync-supervisors' | 'transportation-dot-reminders' | 'transportation-monthly-report' | 'transportation-license-reminders' | 'transportation-mvr-reminders' | 'provisioning-sync' | 'provisioning-sync-staff' | 'provisioning-sync-students' | 'provisioning-audit-cleanup' | 'synergy-csv-export';
 
 const VALID_JOB_KEYS: JobKey[] = [
   'sync-staff',
@@ -29,6 +30,7 @@ const VALID_JOB_KEYS: JobKey[] = [
   'provisioning-sync-staff',
   'provisioning-sync-students',
   'provisioning-audit-cleanup',
+  'synergy-csv-export',
 ];
 
 const TIMEZONE = process.env.TZ || 'America/Chicago';
@@ -46,6 +48,7 @@ const DEFAULT_CRON: Record<JobKey, string> = {
   'provisioning-sync-staff':       '0 3 * * *',
   'provisioning-sync-students':    '0 3 * * *',
   'provisioning-audit-cleanup':    '0 2 * * 0',  // weekly Sunday 2 AM
+  'synergy-csv-export':            '0 5 * * *',  // daily 5 AM, after the 3 AM sync/provisioning jobs
 };
 
 export interface JobScheduleRecord {
@@ -251,6 +254,10 @@ class SchedulerService {
       });
       loggers.scheduler.info('Provisioning audit cleanup complete', { deleted: count, cutoffDate: cutoff.toISOString(), retentionDays });
       return { deleted: count, retentionDays, cutoffDate: cutoff.toISOString() };
+    }
+
+    if (jobKey === 'synergy-csv-export') {
+      return await runSynergyCsvExportJob();
     }
 
     const graphClient = await createGraphClient();
