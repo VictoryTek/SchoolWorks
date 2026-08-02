@@ -14,6 +14,13 @@ const STUDENT_EXPORT_PATH = process.env.SYNERGY_STUDENT_EXPORT_CSV ?? '/sis-data
  * Staff vs. student is determined by the same 's'-prefix convention
  * userProvision.service.ts already uses for employeeId (student IDs are
  * stored as 's' + SIS Student ID; staff IDs are plain numeric badge numbers).
+ *
+ * Writes go to a temp file and are then renamed into place: Synergy itself
+ * watches this share for these exact filenames and can grab the file the
+ * instant it appears, which raced with a direct create+truncate write and
+ * produced EBUSY in production. Renaming a fully-written temp file is a
+ * single atomic step, so there's no partially-written file for Synergy to
+ * race against.
  */
 export async function runSynergyCsvExportJob(): Promise<Record<string, unknown>> {
   const users = await prisma.user.findMany({
@@ -37,8 +44,8 @@ export async function runSynergyCsvExportJob(): Promise<Record<string, unknown>>
   const studentCsv = ['employeeNumber,userPrincipalName', ...studentRows].join('\n') + '\n';
 
   fs.mkdirSync(path.dirname(STAFF_EXPORT_PATH), { recursive: true });
-  fs.writeFileSync(STAFF_EXPORT_PATH, staffCsv, 'utf8');
-  fs.writeFileSync(STUDENT_EXPORT_PATH, studentCsv, 'utf8');
+  writeAtomic(STAFF_EXPORT_PATH, staffCsv);
+  writeAtomic(STUDENT_EXPORT_PATH, studentCsv);
 
   loggers.scheduler.info('Synergy CSV export complete', {
     staffCount: staffRows.length,
@@ -53,4 +60,10 @@ export async function runSynergyCsvExportJob(): Promise<Record<string, unknown>>
     staffPath: STAFF_EXPORT_PATH,
     studentPath: STUDENT_EXPORT_PATH,
   };
+}
+
+function writeAtomic(targetPath: string, contents: string): void {
+  const tmpPath = `${targetPath}.tmp`;
+  fs.writeFileSync(tmpPath, contents, 'utf8');
+  fs.renameSync(tmpPath, targetPath);
 }
