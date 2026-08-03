@@ -1,6 +1,6 @@
 {
   "name": "@mgspe/shared-types",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Shared TypeScript types for MGSPE frontend and backend",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

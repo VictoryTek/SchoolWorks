@@ -9,6 +9,10 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   FormControl,
   InputLabel,
@@ -85,6 +89,7 @@ export default function BulkCheckoutPage() {
   const [scanError, setScanError] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [pendingRepair, setPendingRepair] = useState<PendingRepairScan | null>(null);
+  const [notFoundBarcode, setNotFoundBarcode] = useState<string | null>(null);
   const barcodeRef = useRef<HTMLInputElement>(null);
 
   // Step 3: charger scan (when chargerAssignmentEnabled)
@@ -248,6 +253,13 @@ export default function BulkCheckoutPage() {
 
       await runCheckout(scanResult.equipment);
     } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 404) {
+        setNotFoundBarcode(barcode);
+        setScanning(false);
+        barcodeRef.current?.focus();
+        return;
+      }
       const msg = err instanceof Error ? err.message : 'Failed to assign device';
       const apiMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       const errorMsg = apiMsg || msg;
@@ -522,6 +534,29 @@ export default function BulkCheckoutPage() {
               onCancel={handleRepairCancel}
             />
           )}
+
+          <Dialog open={!!notFoundBarcode} onClose={() => setNotFoundBarcode(null)}>
+            <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'error.main' }}>
+              <ErrorIcon color="error" />
+              Device Not Found
+            </DialogTitle>
+            <DialogContent>
+              <Typography variant="body1">
+                No device matches barcode <strong>{notFoundBarcode}</strong>. Check the barcode and try again.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setNotFoundBarcode(null);
+                  barcodeRef.current?.focus();
+                }}
+              >
+                OK
+              </Button>
+            </DialogActions>
+          </Dialog>
 
           {assignedDevices.length > 0 && (
             <>

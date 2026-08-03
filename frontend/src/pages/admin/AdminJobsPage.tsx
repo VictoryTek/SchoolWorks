@@ -65,6 +65,14 @@ function getCronDescription(expr: string): { ok: true; text: string } | { ok: fa
   }
 }
 
+function getErrorMessage(err: unknown): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: { error?: string } } }).response?.data;
+    if (data?.error) return data.error;
+  }
+  return err instanceof Error ? err.message : 'Request failed';
+}
+
 function getStatusChipProps(
   status: string | null,
 ): { label: string; color: 'success' | 'error' | 'default' } {
@@ -364,7 +372,7 @@ function AdminJobsInner() {
         { jobKey, payload: { cronExpr, enabled } },
         {
           onError: (err: Error) =>
-            setResult(cardKey, null, `Schedule update failed: ${err.message}`),
+            setResult(cardKey, null, `Schedule update failed: ${getErrorMessage(err)}`),
         },
       );
     };
@@ -374,7 +382,7 @@ function AdminJobsInner() {
     return () => {
       runJobNowMutation.mutate(jobKey, {
         onSuccess: (data: JobResult) => setResult(cardKey, data.message, null),
-        onError: (err: Error) => setResult(cardKey, null, err.message),
+        onError: (err: Error) => setResult(cardKey, null, getErrorMessage(err)),
       });
     };
   }
@@ -387,13 +395,13 @@ function AdminJobsInner() {
       case 'syncStaff':
         syncStaffMutation.mutate(undefined, {
           onSuccess: (data: SyncResult) => setResult('syncStaff', data.message, null),
-          onError: (err: Error) => setResult('syncStaff', null, err.message),
+          onError: (err: Error) => setResult('syncStaff', null, getErrorMessage(err)),
         });
         break;
       case 'syncStudents':
         syncStudentsMutation.mutate(undefined, {
           onSuccess: (data: SyncResult) => setResult('syncStudents', data.message, null),
-          onError: (err: Error) => setResult('syncStudents', null, err.message),
+          onError: (err: Error) => setResult('syncStudents', null, getErrorMessage(err)),
         });
         break;
       case 'syncLocations':

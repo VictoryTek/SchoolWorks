@@ -12,6 +12,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.7.1',
+    changes: [
+      'Bulk Device Checkout now shows a "Device Not Found" popup when a scanned barcode doesn\'t match any device, instead of adding a fake "Unknown device" entry to the checkout list.',
+      'Admin Jobs page now shows the server\'s actual error message (e.g. rate-limit or validation failures) instead of a generic "Request failed with status code" message.',
+    ],
+  },
+  {
     version: '1.7.0',
     highlights: [
       {
@@ -71,6 +78,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Added "Request Input" on the work order detail page — pull in a colleague for a second opinion without reassigning the work order. They\'re emailed and see it in a new panel at the top of their Work Orders list until they dismiss it, and their reply notifies you.',
       'The Work Orders list can now be sorted by location, category, or status (ascending or descending) in addition to the default newest-first order, including on mobile. Room numbers now sort in natural numeric order everywhere in the app instead of alphabetically (e.g. Room 9 before Room 10).',
       'Fixed the login page logo rendering in a solid white box in dark mode, and gave the login page a general dark-mode polish so the card reads as raised instead of sunken and the sign-in button is clearly the primary action.',
+      'Replace generic error message in admin job logs with the actual error message, so you can see what went wrong without having to check the server logs.',
     ],
   },
   {
