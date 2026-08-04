@@ -16,7 +16,9 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       'Bulk Device Checkout now shows a "Device Not Found" popup when a scanned barcode doesn\'t match any device, instead of adding a fake "Unknown device" entry to the checkout list.',
       'Admin Jobs page now shows the server\'s actual error message (e.g. rate-limit or validation failures) instead of a generic "Request failed with status code" message.',
-      'Fixed newly (and some previously) provisioned student accounts being blocked from enrolling devices with a "Legal Age Group Requirement" sign-in error, by correctly granting minor consent during account provisioning.'
+      'Fixed newly (and some previously) provisioned student accounts being blocked from enrolling devices with a "Legal Age Group Requirement" sign-in error, by correctly granting minor consent during account provisioning.',
+      'Removed due date from cartcheckout and quick checkout, since it was never actually used for anything.',
+      'Fixed when searching for a device in the Active Checkouts list, the search results were not being displayed correctly and the list was not updating to show the matching devices.',
     ],
   },
   {
