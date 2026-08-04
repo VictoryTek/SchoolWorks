@@ -480,9 +480,10 @@ export class UserSyncService {
         // (account deleted + recreated, rather than re-enabled) — same UPN/email and
         // employeeId, different entraId. The upsert above is keyed on entraId, so it
         // attempts an INSERT that collides with the old row's unique email. When the
-        // colliding row's employeeId matches this Graph user's employeeId, it's safe
-        // to treat this as "this identity's Entra object was reissued" and re-point
-        // the existing local row to the new entraId rather than failing outright.
+        // colliding row is disabled and its employeeId doesn't conflict with this Graph
+        // user's employeeId, it's safe to treat this as "this identity's Entra object
+        // was reissued" and re-point the existing local row to the new entraId rather
+        // than failing outright (see employeeIdCompatible below for the exact rule).
         //
         // Prisma 7's driver-adapter errors don't populate the classic `meta.target`
         // array — the offending constraint's fields live at
@@ -496,7 +497,15 @@ export class UserSyncService {
 
         if (isEmailConflict) {
           const existingByEmail = await this.prisma.user.findUnique({ where: { email } });
-          if (existingByEmail && existingByEmail.employeeId && existingByEmail.employeeId === (graphUser.employeeId ?? null)) {
+          // Legacy rows created before `employeeId` was tracked never had it backfilled,
+          // so a NULL employeeId on the colliding row isn't a conflict signal — treat it
+          // as compatible. Still require the colliding row to be disabled (isActive false)
+          // so this never silently re-points a row that's the live record for an active
+          // identity; that's the case observed in every reissue seen so far (old account
+          // disabled, re-enrolled under a brand-new Entra object id).
+          const employeeIdCompatible =
+            !existingByEmail?.employeeId || existingByEmail.employeeId === (graphUser.employeeId ?? null);
+          if (existingByEmail && existingByEmail.isActive === false && employeeIdCompatible) {
             loggers.userSync.warn('User sync: reissued Entra object detected — re-pointing existing row to new entraId', {
               oldEntraId: redactEntraId(existingByEmail.entraId ?? ''),
               newEntraId: redactEntraId(entraId),
