@@ -73,7 +73,6 @@ const cartBaseSelect = {
   assignedToUserId: true,
   assigneeType: true,
   locationId: true,
-  dueDate: true,
   checkoutCondition: true,
   notes: true,
   createdById: true,
@@ -239,7 +238,6 @@ export async function createCart(data: CreateCartData, createdById: string) {
       name:              data.name,
       tagNumber:         data.tagNumber,
       locationId:        data.locationId,
-      dueDate:           data.dueDate ? new Date(data.dueDate) : undefined,
       checkoutCondition: data.checkoutCondition,
       notes:             data.notes,
       createdById,
@@ -318,7 +316,6 @@ export async function updateCart(cartId: string, data: UpdateCartData) {
         assignedToUserId:  userIds !== undefined ? (userIds[0] ?? null) : undefined,
         assigneeType:      userIds !== undefined ? (userIds.length > 0 ? 'staff' : null) : undefined,
         locationId:        data.locationId,
-        dueDate:           data.dueDate ? new Date(data.dueDate) : undefined,
         // checkoutCondition is only a draft-time default used by commitCart() —
         // meaningless once the cart is committed, so ignore it post-draft.
         checkoutCondition: isDraft ? data.checkoutCondition : undefined,

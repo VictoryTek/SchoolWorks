@@ -283,7 +283,6 @@ export interface DeviceCartSummary {
   assignedToUserId: string | null;
   assigneeType: AssigneeType | null;
   locationId: string | null;
-  dueDate: string | null;
   checkoutCondition: CheckoutCondition | null;
   notes: string | null;
   createdById: string;
@@ -312,7 +311,6 @@ export interface CreateCartRequest {
   assignedToUserId?: string;
   assigneeType?: AssigneeType;
   locationId?: string;
-  dueDate?: string;
   checkoutCondition?: CheckoutCondition;
   notes?: string;
 }
@@ -324,7 +322,6 @@ export interface UpdateCartRequest {
   assignedToUserId?: string;
   assigneeType?: AssigneeType;
   locationId?: string;
-  dueDate?: string;
   checkoutCondition?: CheckoutCondition;
   notes?: string;
 }

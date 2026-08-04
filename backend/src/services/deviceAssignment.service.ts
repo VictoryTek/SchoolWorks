@@ -502,6 +502,33 @@ export async function getActiveAssignments(query: ListAssignmentsQuery) {
   if (query.campusId)                 where.locationId   = query.campusId;
   if (query.gradeLevel)               where.user         = { gradeLevel: query.gradeLevel };
 
+  // Free-text lookup across the identifiers a tech has to hand: the device's asset
+  // tag, the charger's serial, or the assignee's name. Searched server-side so a
+  // match is found district-wide, not just within the current page of results.
+  // Trimmed here, not in Zod: validateRequest can't write parsed values back for query
+  // params (req.query is read-only in Express 5), so the raw string arrives — the same
+  // reason paging re-coerces with Number(). Scanners routinely append whitespace.
+  const q = query.search?.trim();
+  if (q) {
+    const [first, ...rest] = q.split(/\s+/);
+    const last = rest.join(' ');
+    where.OR = [
+      { equipment: { assetTag: { contains: q, mode: 'insensitive' } } },
+      { chargerAssignment: { charger: { serialNumber: { contains: q, mode: 'insensitive' } } } },
+      { user: { firstName: { contains: q, mode: 'insensitive' } } },
+      { user: { lastName:  { contains: q, mode: 'insensitive' } } },
+      // "john smith" must match firstName + lastName as a pair
+      ...(last
+        ? [{
+            user: {
+              firstName: { contains: first, mode: 'insensitive' as const },
+              lastName:  { contains: last,  mode: 'insensitive' as const },
+            },
+          }]
+        : []),
+    ];
+  }
+
   const [items, total] = await prisma.$transaction([
     prisma.deviceAssignment.findMany({
       where,

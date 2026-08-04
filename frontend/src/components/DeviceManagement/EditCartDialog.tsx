@@ -45,7 +45,6 @@ export function EditCartDialog({ cart, open, onClose }: EditCartDialogProps) {
   const [name, setName] = useState(cart.name ?? '');
   const [tagNumber, setTagNumber] = useState(cart.tagNumber ?? '');
   const [locationId, setLocationId] = useState(cart.locationId ?? '');
-  const [dueDate, setDueDate] = useState(cart.dueDate ? cart.dueDate.slice(0, 10) : '');
   const [notes, setNotes] = useState(cart.notes ?? '');
   const [assignedUsers, setAssignedUsers] = useState<UserOption[]>(
     (cart.users ?? []).map((u) => toUserOption(u.user))
@@ -62,7 +61,6 @@ export function EditCartDialog({ cart, open, onClose }: EditCartDialogProps) {
         name: name || undefined,
         tagNumber: tagNumber || undefined,
         locationId: locationId || undefined,
-        dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         notes: notes || undefined,
         assignedUserIds: assignedUsers.map((u) => u.id),
       }),
@@ -99,16 +97,6 @@ export function EditCartDialog({ cart, open, onClose }: EditCartDialogProps) {
             renderInput={(params) => <TextField {...params} label="Location" />}
           />
         )}
-
-        <TextField
-          label="Due Date"
-          type="date"
-          size="small"
-          fullWidth
-          value={dueDate}
-          onChange={(e) => setDueDate(e.target.value)}
-          InputLabelProps={{ shrink: true }}
-        />
 
         <Box>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>

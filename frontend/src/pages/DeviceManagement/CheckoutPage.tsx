@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
+import { useFilterParams } from '@/hooks/useFilterParams';
 import {
   Alert,
   Box,
@@ -31,7 +32,6 @@ import { useIsMobile } from '../../hooks/useResponsive';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { deviceAssignmentService } from '../../services/deviceAssignment.service';
 import { locationService } from '../../services/location.service';
-import { userService } from '../../services/userService';
 import { DeviceStatusChip } from '../../components/DeviceManagement/DeviceStatusChip';
 import { ConditionChip } from '../../components/DeviceManagement/ConditionChip';
 import { CheckinForm } from '../../components/DeviceManagement/CheckinForm';
@@ -58,14 +58,35 @@ export default function CheckoutPage() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
-  // Filter state
-  const [search,            setSearch]            = useState('');
-  const [assigneeFilter,    setAssigneeFilter]    = useState<string>('');
-  const [locationFilter,    setLocationFilter]    = useState<string>('');
-  const [gradeLevelFilter,  setGradeLevelFilter]  = useState<string>('');
-  const [page,              setPage]              = useState(0);
-  const [pageSize,          setPageSize]          = useState(25);
-  const [filterDrawerOpen,  setFilterDrawerOpen]  = useState(false);
+  // Filter state — lives in the URL so Back returns to this view
+  const [filters, setFilters] = useFilterParams({
+    search:   '',
+    assignee: '',
+    location: '',
+    grade:    '',
+    page:     '0',
+    rows:     '25',
+  });
+
+  const search           = filters.search;
+  const assigneeFilter   = filters.assignee;
+  const locationFilter   = filters.location;
+  const gradeLevelFilter = filters.grade;
+  const page              = Number(filters.page) || 0;
+  const pageSize          = Number(filters.rows) || 25;
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+
+  // Seeded from the URL so a restored search is queried without waiting on the debounce
+  const [debouncedSearch, setDebouncedSearch] = useState(search);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Owns the page reset: MobileFilterBar's onSearchChange is a bare (value: string) => void,
+  // so a handler that doesn't reset the page here would silently lose the reset on mobile.
+  const handleSearchChange = useCallback((val: string) => {
+    setFilters({ search: val, page: '0' });
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedSearch(val), 300);
+  }, [setFilters]);
 
   // Checkin dialog state
   const [checkinTarget, setCheckinTarget] = useState<DeviceAssignment | null>(null);
@@ -85,33 +106,20 @@ export default function CheckoutPage() {
     queryFn: () => locationService.getAllLocations(),
   });
 
-  // ── Query: resolve logged-in user's office location ──────────────────
-  const { data: myLocation } = useQuery({
-    queryKey: ['users', 'me', 'office-location'],
-    queryFn: () => userService.getMyOfficeLocation(),
-    staleTime: Infinity,
-  });
-
-  // Pre-select the user's location once resolved (only on first load)
-  useEffect(() => {
-    if (myLocation?.id && locationFilter === '') {
-      setLocationFilter(myLocation.id);
-    }
-  }, [myLocation]);
-
   // ── Query: active assignments ──────────────────────────────────────────
   const {
     data,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['device-assignments', 'active', { page, pageSize, assigneeFilter, locationFilter, gradeLevelFilter }],
+    queryKey: ['device-assignments', 'active', { page, pageSize, assigneeFilter, locationFilter, gradeLevelFilter, debouncedSearch }],
     queryFn: () =>
       deviceAssignmentService.getActive({
         page:         page + 1,
         limit:        pageSize,
         assigneeType: (assigneeFilter && assigneeFilter !== 'cart') ? assigneeFilter : undefined,
         sourceType:   assigneeFilter === 'cart' ? 'cart' : undefined,
+        search:       debouncedSearch || undefined,
         campusId:     locationFilter  || undefined,
         gradeLevel:   gradeLevelFilter ? toDbGradeLevel(gradeLevelFilter) : undefined,
       }),
@@ -263,15 +271,7 @@ export default function CheckoutPage() {
 
   const activeFilterCount = (assigneeFilter ? 1 : 0) + (locationFilter ? 1 : 0) + (gradeLevelFilter ? 1 : 0);
 
-  // ── Client-side search filter ──────────────────────────────────────────
-  const rows = (data?.items ?? []).filter((r) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    const name    = [r.user?.firstName, r.user?.lastName].filter(Boolean).join(' ').toLowerCase();
-    const tag     = r.equipment?.assetTag?.toLowerCase() ?? '';
-    const charger = r.chargerAssignment?.charger.serialNumber?.toLowerCase() ?? '';
-    return name.includes(q) || tag.includes(q) || charger.includes(q);
-  });
+  const rows = data?.items ?? [];
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
@@ -295,7 +295,7 @@ export default function CheckoutPage() {
         <Box sx={{ mb: 2 }}>
           <MobileFilterBar
             searchValue={search}
-            onSearchChange={(v) => { setSearch(v); setPage(0); }}
+            onSearchChange={handleSearchChange}
             filterCount={activeFilterCount}
             onOpenFilters={() => setFilterDrawerOpen(!filterDrawerOpen)}
             searchPlaceholder="Search by name, asset tag, or charger serial…"
@@ -304,25 +304,25 @@ export default function CheckoutPage() {
             <Paper sx={{ p: 2, mt: 1 }}>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                 <Select size="small" displayEmpty value={assigneeFilter}
-                  onChange={(e) => { setAssigneeFilter(e.target.value); setPage(0); }} fullWidth>
+                  onChange={(e) => setFilters({ assignee: e.target.value, page: '0' })} fullWidth>
                   <MenuItem value="">All Types</MenuItem>
                   <MenuItem value="student">Students</MenuItem>
                   <MenuItem value="staff">Staff</MenuItem>
                   <MenuItem value="cart">Cart Checkouts</MenuItem>
                 </Select>
                 <Select size="small" displayEmpty value={locationFilter}
-                  onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }} fullWidth>
+                  onChange={(e) => setFilters({ location: e.target.value, page: '0' })} fullWidth>
                   <MenuItem value="">All Locations</MenuItem>
                   {locations?.filter((loc) => loc.type === 'SCHOOL' || loc.type === 'DISTRICT_OFFICE')
                     .map((loc) => <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>)}
                 </Select>
                 <Select size="small" displayEmpty value={gradeLevelFilter}
-                  onChange={(e) => { setGradeLevelFilter(e.target.value); setPage(0); }} fullWidth>
+                  onChange={(e) => setFilters({ grade: e.target.value, page: '0' })} fullWidth>
                   <MenuItem value="">All Grades</MenuItem>
                   {GRADE_LEVELS.map((g) => <MenuItem key={g} value={g}>{gradeLevelLabel(g)}</MenuItem>)}
                 </Select>
                 <Button size="small" variant="text"
-                  onClick={() => { setAssigneeFilter(''); setLocationFilter(''); setGradeLevelFilter(''); setPage(0); }}>
+                  onClick={() => setFilters({ assignee: '', location: '', grade: '', page: '0' })}>
                   Clear Filters
                 </Button>
               </Box>
@@ -334,14 +334,14 @@ export default function CheckoutPage() {
           <TextField
             label="Search by name, asset tag, or charger serial"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            onChange={(e) => handleSearchChange(e.target.value)}
             size="small"
             sx={{ minWidth: 250 }}
             InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
           />
           <FormControl size="small" sx={{ minWidth: 160 }}>
             <InputLabel>Assignee Type</InputLabel>
-            <Select value={assigneeFilter} onChange={(e) => { setAssigneeFilter(e.target.value); setPage(0); }} label="Assignee Type">
+            <Select value={assigneeFilter} onChange={(e) => setFilters({ assignee: e.target.value, page: '0' })} label="Assignee Type">
               <MenuItem value="">All</MenuItem>
               <MenuItem value="student">Students</MenuItem>
               <MenuItem value="staff">Staff</MenuItem>
@@ -350,7 +350,7 @@ export default function CheckoutPage() {
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 200 }}>
             <InputLabel>Location</InputLabel>
-            <Select value={locationFilter} onChange={(e) => { setLocationFilter(e.target.value); setPage(0); }} label="Location">
+            <Select value={locationFilter} onChange={(e) => setFilters({ location: e.target.value, page: '0' })} label="Location">
               <MenuItem value="">All Locations</MenuItem>
               {locations?.filter((loc) => loc.type === 'SCHOOL' || loc.type === 'DISTRICT_OFFICE')
                 .map((loc) => <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>)}
@@ -358,7 +358,7 @@ export default function CheckoutPage() {
           </FormControl>
           <FormControl size="small" sx={{ minWidth: 150 }}>
             <InputLabel>Grade</InputLabel>
-            <Select value={gradeLevelFilter} onChange={(e) => { setGradeLevelFilter(e.target.value); setPage(0); }} label="Grade">
+            <Select value={gradeLevelFilter} onChange={(e) => setFilters({ grade: e.target.value, page: '0' })} label="Grade">
               <MenuItem value="">All Grades</MenuItem>
               {GRADE_LEVELS.map((g) => <MenuItem key={g} value={g}>{gradeLevelLabel(g)}</MenuItem>)}
             </Select>
@@ -377,9 +377,9 @@ export default function CheckoutPage() {
         component="div"
         count={data?.total ?? 0}
         page={page}
-        onPageChange={(_, p) => setPage(p)}
+        onPageChange={(_, p) => setFilters({ page: String(p) })}
         rowsPerPage={pageSize}
-        onRowsPerPageChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+        onRowsPerPageChange={(e) => setFilters({ rows: e.target.value, page: '0' })}
         rowsPerPageOptions={[10, 25, 50]}
       />
 

@@ -22,7 +22,6 @@ import {
   TablePagination,
   TableRow,
   TextField,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
@@ -196,10 +195,6 @@ function CartCard({ cart, onReturn, onEdit, onAddDevice, onReturnItem, canReturn
     ...secondaryUsers.map((u) => `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim()),
   ].filter(Boolean).join(', ') || '—';
 
-  const isOverdue = cart.dueDate && cart.status !== 'returned' && new Date(cart.dueDate) < new Date();
-  const dueDateDisplay = cart.dueDate
-    ? new Date(cart.dueDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-    : null;
   const itemCount = cart.items?.length ?? cart.itemCount;
 
   return (
@@ -217,11 +212,6 @@ function CartCard({ cart, onReturn, onEdit, onAddDevice, onReturnItem, canReturn
         <Typography variant="caption" color="text.secondary">{cart.location.name}</Typography>
       )}
       <Typography variant="caption" color="text.secondary">{assigneeDisplay}</Typography>
-      {dueDateDisplay && (
-        <Typography variant="caption" color={isOverdue ? 'error.main' : 'text.secondary'} fontWeight={isOverdue ? 700 : undefined}>
-          Due: {dueDateDisplay}{isOverdue ? ' — Overdue' : ''}
-        </Typography>
-      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5, flexWrap: 'wrap', gap: 0.5 }}>
         <Button size="small" variant="text" onClick={() => setExpanded((v) => !v)}
           endIcon={expanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
@@ -285,15 +275,6 @@ function CartRow({ cart, onReturn, onEdit, onAddDevice, onReturnItem, isMobile, 
     .filter(Boolean)
     .join(', ') || '—';
 
-  const isOverdue =
-    cart.dueDate &&
-    cart.status !== 'returned' &&
-    new Date(cart.dueDate) < new Date();
-
-  const dueDateDisplay = cart.dueDate
-    ? new Date(cart.dueDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-    : '—';
-
   const committedDisplay = cart.committedAt
     ? new Date(cart.committedAt).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
     : '—';
@@ -340,19 +321,6 @@ function CartRow({ cart, onReturn, onEdit, onAddDevice, onReturnItem, isMobile, 
             <Typography variant="body2">{committedDisplay}</Typography>
           </TableCell>
         )}
-        {!isMobile && (
-          <TableCell>
-            <Tooltip title={isOverdue ? 'Overdue!' : ''}>
-              <Typography
-                variant="body2"
-                color={isOverdue ? 'error.main' : 'text.primary'}
-                fontWeight={isOverdue ? 700 : undefined}
-              >
-                {dueDateDisplay}
-              </Typography>
-            </Tooltip>
-          </TableCell>
-        )}
         <TableCell align="center">
           <Chip label={itemCount} size="small" variant="outlined" />
         </TableCell>
@@ -382,7 +350,7 @@ function CartRow({ cart, onReturn, onEdit, onAddDevice, onReturnItem, isMobile, 
 
       {/* Expanded device sub-table */}
       <TableRow>
-        <TableCell colSpan={isMobile ? 5 : 9} sx={{ py: 0, px: 0 }}>
+        <TableCell colSpan={isMobile ? 5 : 8} sx={{ py: 0, px: 0 }}>
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <Box sx={{ bgcolor: 'action.hover', px: 2, py: 1 }}>
               <DeviceSubTable
@@ -602,7 +570,6 @@ export default function CheckedOutCartsPage() {
                 <TableCell>Location</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>Checked Out</TableCell>
-                <TableCell>Due Date</TableCell>
                 <TableCell align="center"># Devices</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
@@ -610,13 +577,13 @@ export default function CheckedOutCartsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" color="text.secondary">Loading…</Typography>
                   </TableCell>
                 </TableRow>
               ) : displayedCarts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <Typography variant="body2" color="text.secondary">
                       No checked-out carts found.
                     </Typography>

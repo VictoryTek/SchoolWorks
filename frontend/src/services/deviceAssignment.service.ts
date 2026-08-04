@@ -27,7 +27,7 @@ export const deviceAssignmentService = {
   update: (id: string, data: UpdateAssignmentRequest): Promise<DeviceAssignment> =>
     api.patch(`${BASE}/${id}`, data).then((r) => r.data),
 
-  getActive: (params?: { page?: number; limit?: number; campusId?: string; assigneeType?: string; gradeLevel?: string; sourceType?: 'single' | 'cart' }): Promise<ActiveAssignmentsResponse> =>
+  getActive: (params?: { page?: number; limit?: number; campusId?: string; assigneeType?: string; gradeLevel?: string; sourceType?: 'single' | 'cart'; search?: string }): Promise<ActiveAssignmentsResponse> =>
     api.get(`${BASE}/active`, { params }).then((r) => r.data),
 
   getAll: (params?: object): Promise<ActiveAssignmentsResponse> =>

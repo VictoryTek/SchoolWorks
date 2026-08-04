@@ -9,7 +9,6 @@ export const CreateCartSchema = z.object({
   // DEPRECATED: use assignedUserIds instead; kept for backward compat
   assignedToUserId:  z.string().uuid().optional(),
   locationId:        z.string().uuid().optional(),
-  dueDate:           z.string().datetime({ offset: true }).optional(),
   checkoutCondition: checkoutCondition.optional(),
   notes:             z.string().max(2000).optional(),
 });

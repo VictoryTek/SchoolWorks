@@ -73,7 +73,6 @@ export default function CartAssignmentWizardPage() {
   const [assignedUsers, setAssignedUsers] = useState<UserOption[]>([]);
   const [locationId,    setLocationId]    = useState<string>('');
   const [condition,     setCondition]     = useState<CheckoutCondition>('good');
-  const [dueDate,       setDueDate]       = useState<string>('');
   const [notes,         setNotes]         = useState<string>('');
 
   // ── Step 2: Devices ────────────────────────────────────────────────────────
@@ -199,7 +198,6 @@ export default function CartAssignmentWizardPage() {
             await deviceCartService.update(orphan.id, {
               assignedUserIds: [],
               locationId: undefined,
-              dueDate: undefined,
               notes: undefined,
             });
             id = orphan.id;
@@ -265,7 +263,6 @@ export default function CartAssignmentWizardPage() {
     setAssignedUsers([]);
     setLocationId('');
     setCondition('good');
-    setDueDate('');
     setNotes('');
     setCartItems([]);
     setScanInput('');
@@ -467,21 +464,6 @@ export default function CartAssignmentWizardPage() {
             </Select>
           </FormControl>
 
-          {/* Due Date */}
-          <TextField
-            label="Due Date (optional)"
-            type="date"
-            size="small"
-            fullWidth
-            value={dueDate}
-            sx={{ mb: 2 }}
-            slotProps={{ inputLabel: { shrink: true } }}
-            onChange={(e) => {
-              setDueDate(e.target.value);
-              autoSave({ dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined });
-            }}
-          />
-
           {/* Notes */}
           <TextField
             label="Notes (optional)"
@@ -668,14 +650,6 @@ export default function CartAssignmentWizardPage() {
                 {CONDITIONS.find((c) => c.value === condition)?.label ?? condition}
               </Typography>
             </Box>
-
-            {/* Due Date */}
-            {dueDate && (
-              <Box>
-                <Typography variant="caption" color="text.secondary">Due Date</Typography>
-                <Typography variant="body1">{new Date(dueDate).toLocaleDateString()}</Typography>
-              </Box>
-            )}
 
             {/* Notes */}
             {notes && (

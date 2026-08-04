@@ -597,7 +597,6 @@ Desktop table layout is completely unchanged.
 │ CART-001                   [Out]  [3]   │  ← tag + status chip + device count
 │ Oak Hill Elementary                     │  ← location
 │ John Smith                              │  ← assignee(s)
-│ Due: 01/15/2025 — Overdue              │  ← due date (red if overdue)
 │ [Show devices (3) ▼]    [Return All]   │  ← expand toggle + action
 │ ─────────────────────────────────────── │
 │ ASSET-001   Chromebook 14  [Good] [Active] │  ← expanded device rows
@@ -619,10 +618,6 @@ function CartCard({ cart, onReturn, canReturn }: { cart: DeviceCartDetail; onRet
     ...secondaryUsers.map((u) => `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim()),
   ].filter(Boolean).join(', ') || '—';
 
-  const isOverdue = cart.dueDate && cart.status !== 'returned' && new Date(cart.dueDate) < new Date();
-  const dueDateDisplay = cart.dueDate
-    ? new Date(cart.dueDate).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
-    : null;
   const itemCount = cart.items?.length ?? cart.itemCount;
 
   return (
@@ -640,11 +635,6 @@ function CartCard({ cart, onReturn, canReturn }: { cart: DeviceCartDetail; onRet
         <Typography variant="caption" color="text.secondary">{cart.location.name}</Typography>
       )}
       <Typography variant="caption" color="text.secondary">{assigneeDisplay}</Typography>
-      {dueDateDisplay && (
-        <Typography variant="caption" color={isOverdue ? 'error.main' : 'text.secondary'} fontWeight={isOverdue ? 700 : undefined}>
-          Due: {dueDateDisplay}{isOverdue ? ' — Overdue' : ''}
-        </Typography>
-      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 0.5 }}>
         <Button size="small" variant="text" onClick={() => setExpanded((v) => !v)}
           endIcon={expanded ? <KeyboardArrowUpIcon fontSize="small" /> : <KeyboardArrowDownIcon fontSize="small" />}
@@ -1322,8 +1312,8 @@ Leave the existing `<Grid container>` desktop return completely unchanged below.
 
 Add a `CartCard` component above `CartRow` that renders each cart as a
 `<Paper variant="outlined">` card showing: tag (monospace bold) + status chip +
-device count chip, location, assignee, due date (red if overdue), expand toggle
-button, and Return All button. Expanding shows a `<DeviceSubTable mobile />`.
+device count chip, location, assignee, expand toggle button, and Return All
+button. Expanding shows a `<DeviceSubTable mobile />`.
 
 Update `DeviceSubTable` to accept `mobile?: boolean` and render a compact
 `<Box>` list (asset tag + name + condition chip + status chip per row) when

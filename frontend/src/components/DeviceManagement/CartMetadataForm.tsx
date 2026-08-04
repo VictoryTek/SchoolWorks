@@ -50,9 +50,6 @@ export function CartMetadataForm({ cart, disabled }: CartMetadataFormProps) {
   const [condition, setCondition]   = useState<CheckoutCondition>(
     (cart.checkoutCondition as CheckoutCondition) ?? 'good'
   );
-  const [dueDate, setDueDate] = useState<string>(
-    cart.dueDate ? cart.dueDate.slice(0, 10) : ''
-  );
   const [notes, setNotes] = useState<string>(cart.notes ?? '');
   const [cartTagSearch, setCartTagSearch] = useState<string>(cart.tagNumber ?? '');
   const [selectedCartTag, setSelectedCartTag] = useState<InventorySearchResult | null>(null);
@@ -228,20 +225,6 @@ export function CartMetadataForm({ cart, disabled }: CartMetadataFormProps) {
           ))}
         </Select>
       </FormControl>
-
-      <TextField
-        label="Due Date (optional)"
-        type="date"
-        size="small"
-        fullWidth
-        value={dueDate}
-        disabled={disabled || !isDraft}
-        slotProps={{ inputLabel: { shrink: true } }}
-        onChange={(e) => {
-          setDueDate(e.target.value);
-          save({ dueDate: e.target.value ? new Date(e.target.value).toISOString() : undefined });
-        }}
-      />
 
       <TextField
         label="Notes"
