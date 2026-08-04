@@ -93,6 +93,7 @@ export default function WorkOrderListPage() {
     // Back navigation can tell that apart from "home-school default not yet
     // applied" — see effect below.
     locationChosen: '',
+    departmentLocation: '',
     fiscalYear: '',
     page: '0',
     rows: '25',
@@ -106,6 +107,7 @@ export default function WorkOrderListPage() {
     filters.status === 'closed' || filters.status === 'longTerm' ? filters.status : 'open';
   const priority = filters.priority as WorkOrderPriority | '';
   const locationFilter = filters.location;
+  const departmentLocationFilter = filters.departmentLocation;
   const fiscalYearFilter = filters.fiscalYear;
   const page = Number(filters.page) || 0;
   const rowsPerPage = Number(filters.rows) || 25;
@@ -125,7 +127,9 @@ export default function WorkOrderListPage() {
   });
 
   // Fetch locations for school filter dropdown
-  const { data: locations = [] } = useLocations();
+  const { data: locations = [] } = useLocations(['SCHOOL']);
+  // Fetch department/program locations for the Department/Program filter dropdown
+  const { data: departmentLocations = [] } = useLocations(['DEPARTMENT', 'PROGRAM']);
 
   // Technology Assistants: default the school filter to their assigned location
   const { data: supervisedLocations = [] } = useQuery({
@@ -171,6 +175,7 @@ export default function WorkOrderListPage() {
     statuses: BUCKET_STATUSES[statusBucket],
     ...(priority && { priority }),
     ...(locationFilter && { officeLocationId: locationFilter }),
+    ...(departmentLocationFilter && { departmentLocationId: departmentLocationFilter }),
     ...(activeFiscalYear && { fiscalYear: activeFiscalYear }),
     sortBy,
     sortOrder,
@@ -310,7 +315,7 @@ export default function WorkOrderListPage() {
 
   const activeFilterCount =
     (department ? 1 : 0) + (priority ? 1 : 0) +
-    (locationFilter ? 1 : 0) + (fiscalYearFilter ? 1 : 0);
+    (locationFilter ? 1 : 0) + (departmentLocationFilter ? 1 : 0) + (fiscalYearFilter ? 1 : 0);
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
@@ -432,6 +437,21 @@ export default function WorkOrderListPage() {
                       <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
                     ))}
                 </Select>
+                <Select
+                  size="small"
+                  displayEmpty
+                  value={departmentLocationFilter}
+                  onChange={(e) => { setFilters({ departmentLocation: e.target.value, page: '0' }); }}
+                  fullWidth
+                >
+                  <MenuItem value="">All Departments/Programs</MenuItem>
+                  {departmentLocations
+                    .filter((loc) => loc.isActive)
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .map((loc) => (
+                      <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
+                    ))}
+                </Select>
                 <Select size="small" value={sortBy}
                         onChange={(e) => applySort(e.target.value as WorkOrderSortField, sortOrder)} fullWidth>
                   <MenuItem value="createdAt">Sort by Date Created</MenuItem>
@@ -456,6 +476,7 @@ export default function WorkOrderListPage() {
                       priority: '',
                       location: '',
                       locationChosen: '',
+                      departmentLocation: '',
                       fiscalYear: '',
                       page: '0',
                       sortBy: 'createdAt',
@@ -533,6 +554,22 @@ export default function WorkOrderListPage() {
           >
             <MenuItem value="">All Schools</MenuItem>
             {locations
+              .filter((loc) => loc.isActive)
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((loc) => (
+                <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
+              ))}
+          </Select>
+
+          <Select
+            size="small"
+            displayEmpty
+            value={departmentLocationFilter}
+            onChange={(e) => { setFilters({ departmentLocation: e.target.value, page: '0' }); }}
+            sx={{ minWidth: 200 }}
+          >
+            <MenuItem value="">All Departments/Programs</MenuItem>
+            {departmentLocations
               .filter((loc) => loc.isActive)
               .sort((a, b) => a.name.localeCompare(b.name))
               .map((loc) => (

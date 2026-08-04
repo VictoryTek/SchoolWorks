@@ -13,6 +13,7 @@ import {
   SupervisorType,
   SupervisorDelegation,
   CreateDelegationRequest,
+  LocationType,
 } from '../types/location.types';
 import api from './api';
 
@@ -21,9 +22,11 @@ import api from './api';
  */
 
 export const locationService = {
-  // Get all office locations with their supervisors
-  async getAllLocations(): Promise<OfficeLocationWithSupervisors[]> {
-    const response = await api.get<OfficeLocationWithSupervisors[]>('/locations');
+  // Get all office locations with their supervisors, optionally filtered to specific types
+  async getAllLocations(types?: LocationType[]): Promise<OfficeLocationWithSupervisors[]> {
+    const response = await api.get<OfficeLocationWithSupervisors[]>('/locations', {
+      params: types && types.length > 0 ? { types: types.join(',') } : undefined,
+    });
     return response.data;
   },
 

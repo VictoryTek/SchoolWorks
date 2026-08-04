@@ -316,6 +316,7 @@ model OfficeLocation {
   equipment               equipment[]
   purchase_orders         purchase_orders[] @relation("POOfficeLocation")
   tickets                 Ticket[]
+  ticketsAsDepartment     Ticket[]          @relation("TicketDepartmentLocation")
   transportationRequests  TransportationRequest[]
   deviceAssignments       DeviceAssignment[]
   deviceCarts             DeviceCart[]
@@ -1069,6 +1070,10 @@ model Ticket {
   roomId           String?
   room             Room?              @relation(fields: [roomId], references: [id])
 
+  // Department/Program (optional) — an OfficeLocation of type DEPARTMENT or PROGRAM
+  departmentLocationId String?
+  departmentLocation   OfficeLocation? @relation("TicketDepartmentLocation", fields: [departmentLocationId], references: [id])
+
   // Issue description
   title            String?
   description      String
@@ -1110,6 +1115,7 @@ model Ticket {
   @@index([assignedToId])
   @@index([officeLocationId])
   @@index([roomId])
+  @@index([departmentLocationId])
   @@index([fiscalYear])
   @@index([department, status])
   @@index([officeLocationId, department, status])

@@ -79,6 +79,7 @@ const WORK_ORDER_SUMMARY_INCLUDE = {
   assignedTo:       { select: { id: true, displayName: true, email: true } },
   officeLocation:   { select: { id: true, name: true } },
   room:             { select: { id: true, name: true } },
+  departmentLocation: { select: { id: true, name: true } },
   workOrderCategory: { select: { id: true, name: true, module: true } },
   _count:           { select: { comments: true } },
 } as const;
@@ -88,6 +89,7 @@ const WORK_ORDER_DETAIL_INCLUDE = {
   assignedTo:       { select: { id: true, displayName: true, email: true } },
   officeLocation:   { select: { id: true, name: true } },
   room:             { select: { id: true, name: true } },
+  departmentLocation: { select: { id: true, name: true } },
   workOrderCategory: { select: { id: true, name: true, module: true } },
   equipment:        { select: { id: true, assetTag: true, name: true } },
   comments: {
@@ -427,6 +429,7 @@ export class WorkOrderService {
     if (query.priority)         baseWhere.priority         = query.priority;
     if (query.officeLocationId) baseWhere.officeLocationId = query.officeLocationId;
     if (query.roomId)           baseWhere.roomId           = query.roomId;
+    if (query.departmentLocationId) baseWhere.departmentLocationId = query.departmentLocationId;
     if (query.assignedToId)     baseWhere.assignedToId     = query.assignedToId;
     if (query.reportedById)     baseWhere.reportedById     = query.reportedById;
     if (query.fiscalYear)       baseWhere.fiscalYear       = query.fiscalYear;
@@ -691,6 +694,7 @@ export class WorkOrderService {
           assignedToId:    autoAssigneeId,
           officeLocationId: data.officeLocationId ?? null,
           roomId:          data.roomId ?? null,
+          departmentLocationId: data.departmentLocationId ?? null,
           title:           data.title ?? null,
           description:     data.description,
           category:        data.category ?? null,
@@ -758,6 +762,7 @@ export class WorkOrderService {
         equipmentSerial: data.equipmentSerial,
         roomId:          data.roomId,
         officeLocationId: data.officeLocationId,
+        departmentLocationId: data.departmentLocationId,
       },
       include: WORK_ORDER_DETAIL_INCLUDE,
     });

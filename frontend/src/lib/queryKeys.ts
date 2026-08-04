@@ -33,7 +33,7 @@ export const queryKeys = {
   locations: {
     all: ['locations'] as const,
     lists: () => [...queryKeys.locations.all, 'list'] as const,
-    list: () => [...queryKeys.locations.lists()] as const,
+    list: (types?: string[]) => [...queryKeys.locations.lists(), ...(types && types.length > 0 ? [types] : [])] as const,
     details: () => [...queryKeys.locations.all, 'detail'] as const,
     detail: (id: string) => [...queryKeys.locations.details(), id] as const,
     supervisedByMe: () => [...queryKeys.locations.all, 'supervisedByMe'] as const,

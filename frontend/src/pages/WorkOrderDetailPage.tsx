@@ -673,6 +673,17 @@ export default function WorkOrderDetailPage() {
                   </Typography>
                 </Box>
 
+                {workOrder.departmentLocation && (
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      Department/Program
+                    </Typography>
+                    <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                      {workOrder.departmentLocation.name}
+                    </Typography>
+                  </Box>
+                )}
+
                 <Box>
                   <Typography variant="caption" color="text.secondary" display="block">
                     Category

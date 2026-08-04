@@ -86,6 +86,7 @@ interface EntraUser {
   employeeId:      string | null;
   employeeType:    string | null;
   ageGroup:        string | null;
+  consentProvidedForMinor: string | null;
   accountEnabled:  boolean;
 }
 
@@ -113,6 +114,8 @@ const FIELD_LABELS: Record<string, string> = {
   jobTitle:       'Job title',
   department:     'Department',
   employeeType:   'Employee type',
+  ageGroup:       'Age group',
+  consentProvidedForMinor: 'Minor consent',
 };
 
 // Role groups whose members are protected from deprovisioning.
@@ -306,7 +309,7 @@ async function fetchProtectedUpns(): Promise<Set<string>> {
 
 async function fetchEntraUsersByUpnDomain(domain: string, client: Client): Promise<EntraUser[]> {
   const users: EntraUser[] = [];
-  const select = 'id,userPrincipalName,displayName,givenName,surname,officeLocation,companyName,jobTitle,department,employeeId,employeeType,ageGroup,accountEnabled';
+  const select = 'id,userPrincipalName,displayName,givenName,surname,officeLocation,companyName,jobTitle,department,employeeId,employeeType,ageGroup,consentProvidedForMinor,accountEnabled';
 
   let url: string | null = `/users?$select=${select}&$filter=endsWith(userPrincipalName,'@${domain}')&$count=true`;
 
@@ -694,9 +697,6 @@ async function runForType(
         const expectedEmployeeType = type === 'STAFF' ? 'Staff' : 'Student';
         if (expectedEmployeeType !== (entraUser.employeeType ?? '')) patch['employeeType'] = expectedEmployeeType;
 
-        // ageGroup is excluded from Pass 1: Graph returns null for it even after setting,
-        // so including it would patch every student every run. New accounts get it via Pass 2.
-
         // Name fields — both staff and students. UPN is intentionally NOT reconciled (sign-in identity).
         const expectedGivenName   = sisRow.firstName;
         const expectedSurname     = sisRow.lastName;
@@ -714,6 +714,13 @@ async function runForType(
           const row = sisRow as StudentRow;
           const expectedDepartment = `Grade ${row.grade}`;
           if (expectedDepartment !== (entraUser.department ?? '')) patch['department'] = expectedDepartment;
+
+          // Legal age group reconciliation — required for Device Registration
+          // Service / Authentication Broker enrollment. Without both fields set,
+          // legalAgeGroupClassification resolves to MinorWithoutParentalConsent
+          // and blocks device enrollment (AADSTS54000).
+          if ((entraUser.ageGroup ?? '') !== 'Minor') patch['ageGroup'] = 'Minor';
+          if ((entraUser.consentProvidedForMinor ?? '') !== 'Granted') patch['consentProvidedForMinor'] = 'Granted';
         }
 
         if (Object.keys(patch).length === 0) {
@@ -828,7 +835,8 @@ async function runForType(
           body['givenName']     = row.firstName;
           body['surname']       = row.lastName;
           body['department']    = `Grade ${row.grade}`;
-          body['ageGroup']      = 'minor';
+          body['ageGroup']      = 'Minor';
+          body['consentProvidedForMinor'] = 'Granted';
           body['employeeType']  = 'Student';
         }
 

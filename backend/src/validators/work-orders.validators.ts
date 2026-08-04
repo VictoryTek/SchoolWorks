@@ -60,6 +60,7 @@ export const WorkOrderQuerySchema = z.object({
   priority:         TicketPriorityEnum.optional(),
   officeLocationId: z.string().uuid('Invalid location ID').optional(),
   roomId:           z.string().uuid('Invalid room ID').optional(),
+  departmentLocationId: z.string().uuid('Invalid department/program ID').optional(),
   assignedToId:     z.string().uuid('Invalid user ID').optional(),
   reportedById:     z.string().uuid('Invalid user ID').optional(),
   fiscalYear:       z.string().max(20).optional(),
@@ -78,6 +79,7 @@ export const CreateWorkOrderSchema = z
     priority:        TicketPriorityEnum.default('MEDIUM'),
     officeLocationId: z.string().uuid('Invalid location ID').optional(),
     roomId:          z.string().uuid('Invalid room ID').optional(),
+    departmentLocationId: z.string().uuid('Invalid department/program ID').optional().nullable(),
     title:           z.string().max(200, 'Title must be 200 characters or less').optional(),
     description:     z.string().min(10, 'Description must be at least 10 characters').max(5000, 'Description must be 5000 characters or less'),
     category:        z.string().max(100).optional(),
@@ -151,6 +153,7 @@ export const UpdateWorkOrderSchema = z.object({
   equipmentSerial: z.string().max(200).optional().nullable(),
   roomId:          z.string().uuid().optional().nullable(),
   officeLocationId: z.string().uuid().optional().nullable(),
+  departmentLocationId: z.string().uuid().optional().nullable(),
 });
 
 // ---------------------------------------------------------------------------

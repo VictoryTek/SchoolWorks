@@ -115,7 +115,7 @@ export function RoomAssignmentsPage() {
     isTechAssistant &&
     techAssistantLocations.length > 1;
 
-  const { data: allLocations = [], isLoading: locationsLoading } = useLocations({
+  const { data: allLocations = [], isLoading: locationsLoading } = useLocations(undefined, {
     enabled: showLocationSelector,
   });
 

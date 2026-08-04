@@ -58,6 +58,7 @@ interface FormState {
   description: string;
   officeLocationId: string;
   roomId: string;
+  departmentLocationId: string;
   // TECHNOLOGY
   inventoryId: string;       // equipment.id (resolved UUID) — used in DTO
   notInInventory: boolean;  // equipment isn't recorded in inventory yet
@@ -72,6 +73,7 @@ const INITIAL: FormState = {
   description: '',
   officeLocationId: '',
   roomId: '',
+  departmentLocationId: '',
   inventoryId: '',
   notInInventory: false,
   notInInventoryTag: '',
@@ -119,7 +121,8 @@ export default function NewWorkOrderPage() {
     ? ['TECHNOLOGY', 'MAINTENANCE']
     : ['TECHNOLOGY'];
 
-  const { data: locations = [] } = useLocations();
+  const { data: locations = [] } = useLocations(['SCHOOL']);
+  const { data: departmentLocations = [] } = useLocations(['DEPARTMENT', 'PROGRAM']);
   const { rooms } = useRoomsByLocation(form.officeLocationId);
   const createWorkOrder = useCreateWorkOrder();
   const { data: userDefaults } = useUserDefaultLocation();
@@ -222,6 +225,7 @@ export default function NewWorkOrderPage() {
       ...(form.category && !form.categoryId && { category: form.category }),
       ...(form.officeLocationId && { officeLocationId: form.officeLocationId }),
       ...(form.roomId && { roomId: form.roomId }),
+      ...(form.departmentLocationId && { departmentLocationId: form.departmentLocationId }),
       ...(form.department === 'TECHNOLOGY' && {
         equipmentId: form.notInInventory ? null : (form.inventoryId || null),
         notInInventory: form.notInInventory,
@@ -398,6 +402,24 @@ export default function NewWorkOrderPage() {
                 )}
               </FormControl>
             )}
+
+            {/* Department/Program (optional) */}
+            <FormControl size="small" fullWidth>
+              <InputLabel>Department/Program</InputLabel>
+              <Select
+                label="Department/Program"
+                value={form.departmentLocationId}
+                onChange={(e) => set('departmentLocationId', e.target.value)}
+                disabled={createWorkOrder.isPending}
+              >
+                <MenuItem value="">— None —</MenuItem>
+                {departmentLocations.map((loc) => (
+                  <MenuItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
 
             <Divider />
 

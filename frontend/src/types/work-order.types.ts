@@ -59,6 +59,7 @@ export interface WorkOrderSummary {
   assignedTo: WorkOrderUser | null;
   officeLocation: { id: string; name: string } | null;
   room: { id: string; name: string } | null;
+  departmentLocation: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
   notInInventory: boolean;
@@ -143,6 +144,7 @@ export interface CreateWorkOrderDto {
   priority?: WorkOrderPriority;
   officeLocationId?: string;
   roomId?: string;
+  departmentLocationId?: string | null;
   description: string;
   category?: string;
   categoryId?: string | null;
@@ -165,6 +167,7 @@ export interface UpdateWorkOrderDto {
   equipmentSerial?: string | null;
   roomId?: string | null;
   officeLocationId?: string | null;
+  departmentLocationId?: string | null;
 }
 
 export interface UpdatePriorityDto {
@@ -181,6 +184,7 @@ export interface WorkOrderQuery {
   priority?: WorkOrderPriority;
   officeLocationId?: string;
   roomId?: string;
+  departmentLocationId?: string;
   assignedToId?: string;
   reportedById?: string;
   fiscalYear?: string;

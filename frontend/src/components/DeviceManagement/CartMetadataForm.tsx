@@ -66,7 +66,7 @@ export function CartMetadataForm({ cart, disabled }: CartMetadataFormProps) {
 
   const { data: locations } = useQuery({
     queryKey: ['locations'],
-    queryFn:  locationService.getAllLocations,
+    queryFn:  () => locationService.getAllLocations(),
   });
 
   const { data: cartTagOptions = [], isFetching: cartTagFetching } = useQuery({
