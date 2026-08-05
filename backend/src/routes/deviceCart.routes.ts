@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth';
-import { requireModule } from '../utils/groupAuth';
+import { requireModule, requireDeviceManagementAccess } from '../utils/groupAuth';
 import { validateCsrfToken } from '../middleware/csrf';
 import { validateRequest } from '../middleware/validation';
 import {
@@ -27,6 +27,7 @@ router.use(authenticate);
 // GET /api/device-carts
 router.get(
   '/',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 1),
   validateRequest(ListCartsQuerySchema, 'query'),
   ctrl.listCarts
@@ -35,6 +36,7 @@ router.get(
 // GET /api/device-carts/:id
 router.get(
   '/:id',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 1),
   ctrl.getCart
 );
@@ -46,6 +48,7 @@ router.get(
 // POST /api/device-carts
 router.post(
   '/',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(CreateCartSchema),
@@ -55,6 +58,7 @@ router.post(
 // PUT /api/device-carts/:id
 router.put(
   '/:id',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(UpdateCartSchema),
@@ -64,6 +68,7 @@ router.put(
 // DELETE /api/device-carts/:id
 router.delete(
   '/:id',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   ctrl.deleteCart
@@ -72,6 +77,7 @@ router.delete(
 // POST /api/device-carts/:id/items
 router.post(
   '/:id/items',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(AddCartItemSchema),
@@ -81,6 +87,7 @@ router.post(
 // DELETE /api/device-carts/:id/items/:itemId
 router.delete(
   '/:id/items/:itemId',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   ctrl.removeItem
@@ -89,6 +96,7 @@ router.delete(
 // POST /api/device-carts/:id/scan
 router.post(
   '/:id/scan',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(ScanToCartSchema),
@@ -98,6 +106,7 @@ router.post(
 // POST /api/device-carts/:id/commit
 router.post(
   '/:id/commit',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(CommitCartSchema),
@@ -107,6 +116,7 @@ router.post(
 // POST /api/device-carts/:id/items/:itemId/return
 router.post(
   '/:id/items/:itemId/return',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(ReturnCartItemSchema),
@@ -116,6 +126,7 @@ router.post(
 // POST /api/device-carts/:id/return-all
 router.post(
   '/:id/return-all',
+  requireDeviceManagementAccess(),
   requireModule('CHECKOUT', 2),
   validateCsrfToken,
   validateRequest(ReturnAllCartItemsSchema),

@@ -12,7 +12,6 @@ interface ProtectedRouteProps {
   requireDashboardAccess?: boolean;
   requireRoomAssignment?: boolean;
   requireTransportationLevel?: number;
-  requireCheckoutLevel?: number;
   requireReports?: boolean;
 }
 
@@ -25,7 +24,6 @@ export const ProtectedRoute = ({
   requireDashboardAccess = false,
   requireRoomAssignment = false,
   requireTransportationLevel,
-  requireCheckoutLevel,
   requireReports = false,
 }: ProtectedRouteProps) => {
   const { isAuthenticated, isLoading, user } = useAuthStore();
@@ -80,14 +78,6 @@ export const ProtectedRoute = ({
     const isAdmin = user?.roles?.includes('ADMIN');
     const transportationLevel = isAdmin ? 6 : (user?.permLevels?.TRANSPORTATION ?? 0);
     if (transportationLevel < requireTransportationLevel) {
-      return <AccessDenied />;
-    }
-  }
-
-  if (requireCheckoutLevel !== undefined) {
-    const isAdmin = user?.roles?.includes('ADMIN');
-    const checkoutLevel = isAdmin ? 6 : (user?.permLevels?.CHECKOUT ?? 0);
-    if (checkoutLevel < requireCheckoutLevel) {
       return <AccessDenied />;
     }
   }

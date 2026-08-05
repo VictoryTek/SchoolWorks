@@ -38,7 +38,6 @@ interface NavItem {
   requireFieldTripApprover?: boolean;
   staffOnly?: boolean;  // Hidden from students (ALL_STUDENTS group)
   requireTransportationLevel?: number;
-  requireCheckoutLevel?: number;
   requireReports?: boolean;
 }
 
@@ -85,8 +84,8 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Room Check Out', icon: '🚪', path: '/device-management/room-checkout',           requireTech: true },
       { label: 'Bulk Checkout',  icon: '📋', path: '/device-management/checkouts/bulk',          requireDeviceManagement: true },
       { label: 'Bulk Check-In',   icon: '📥', path: '/device-management/checkouts/bulk-checkin', requireDeviceManagement: true },
-      { label: 'Cart Assignment', icon: '🗂️', path: '/device-management/carts/assign',             requireCheckoutLevel: 2 },
-      { label: 'Checked-Out Carts', icon: '🛒', path: '/device-management/carts',                    requireCheckoutLevel: 1 },
+      { label: 'Cart Assignment', icon: '🗂️', path: '/device-management/carts/assign',             requireDeviceManagement: true },
+      { label: 'Checked-Out Carts', icon: '🛒', path: '/device-management/carts',                    requireDeviceManagement: true },
       { label: 'Incidents',      icon: '⚠️', path: '/incidents',                       requireDeviceManagement: true },
       { label: 'Repair Tickets', icon: '🛠️', path: '/device-management/repair-tickets', requireDeviceManagement: true },
       { label: 'Invoices',       icon: '💰', path: '/device-management/invoices',       requireDeviceManagement: true },
@@ -148,7 +147,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const hasFieldTripApproverAccess = isAdmin || (user?.permLevels?.FIELD_TRIPS ?? 0) >= 3;
   const isStaff = isAdmin || (user?.permLevels?.REQUISITIONS ?? 0) >= 2;
   const transportationLevel = isAdmin ? 6 : (user?.permLevels?.TRANSPORTATION ?? 0);
-  const checkoutLevel = isAdmin ? 6 : (user?.permLevels?.CHECKOUT ?? 0);
   const hasReportsAccess = isAdmin || (user?.permLevels?.REPORTS ?? 0) >= 1;
   const { canAccess: canAccessRoomAssignments } = useRoomAssignmentAccess();
 
@@ -204,7 +202,6 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
           (!item.staffOnly || isStaff) &&
           (!item.requireRoomAssignment || canAccessRoomAssignments) &&
           (item.requireTransportationLevel === undefined || transportationLevel >= item.requireTransportationLevel) &&
-          (item.requireCheckoutLevel === undefined || checkoutLevel >= item.requireCheckoutLevel) &&
           (!item.requireReports || hasReportsAccess)
         );
         if (visibleItems.length === 0) return null;

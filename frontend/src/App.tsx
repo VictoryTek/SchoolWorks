@@ -456,7 +456,7 @@ function App() {
         <Route
           path="/device-management/carts"
           element={
-            <ProtectedRoute requireCheckoutLevel={1}>
+            <ProtectedRoute requireDeviceManagement>
               <AppLayout>
                 <CheckedOutCartsPage />
               </AppLayout>
@@ -466,7 +466,7 @@ function App() {
         <Route
           path="/device-management/carts/assign"
           element={
-            <ProtectedRoute requireCheckoutLevel={2}>
+            <ProtectedRoute requireDeviceManagement>
               <AppLayout>
                 <CartAssignmentWizardPage />
               </AppLayout>
