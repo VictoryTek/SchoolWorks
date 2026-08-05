@@ -19,6 +19,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed newly (and some previously) provisioned student accounts being blocked from enrolling devices with a "Legal Age Group Requirement" sign-in error, by correctly granting minor consent during account provisioning.',
       'Removed due date from cartcheckout and quick checkout, since it was never actually used for anything.',
       'Fixed when searching for a device in the Active Checkouts list, the search results were not being displayed correctly and the list was not updating to show the matching devices.',
+      'Fixed inventory table text overflow on each row when the device name is too long, causing the text to spill out of the cell and overlap with other content.',
     ],
   },
   {
