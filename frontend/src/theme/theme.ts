@@ -99,10 +99,17 @@ export const theme = createTheme({
     // near-black instead of blue. Full-opacity border in dark mode only —
     // respects whatever `color` prop is set (primary, error, etc.), it's
     // just no longer diluted.
+    // Scoped under Button's own stable `.MuiButton-outlined` class (not just
+    // `theme.applyStyles`'s bare selector) so this rule has one extra class
+    // of specificity over Button's built-in outlined-variant rule — that
+    // built-in rule sets the same `borderColor` property at equal
+    // specificity (applyStyles's dark-mode selector is wrapped in `:where()`
+    // and contributes none), so without the extra class this override was
+    // silently losing the tie.
     MuiButton: {
       styleOverrides: {
         outlined: ({ theme }) => [
-          theme.applyStyles('dark', { borderColor: 'currentColor' }),
+          theme.applyStyles('dark', { '&.MuiButton-outlined': { borderColor: 'currentColor' } }),
         ],
       },
     },

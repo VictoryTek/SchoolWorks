@@ -30,7 +30,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Update Status, Change Priority, Assign To, and Request Input on a work order are now handled inline under Comments & Activity instead of popup dialogs — pick an action and the comment box doubles as its notes/message field.',
       'Update Status now requires a note (Actions Taken) on every status change, not just when closing.',
       'Removed the Internal Note toggle from work order comments — no longer needed.',
-      'Closing a work order now sends Back to the Closed list instead of a stale Open list that no longer shows the ticket you just closed.',
+      'Closing a work order now takes you straight to the Open list instead of leaving you on the ticket you just closed.',
       "Assign To and Request Input on work orders now only list appropriate staff instead of every staff member in the district: Admins and Technology Assistants for Technology tickets, or County-Wide Maintenance, School Maintenance, and the Maintenance Director for Maintenance tickets.",
       'Fixed outlined buttons (Update Status, Reopen, and others) rendering with a near-black border instead of blue in dark mode.',
       'Fixed devices checked into a room via Room Check Out not showing up on My Equipment for staff assigned to that room, unless it happened to be their primary room.',

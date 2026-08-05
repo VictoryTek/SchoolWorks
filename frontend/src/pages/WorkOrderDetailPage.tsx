@@ -288,11 +288,6 @@ export default function WorkOrderDetailPage() {
   // Plain comment error
   const [commentError, setCommentError] = useState<string | null>(null);
 
-  // Whether this visit closed the work order — used to send Back to the
-  // Closed list instead of wherever the user came from, since that list no
-  // longer shows the ticket. See handleStatusSubmit / handleReopenClick.
-  const [justClosed, setJustClosed] = useState(false);
-
   // ── Switch which action the composer is set to, pre-populating its fields ──
   const handleActionChange = (_: unknown, next: ActiveAction) => {
     setCommentBody('');
@@ -328,7 +323,13 @@ export default function WorkOrderDetailPage() {
         notes: commentBody.trim(),
         ...(newStatus === 'LONG_TERM' && { notifySubmitter }),
       });
-      setJustClosed(newStatus === 'CLOSED');
+      if (newStatus === 'CLOSED') {
+        // The ticket no longer belongs on whatever list the user came from —
+        // send them straight to the Open list instead of leaving them on
+        // the now-closed ticket.
+        navigate('/work-orders?status=open', { replace: true });
+        return;
+      }
       setCommentBody('');
       setActiveAction(null);
     } catch (err: unknown) {
@@ -343,7 +344,6 @@ export default function WorkOrderDetailPage() {
     setStatusError(null);
     try {
       await updateStatus.mutateAsync({ id, status: 'OPEN', notes: 'Work order reopened.' });
-      setJustClosed(false);
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setStatusError(apiMessage ?? 'Unable to reopen the work order. Please try again or contact your supervisor.');
@@ -473,12 +473,7 @@ export default function WorkOrderDetailPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      {/* Back Button — sends Back to the Closed list if this visit just closed
-          the ticket, since the list the user arrived from (usually Open) no
-          longer shows it. Otherwise falls back to normal history navigation. */}
-      <PageBackButton
-        onClick={justClosed ? () => navigate('/work-orders?status=closed', { replace: true }) : undefined}
-      />
+      <PageBackButton />
 
       {/* Breadcrumb */}
       <Breadcrumbs sx={{ mb: 2 }}>
