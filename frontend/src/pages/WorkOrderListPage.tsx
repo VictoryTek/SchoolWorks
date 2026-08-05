@@ -252,6 +252,7 @@ export default function WorkOrderListPage() {
       // still answers where the work order is.
       priority: -3,
       sortable: true,
+      showWhenCollapsed: true,
       render: (wo) =>
         locationFilter ? (
           <span>{wo.room?.name ?? '—'}</span>
@@ -297,6 +298,7 @@ export default function WorkOrderListPage() {
       key: 'reportedBy',
       label: 'Submitted By',
       priority: -3,
+      showWhenCollapsed: true,
       render: (wo) => wo.reportedBy?.displayName ?? wo.reportedBy?.email ?? '—',
     },
     {
@@ -608,6 +610,7 @@ export default function WorkOrderListPage() {
           rows={rows}
           getRowKey={(wo) => wo.id}
           onRowClick={(wo) => handleRowClick(wo.id)}
+          collapsible
           loading={isLoading}
           emptyMessage="No work orders found."
           sort={{ key: COLUMN_BY_SORT_FIELD[sortBy], direction: sortOrder }}

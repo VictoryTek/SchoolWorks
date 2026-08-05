@@ -706,7 +706,25 @@ body {
 }
 
 .mobile-card__header {
+  position: relative;
   margin-bottom: var(--spacing-xs);
+}
+
+.mobile-card--collapsible .mobile-card__header {
+  padding-right: var(--spacing-lg);
+}
+
+.mobile-card__chevron {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--slate-400);
+  font-size: 0.75rem;
+  transition: transform var(--transition-fast);
+}
+
+.mobile-card__chevron--expanded {
+  transform: rotate(90deg);
 }
 
 .mobile-card__title {

@@ -21,6 +21,11 @@ export interface Column<T> {
   isPrimary?: boolean;
   /** Show as card subtitle on mobile */
   isSecondary?: boolean;
+  /**
+   * Keep this field visible on a collapsed mobile card (only meaningful when
+   * the table's `collapsible` prop is set).
+   */
+  showWhenCollapsed?: boolean;
   /** Enable sorting on this column (desktop only) */
   sortable?: boolean;
   /** Column width hint for desktop table */
@@ -91,6 +96,12 @@ interface ResponsiveTableProps<T> {
    * labelled action buttons so the fit calculation does not under-budget them.
    */
   actionsMinWidth?: number;
+  /**
+   * Render mobile cards collapsed by default, with a tap toggling
+   * expand/collapse instead of firing `onRowClick`. Off by default so
+   * existing consumers are unaffected — opt in per table.
+   */
+  collapsible?: boolean;
 }
 
 export function ResponsiveTable<T>({
@@ -105,6 +116,7 @@ export function ResponsiveTable<T>({
   onSortChange,
   className = '',
   actionsMinWidth,
+  collapsible = false,
 }: ResponsiveTableProps<T>) {
   const isMobile = useIsMobile();
   const [internalSort, setInternalSort] = useState<SortState | undefined>(undefined);
@@ -199,6 +211,7 @@ export function ResponsiveTable<T>({
             columns={columns}
             onRowClick={onRowClick}
             rowActions={rowActions}
+            collapsible={collapsible}
           />
         ))}
       </div>

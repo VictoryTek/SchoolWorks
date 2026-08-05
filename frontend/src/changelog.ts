@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.7.5',
+    highlights: [
+      {
+        icon: '📱',
+        title: 'Collapsible work order cards on mobile',
+        body: 'Work order cards on the mobile Work Orders list are now collapsible — tap a card to reveal its full details. Collapsed, it still shows the work order number, status, room, and who submitted it.',
+      },
+    ],
+    changes: [
+      'Work order cards on the mobile Work Orders list are now collapsible — tap a card to reveal its full details; collapsed, it still shows the work order number, status, room, and who submitted it.',
+    ],
+  },
+  {
     version: '1.7.1',
     changes: [
       'Bulk Device Checkout now shows a "Device Not Found" popup when a scanned barcode doesn\'t match any device, instead of adding a fake "Unknown device" entry to the checkout list.',
