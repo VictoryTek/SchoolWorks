@@ -327,7 +327,7 @@ export const bulkAssignEquipment = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * Get current user's assigned equipment (direct assignments + primary room equipment)
+ * Get current user's assigned equipment (direct assignments + assigned-room equipment)
  * GET /api/my-equipment
  * Supports pagination via ?page=1&limit=25
  */
@@ -343,17 +343,19 @@ export const getMyEquipment = async (req: AuthRequest, res: Response) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 25));
     const skip = (page - 1) * limit;
 
-    // Get user's primaryRoomId so we can include room-assigned equipment
+    // Get all rooms the user is assigned to (not just their primary room) so
+    // we can include equipment assigned to any of those rooms
     const user = await prisma.user.findUnique({
       where: { id: currentUserId },
-      select: { primaryRoomId: true },
+      select: { roomAssignments: { select: { roomId: true } } },
     });
+    const assignedRoomIds = user?.roomAssignments.map((a) => a.roomId) ?? [];
 
     const whereClause = {
       isDisposed: false,
       OR: [
         { assignedToUserId: currentUserId },
-        ...(user?.primaryRoomId ? [{ roomId: user.primaryRoomId }] : []),
+        ...(assignedRoomIds.length ? [{ roomId: { in: assignedRoomIds } }] : []),
       ],
     };
 

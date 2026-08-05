@@ -33,6 +33,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Closing a work order now sends Back to the Closed list instead of a stale Open list that no longer shows the ticket you just closed.',
       "Assign To and Request Input on work orders now only list appropriate staff instead of every staff member in the district: Admins and Technology Assistants for Technology tickets, or County-Wide Maintenance, School Maintenance, and the Maintenance Director for Maintenance tickets.",
       'Fixed outlined buttons (Update Status, Reopen, and others) rendering with a near-black border instead of blue in dark mode.',
+      'Fixed devices checked into a room via Room Check Out not showing up on My Equipment for staff assigned to that room, unless it happened to be their primary room.',
+      'Fixed Checked-Out Carts (view and manage) being reachable by staff outside Device Management — it now requires Device Management access like every other page under that section.',
     ],
   },
   {
