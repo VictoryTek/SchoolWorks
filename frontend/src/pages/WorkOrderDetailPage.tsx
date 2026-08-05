@@ -37,8 +37,6 @@ import {
   Skeleton,
   Switch,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
@@ -290,7 +288,6 @@ export default function WorkOrderDetailPage() {
 
   // ── Switch which action the composer is set to, pre-populating its fields ──
   const handleActionChange = (_: unknown, next: ActiveAction) => {
-    setCommentBody('');
     setStatusError(null);
     setPriorityError(null);
     setAssignError(null);
@@ -308,6 +305,10 @@ export default function WorkOrderDetailPage() {
     }
     setActiveAction(next);
   };
+
+  // Clicking the already-active action button returns to plain-comment mode
+  // (mirrors ToggleButtonGroup's exclusive-with-deselect behavior).
+  const toggleAction = (value: ActiveAction) => handleActionChange(undefined, activeAction === value ? null : value);
 
   const handleStatusSubmit = async () => {
     if (!id) return;
@@ -648,37 +649,52 @@ export default function WorkOrderDetailPage() {
                 />
               )}
 
-              {/* Action toggle row — clicking the active one again returns to
-                  plain-comment mode. */}
-              <ToggleButtonGroup
-                exclusive
-                size="small"
-                value={activeAction}
-                onChange={handleActionChange}
-                disabled={composerPending}
-                sx={{ flexWrap: 'wrap' }}
-              >
-                <ToggleButton value="status">
+              {/* Action button row — clicking the active one again returns to
+                  plain-comment mode. Plain contained Buttons (same as Add
+                  Comment below) rather than ToggleButtonGroup, so they look
+                  identical with no custom styling needed. */}
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={composerPending}
+                  onClick={() => toggleAction('status')}
+                >
                   <SwapHorizIcon fontSize="small" sx={{ mr: 0.75 }} />
                   Update Status
-                </ToggleButton>
+                </Button>
                 {canChangePriority && (
-                  <ToggleButton value="priority">
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={composerPending}
+                    onClick={() => toggleAction('priority')}
+                  >
                     <PriorityHighIcon fontSize="small" sx={{ mr: 0.75 }} />
                     Change Priority
-                  </ToggleButton>
+                  </Button>
                 )}
                 {canAssign && (
-                  <ToggleButton value="assign">
+                  <Button
+                    variant="contained"
+                    size="small"
+                    disabled={composerPending}
+                    onClick={() => toggleAction('assign')}
+                  >
                     <AssignmentIndIcon fontSize="small" sx={{ mr: 0.75 }} />
                     Assign To
-                  </ToggleButton>
+                  </Button>
                 )}
-                <ToggleButton value="requestInput">
+                <Button
+                  variant="contained"
+                  size="small"
+                  disabled={composerPending}
+                  onClick={() => toggleAction('requestInput')}
+                >
                   <HelpOutlineIcon fontSize="small" sx={{ mr: 0.75 }} />
                   Request Input
-                </ToggleButton>
-              </ToggleButtonGroup>
+                </Button>
+              </Box>
 
               {/* Fields specific to the active action */}
               {activeAction === 'status' && (
