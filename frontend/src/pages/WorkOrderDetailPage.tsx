@@ -2,16 +2,17 @@
  * WorkOrderDetailPage
  *
  * Full detail view of a single work order.
- *   Left column  — description + comments / activity feed
- *   Right column — work order metadata sidebar + action buttons
- *
- * Dialogs: Update Status, Assign To
+ *   Left column  — description + comments / activity feed, with an inline
+ *                  composer below it for adding a comment or taking an
+ *                  action (Update Status, Change Priority, Assign To,
+ *                  Request Input) — one shared textarea, no dialogs
+ *   Right column — work order metadata sidebar
  *
  * Route: /work-orders/:id
  */
 
 import { useEffect, useState } from 'react';
-import { useParams, Link as RouterLink } from 'react-router-dom';
+import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGoBack } from '@/hooks/useGoBack';
 import { PageBackButton } from '@/components/layout/PageBackButton';
@@ -25,10 +26,6 @@ import {
   CardContent,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
@@ -40,6 +37,8 @@ import {
   Skeleton,
   Switch,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import AssignmentIndIcon from '@mui/icons-material/AssignmentInd';
@@ -56,11 +55,11 @@ import {
   useAssignWorkOrder,
   useAddWorkOrderComment,
   useDismissInputRequest,
+  useRequestInput,
 } from '@/hooks/mutations/useWorkOrderMutations';
 import { WorkOrderStatusChip } from '@/components/work-orders/WorkOrderStatusChip';
 import { WorkOrderPriorityChip } from '@/components/work-orders/WorkOrderPriorityChip';
 import { UserSearchAutocomplete } from '@/components/UserSearchAutocomplete';
-import { RequestInputDialog } from '@/components/work-orders/RequestInputDialog';
 import type {
   WorkOrderStatus,
   WorkOrderPriority,
@@ -69,7 +68,6 @@ import type {
   WorkOrderPriorityHistoryEntry,
 } from '@/types/work-order.types';
 import { WORK_ORDER_STATUS_LABELS, WORK_ORDER_PRIORITY_LABELS } from '@/types/work-order.types';
-import { useIsMobile } from '@/hooks/useResponsive';
 import { queryKeys } from '@/lib/queryKeys';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -232,10 +230,12 @@ function PriorityHistoryCard({ entry }: { entry: WorkOrderPriorityHistoryEntry }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
+type ActiveAction = 'status' | 'priority' | 'assign' | 'requestInput' | null;
+
 export default function WorkOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const goBack = useGoBack();
-  const isMobile = useIsMobile();
 
   const { data: workOrder, isLoading, error } = useWorkOrder(id);
   const { user } = useAuthStore();
@@ -257,61 +257,80 @@ export default function WorkOrderDetailPage() {
   const updatePriority = useUpdateWorkOrderPriority();
   const assignWorkOrder  = useAssignWorkOrder();
   const addComment    = useAddWorkOrderComment();
+  const requestInput  = useRequestInput();
   const dismissInputRequest = useDismissInputRequest();
 
-  // Request Input dialog
-  const [requestInputOpen, setRequestInputOpen] = useState(false);
+  // Which action (if any) the inline composer below "Comments & Activity" is
+  // currently set to. `null` = plain comment. Only one action is active at a
+  // time — there's a single shared textarea, not one per action.
+  const [activeAction, setActiveAction] = useState<ActiveAction>(null);
 
-  // Status dialog
-  const [statusOpen, setStatusOpen]           = useState(false);
+  // Shared comment / notes / message textarea — reused by every action.
+  const [commentBody, setCommentBody] = useState('');
+
+  // Status action fields
   const [newStatus, setNewStatus]             = useState<WorkOrderStatus>('OPEN');
-  const [statusNote, setStatusNote]           = useState('');
   const [statusError, setStatusError]         = useState<string | null>(null);
   const [notifySubmitter, setNotifySubmitter] = useState(true);
 
-  // Priority dialog
-  const [priorityOpen, setPriorityOpen]   = useState(false);
+  // Priority action fields
   const [newPriority, setNewPriority]     = useState<WorkOrderPriority>('MEDIUM');
-  const [priorityNote, setPriorityNote]   = useState('');
   const [priorityError, setPriorityError] = useState<string | null>(null);
 
-  // Assign dialog
-  const [assignOpen, setAssignOpen]   = useState(false);
+  // Assign action fields
   const [assignTo, setAssignTo]       = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
 
-  // Comment form
-  const [commentBody, setCommentBody]         = useState('');
-  const [isInternal, setIsInternal]           = useState(false);
-  const [commentError, setCommentError]       = useState<string | null>(null);
+  // Request Input action fields
+  const [requestInputTo, setRequestInputTo]       = useState<string | null>(null);
+  const [requestInputError, setRequestInputError] = useState<string | null>(null);
 
-  // ── Open status dialog pre-populated with first allowed next status ────────
-  const openStatusDialog = () => {
-    if (workOrder) {
+  // Plain comment error
+  const [commentError, setCommentError] = useState<string | null>(null);
+
+  // Whether this visit closed the work order — used to send Back to the
+  // Closed list instead of wherever the user came from, since that list no
+  // longer shows the ticket. See handleStatusSubmit / handleReopenClick.
+  const [justClosed, setJustClosed] = useState(false);
+
+  // ── Switch which action the composer is set to, pre-populating its fields ──
+  const handleActionChange = (_: unknown, next: ActiveAction) => {
+    setCommentBody('');
+    setStatusError(null);
+    setPriorityError(null);
+    setAssignError(null);
+    setRequestInputError(null);
+    if (next === 'status' && workOrder) {
       const allowed = ALLOWED_NEXT_STATUSES[workOrder.status] ?? [];
       setNewStatus((allowed[0] as WorkOrderStatus) ?? workOrder.status);
+      setNotifySubmitter(true);
+    } else if (next === 'priority' && workOrder) {
+      setNewPriority(workOrder.priority);
+    } else if (next === 'assign') {
+      setAssignTo(workOrder?.assignedTo?.id ?? null);
+    } else if (next === 'requestInput') {
+      setRequestInputTo(null);
     }
-    setStatusNote('');
-    setStatusError(null);
-    setNotifySubmitter(true);
-    setStatusOpen(true);
+    setActiveAction(next);
   };
 
   const handleStatusSubmit = async () => {
     if (!id) return;
     setStatusError(null);
-    if (newStatus === 'CLOSED' && !statusNote.trim()) {
-      setStatusError('Actions Taken is required to close this work order.');
+    if (!commentBody.trim()) {
+      setStatusError('Actions Taken is required for every status change.');
       return;
     }
     try {
       await updateStatus.mutateAsync({
         id,
         status: newStatus,
-        notes: statusNote || undefined,
+        notes: commentBody.trim(),
         ...(newStatus === 'LONG_TERM' && { notifySubmitter }),
       });
-      setStatusOpen(false);
+      setJustClosed(newStatus === 'CLOSED');
+      setCommentBody('');
+      setActiveAction(null);
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setStatusError(apiMessage ?? 'Unable to update the work order status. Please try again or contact your supervisor.');
@@ -324,37 +343,24 @@ export default function WorkOrderDetailPage() {
     setStatusError(null);
     try {
       await updateStatus.mutateAsync({ id, status: 'OPEN', notes: 'Work order reopened.' });
+      setJustClosed(false);
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setStatusError(apiMessage ?? 'Unable to reopen the work order. Please try again or contact your supervisor.');
     }
   };
 
-  // ── Priority dialog ────────────────────────────────────────────────────────
-  const openPriorityDialog = () => {
-    if (workOrder) setNewPriority(workOrder.priority);
-    setPriorityNote('');
-    setPriorityError(null);
-    setPriorityOpen(true);
-  };
-
   const handlePrioritySubmit = async () => {
     if (!id) return;
     setPriorityError(null);
     try {
-      await updatePriority.mutateAsync({ id, priority: newPriority, notes: priorityNote || undefined });
-      setPriorityOpen(false);
+      await updatePriority.mutateAsync({ id, priority: newPriority, notes: commentBody.trim() || undefined });
+      setCommentBody('');
+      setActiveAction(null);
     } catch (err: unknown) {
       const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
       setPriorityError(apiMessage ?? 'Unable to update the work order priority. Please try again or contact your supervisor.');
     }
-  };
-
-  // ── Assign dialog ─────────────────────────────────────────────────────────
-  const openAssignDialog = () => {
-    setAssignTo(workOrder?.assignedTo?.id ?? null);
-    setAssignError(null);
-    setAssignOpen(true);
   };
 
   const handleAssignSubmit = async () => {
@@ -362,9 +368,23 @@ export default function WorkOrderDetailPage() {
     setAssignError(null);
     try {
       await assignWorkOrder.mutateAsync({ id, assignedToId: assignTo });
-      setAssignOpen(false);
+      setActiveAction(null);
     } catch {
       setAssignError('Failed to assign work order.');
+    }
+  };
+
+  const handleRequestInputSubmit = async () => {
+    if (!id || !requestInputTo) return;
+    setRequestInputError(null);
+    try {
+      await requestInput.mutateAsync({ workOrderId: id, requestedOfId: requestInputTo, message: commentBody.trim() || undefined });
+      setCommentBody('');
+      setRequestInputTo(null);
+      setActiveAction(null);
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setRequestInputError(apiMessage ?? 'Unable to request input. Please try again.');
     }
   };
 
@@ -373,12 +393,56 @@ export default function WorkOrderDetailPage() {
     if (!id || !commentBody.trim()) return;
     setCommentError(null);
     try {
-      await addComment.mutateAsync({ id, body: commentBody.trim(), isInternal });
+      await addComment.mutateAsync({ id, body: commentBody.trim() });
       setCommentBody('');
-      setIsInternal(false);
     } catch {
       setCommentError('Failed to add comment.');
     }
+  };
+
+  // ── Composer submit dispatches to whichever action is active ──────────────
+  const handleComposerSubmit = () => {
+    if (activeAction === 'status') return handleStatusSubmit();
+    if (activeAction === 'priority') return handlePrioritySubmit();
+    if (activeAction === 'assign') return handleAssignSubmit();
+    if (activeAction === 'requestInput') return handleRequestInputSubmit();
+    return handleAddComment();
+  };
+
+  const composerPending =
+    activeAction === 'status' ? updateStatus.isPending :
+    activeAction === 'priority' ? updatePriority.isPending :
+    activeAction === 'assign' ? assignWorkOrder.isPending :
+    activeAction === 'requestInput' ? requestInput.isPending :
+    addComment.isPending;
+
+  const composerDisabled =
+    composerPending ||
+    (activeAction === 'status' && !commentBody.trim()) ||
+    (activeAction === 'assign' && !assignTo) ||
+    (activeAction === 'requestInput' && !requestInputTo) ||
+    (activeAction === null && !commentBody.trim());
+
+  const composerLabel =
+    activeAction === 'status' ? (composerPending ? 'Saving…' : 'Update Status') :
+    activeAction === 'priority' ? (composerPending ? 'Saving…' : 'Save Priority') :
+    activeAction === 'assign' ? (composerPending ? 'Saving…' : 'Assign') :
+    activeAction === 'requestInput' ? (composerPending ? 'Sending…' : 'Send Request') :
+    (composerPending ? 'Adding…' : 'Add Comment');
+
+  const composerError =
+    activeAction === 'status' ? statusError :
+    activeAction === 'priority' ? priorityError :
+    activeAction === 'assign' ? assignError :
+    activeAction === 'requestInput' ? requestInputError :
+    commentError;
+
+  const clearComposerError = () => {
+    if (activeAction === 'status') setStatusError(null);
+    else if (activeAction === 'priority') setPriorityError(null);
+    else if (activeAction === 'assign') setAssignError(null);
+    else if (activeAction === 'requestInput') setRequestInputError(null);
+    else setCommentError(null);
   };
 
   // ── Loading skeleton ───────────────────────────────────────────────────────
@@ -409,8 +473,12 @@ export default function WorkOrderDetailPage() {
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
-      {/* Back Button */}
-      <PageBackButton />
+      {/* Back Button — sends Back to the Closed list if this visit just closed
+          the ticket, since the list the user arrived from (usually Open) no
+          longer shows it. Otherwise falls back to normal history navigation. */}
+      <PageBackButton
+        onClick={justClosed ? () => navigate('/work-orders?status=closed', { replace: true }) : undefined}
+      />
 
       {/* Breadcrumb */}
       <Breadcrumbs sx={{ mb: 2 }}>
@@ -441,9 +509,10 @@ export default function WorkOrderDetailPage() {
           </Box>
         </Box>
 
-        {/* Action buttons */}
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          {workOrder.status === 'CLOSED' && (
+        {/* Reopen — the only remaining header action; the rest live in the
+            Comments & Activity composer below. */}
+        {workOrder.status === 'CLOSED' && (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
               startIcon={<ReplayIcon />}
@@ -453,44 +522,8 @@ export default function WorkOrderDetailPage() {
             >
               Reopen
             </Button>
-          )}
-          <Button
-            variant="outlined"
-            startIcon={<SwapHorizIcon />}
-            onClick={openStatusDialog}
-            size="small"
-          >
-            Update Status
-          </Button>
-          {canChangePriority && (
-          <Button
-            variant="outlined"
-            startIcon={<PriorityHighIcon />}
-            onClick={openPriorityDialog}
-            size="small"
-          >
-            Change Priority
-          </Button>
-          )}
-          {canAssign && (
-          <Button
-            variant="outlined"
-            startIcon={<AssignmentIndIcon />}
-            onClick={openAssignDialog}
-            size="small"
-          >
-            Assign To
-          </Button>
-          )}
-          <Button
-            variant="outlined"
-            startIcon={<HelpOutlineIcon />}
-            onClick={() => setRequestInputOpen(true)}
-            size="small"
-          >
-            Request Input
-          </Button>
-        </Box>
+          </Box>
+        )}
       </Box>
 
       {workOrder.inputRequests.some((r) => r.requestedBy.id === user?.id || r.requestedOf.id === user?.id) && (
@@ -524,7 +557,9 @@ export default function WorkOrderDetailPage() {
         </Box>
       )}
 
-      {statusError && !statusOpen && (
+      {/* Reopen errors surface here — Update Status errors surface inline in
+          the composer below instead, via composerError. */}
+      {statusError && activeAction !== 'status' && (
         <Alert severity="error" onClose={() => setStatusError(null)} sx={{ mb: 2 }}>
           {statusError}
         </Alert>
@@ -588,41 +623,167 @@ export default function WorkOrderDetailPage() {
 
             <Divider sx={{ my: 2 }} />
 
-            {/* Add comment form */}
+            {/* Add comment / take action — one shared textarea for everything.
+                Selecting an action below swaps the textarea's purpose (notes,
+                a message, or nothing at all for Assign) and reveals whatever
+                extra field that action needs. */}
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <TextField
-                label="Add a comment…"
-                multiline
-                minRows={3}
-                fullWidth
-                size="small"
-                value={commentBody}
-                onChange={(e) => setCommentBody(e.target.value)}
-                disabled={addComment.isPending}
-              />
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      size="small"
-                      checked={isInternal}
-                      onChange={(e) => setIsInternal(e.target.checked)}
-                      disabled={addComment.isPending}
-                    />
+              {activeAction !== 'assign' && (
+                <TextField
+                  label={
+                    activeAction === 'status'      ? 'Actions Taken' :
+                    activeAction === 'priority'    ? 'Note (optional)' :
+                    activeAction === 'requestInput' ? 'Message (optional)' :
+                    'Add a comment…'
                   }
-                  label={<Typography variant="body2">Internal note</Typography>}
+                  required={activeAction === 'status'}
+                  multiline
+                  minRows={3}
+                  fullWidth
+                  size="small"
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                  disabled={composerPending}
+                  error={activeAction === 'status' && !commentBody.trim()}
+                  helperText={
+                    activeAction === 'status' && !commentBody.trim()
+                      ? 'Actions Taken is required for every status change'
+                      : undefined
+                  }
                 />
+              )}
+
+              {/* Action toggle row — clicking the active one again returns to
+                  plain-comment mode. */}
+              <ToggleButtonGroup
+                exclusive
+                size="small"
+                value={activeAction}
+                onChange={handleActionChange}
+                disabled={composerPending}
+                sx={{ flexWrap: 'wrap' }}
+              >
+                <ToggleButton value="status">
+                  <SwapHorizIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Update Status
+                </ToggleButton>
+                {canChangePriority && (
+                  <ToggleButton value="priority">
+                    <PriorityHighIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    Change Priority
+                  </ToggleButton>
+                )}
+                {canAssign && (
+                  <ToggleButton value="assign">
+                    <AssignmentIndIcon fontSize="small" sx={{ mr: 0.75 }} />
+                    Assign To
+                  </ToggleButton>
+                )}
+                <ToggleButton value="requestInput">
+                  <HelpOutlineIcon fontSize="small" sx={{ mr: 0.75 }} />
+                  Request Input
+                </ToggleButton>
+              </ToggleButtonGroup>
+
+              {/* Fields specific to the active action */}
+              {activeAction === 'status' && (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                  <FormControl size="small" fullWidth>
+                    <InputLabel>New Status</InputLabel>
+                    <Select
+                      label="New Status"
+                      value={newStatus}
+                      onChange={(e) => setNewStatus(e.target.value as WorkOrderStatus)}
+                    >
+                      {STATUSES.filter((s) =>
+                        (ALLOWED_NEXT_STATUSES[workOrder.status] ?? []).includes(s.value)
+                      ).map((s) => (
+                        <MenuItem key={s.value} value={s.value}>
+                          {s.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  {newStatus === 'LONG_TERM' && (
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          size="small"
+                          checked={notifySubmitter}
+                          onChange={(e) => setNotifySubmitter(e.target.checked)}
+                        />
+                      }
+                      label={<Typography variant="body2">Notify the submitter of this status change</Typography>}
+                    />
+                  )}
+                  <Box>
+                    {STATUS_KEY_LEGEND.map((entry) => (
+                      <Typography key={entry.label} variant="caption" color="text.secondary" display="block">
+                        <strong>{entry.label}</strong> — {entry.description}
+                      </Typography>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              {activeAction === 'priority' && (
+                <FormControl size="small" fullWidth>
+                  <InputLabel>New Priority</InputLabel>
+                  <Select
+                    label="New Priority"
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as WorkOrderPriority)}
+                  >
+                    {PRIORITIES.map((p) => (
+                      <MenuItem key={p.value} value={p.value}>
+                        {p.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              {activeAction === 'assign' && (
+                <UserSearchAutocomplete
+                  value={assignTo}
+                  onChange={setAssignTo}
+                  label="Assign to staff member"
+                  workOrderDepartment={workOrder.department}
+                />
+              )}
+
+              {activeAction === 'requestInput' && (
+                <UserSearchAutocomplete
+                  value={requestInputTo}
+                  onChange={setRequestInputTo}
+                  label="Request input from"
+                  staffOnly
+                  workOrderDepartment={workOrder.department}
+                />
+              )}
+
+              {composerError && (
+                <Alert severity="error" onClose={clearComposerError}>
+                  {composerError}
+                </Alert>
+              )}
+
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1 }}>
+                {activeAction !== null && (
+                  <Button size="small" onClick={() => handleActionChange(undefined, null)} disabled={composerPending}>
+                    Cancel
+                  </Button>
+                )}
                 <Button
                   variant="contained"
                   size="small"
-                  onClick={handleAddComment}
-                  disabled={addComment.isPending || !commentBody.trim()}
-                  startIcon={addComment.isPending ? <CircularProgress size={14} /> : undefined}
+                  onClick={handleComposerSubmit}
+                  disabled={composerDisabled}
+                  startIcon={composerPending ? <CircularProgress size={14} /> : undefined}
                 >
-                  {addComment.isPending ? 'Adding…' : 'Add Comment'}
+                  {composerLabel}
                 </Button>
               </Box>
-              {commentError && <Alert severity="error" onClose={() => setCommentError(null)}>{commentError}</Alert>}
             </Box>
           </Paper>
         </Box>
@@ -734,150 +895,6 @@ export default function WorkOrderDetailPage() {
         </Box>
       </Box>
 
-      {/* ── Update Status Dialog ──────────────────────────────────────────── */}
-      <Dialog open={statusOpen} onClose={() => setStatusOpen(false)} maxWidth="xs" fullWidth fullScreen={isMobile}>
-        <DialogTitle>Update Work Order Status</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 3 }}>
-          <FormControl size="small" fullWidth sx={{ mt: 1 }}>
-            <InputLabel>New Status</InputLabel>
-            <Select
-              label="New Status"
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value as WorkOrderStatus)}
-            >
-              {STATUSES.filter((s) =>
-                (ALLOWED_NEXT_STATUSES[workOrder.status] ?? []).includes(s.value)
-              ).map((s) => (
-                <MenuItem key={s.value} value={s.value}>
-                  {s.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label={newStatus === 'CLOSED' ? 'Actions Taken' : 'Note (optional)'}
-            required={newStatus === 'CLOSED'}
-            multiline
-            minRows={2}
-            size="small"
-            fullWidth
-            value={statusNote}
-            onChange={(e) => setStatusNote(e.target.value)}
-            error={newStatus === 'CLOSED' && !statusNote.trim()}
-            helperText={
-              newStatus === 'CLOSED' && !statusNote.trim()
-                ? 'Actions Taken is required to close this work order'
-                : undefined
-            }
-          />
-          {newStatus === 'LONG_TERM' && (
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={notifySubmitter}
-                  onChange={(e) => setNotifySubmitter(e.target.checked)}
-                />
-              }
-              label={<Typography variant="body2">Notify the submitter of this status change</Typography>}
-            />
-          )}
-          <Box>
-            {STATUS_KEY_LEGEND.map((entry) => (
-              <Typography key={entry.label} variant="caption" color="text.secondary" display="block">
-                <strong>{entry.label}</strong> — {entry.description}
-              </Typography>
-            ))}
-          </Box>
-          {statusError && <Alert severity="error" onClose={() => setStatusError(null)}>{statusError}</Alert>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setStatusOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleStatusSubmit}
-            disabled={updateStatus.isPending || (newStatus === 'CLOSED' && !statusNote.trim())}
-            startIcon={updateStatus.isPending ? <CircularProgress size={14} /> : undefined}
-          >
-            {updateStatus.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Assign Dialog ─────────────────────────────────────────────────── */}
-      <Dialog open={assignOpen} onClose={() => setAssignOpen(false)} maxWidth="xs" fullWidth fullScreen={isMobile}>
-        <DialogTitle>Assign Work Order</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <UserSearchAutocomplete
-            value={assignTo}
-            onChange={setAssignTo}
-            label="Assign to staff member"
-          />
-          {assignError && <Alert severity="error" sx={{ mt: 2 }}>{assignError}</Alert>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAssignOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handleAssignSubmit}
-            disabled={assignWorkOrder.isPending}
-            startIcon={assignWorkOrder.isPending ? <CircularProgress size={14} /> : undefined}
-          >
-            {assignWorkOrder.isPending ? 'Saving…' : 'Assign'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Change Priority Dialog ────────────────────────────────────────── */}
-      <Dialog open={priorityOpen} onClose={() => setPriorityOpen(false)} maxWidth="xs" fullWidth fullScreen={isMobile}>
-        <DialogTitle>Change Work Order Priority</DialogTitle>
-        <DialogContent sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 3 }}>
-          <FormControl size="small" fullWidth sx={{ mt: 1 }}>
-            <InputLabel>New Priority</InputLabel>
-            <Select
-              label="New Priority"
-              value={newPriority}
-              onChange={(e) => setNewPriority(e.target.value as WorkOrderPriority)}
-            >
-              {PRIORITIES.map((p) => (
-                <MenuItem key={p.value} value={p.value}>
-                  {p.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Note (optional)"
-            multiline
-            minRows={2}
-            size="small"
-            fullWidth
-            value={priorityNote}
-            onChange={(e) => setPriorityNote(e.target.value)}
-          />
-          {priorityError && <Alert severity="error" onClose={() => setPriorityError(null)}>{priorityError}</Alert>}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPriorityOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={handlePrioritySubmit}
-            disabled={updatePriority.isPending}
-            startIcon={updatePriority.isPending ? <CircularProgress size={14} /> : undefined}
-          >
-            {updatePriority.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* ── Request Input Dialog ──────────────────────────────────────────── */}
-      {id && (
-        <RequestInputDialog
-          open={requestInputOpen}
-          onClose={() => setRequestInputOpen(false)}
-          workOrderId={id}
-        />
-      )}
     </Box>
   );
 }

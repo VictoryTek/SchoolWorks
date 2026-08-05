@@ -93,5 +93,18 @@ export const theme = createTheme({
         ],
       },
     },
+    // Outlined buttons default to a border at ~50% opacity of their color.
+    // Over this theme's dark navy surfaces, a light color like dark mode's
+    // primary blue (#60a5fa) at that opacity desaturates enough to read as
+    // near-black instead of blue. Full-opacity border in dark mode only —
+    // respects whatever `color` prop is set (primary, error, etc.), it's
+    // just no longer diluted.
+    MuiButton: {
+      styleOverrides: {
+        outlined: ({ theme }) => [
+          theme.applyStyles('dark', { borderColor: 'currentColor' }),
+        ],
+      },
+    },
   },
 });

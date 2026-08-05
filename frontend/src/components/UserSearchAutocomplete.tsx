@@ -21,6 +21,12 @@ interface UserSearchAutocompleteProps {
   initialUser?: UserSearchResult | null;
   /** Restrict results to staff accounts (excludes student emails) */
   staffOnly?: boolean;
+  /**
+   * Restrict results to users assignable to a work order in this department:
+   * TECHNOLOGY -> ADMIN-role users or Technology Assistant supervisors;
+   * MAINTENANCE -> members of the three maintenance Entra groups.
+   */
+  workOrderDepartment?: 'TECHNOLOGY' | 'MAINTENANCE';
 }
 
 export const UserSearchAutocomplete = ({
@@ -32,6 +38,7 @@ export const UserSearchAutocomplete = ({
   helperText,
   initialUser = null,
   staffOnly = false,
+  workOrderDepartment,
 }: UserSearchAutocompleteProps) => {
   const [options, setOptions] = useState<UserSearchResult[]>(
     initialUser ? [initialUser] : []
@@ -50,7 +57,7 @@ export const UserSearchAutocomplete = ({
     let active = true;
     setLoading(true);
     userService
-      .searchUsers('', 20, undefined, staffOnly)
+      .searchUsers('', 20, undefined, staffOnly, workOrderDepartment)
       .then((results) => {
         if (active) {
           setOptions((prevOptions) => {
@@ -72,7 +79,7 @@ export const UserSearchAutocomplete = ({
     return () => {
       active = false;
     };
-  }, [open, inputValue, value, staffOnly]);
+  }, [open, inputValue, value, staffOnly, workOrderDepartment]);
 
   // Debounced search on input change (300 ms, min 2 chars)
   useEffect(() => {
@@ -82,7 +89,7 @@ export const UserSearchAutocomplete = ({
     const timer = setTimeout(() => {
       setLoading(true);
       userService
-        .searchUsers(inputValue, 20, undefined, staffOnly)
+        .searchUsers(inputValue, 20, undefined, staffOnly, workOrderDepartment)
         .then((results) => {
           if (active) {
             setOptions((prevOptions) => {
@@ -106,7 +113,7 @@ export const UserSearchAutocomplete = ({
       active = false;
       clearTimeout(timer);
     };
-  }, [inputValue, open, value, staffOnly]);
+  }, [inputValue, open, value, staffOnly, workOrderDepartment]);
 
   const getOptionLabel = (option: UserSearchResult): string => {
     const name =

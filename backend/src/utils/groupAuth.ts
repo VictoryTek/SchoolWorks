@@ -310,6 +310,17 @@ export function getDefaultWorkOrderDepartment(groupIds: string[]): 'TECHNOLOGY' 
   return null;
 }
 
+/**
+ * Entra group IDs allowed to be assigned a MAINTENANCE-department work order
+ * (Assign To / Request Input pickers). Same three groups that make up the
+ * MAINTENANCE half of getDefaultWorkOrderDepartment().
+ */
+export function getMaintenanceAssignableGroupIds(): string[] {
+  return WORK_ORDER_DEFAULT_MAINTENANCE_GROUP_ENV_VARS
+    .map((envVar) => process.env[envVar])
+    .filter((groupId): groupId is string => Boolean(groupId));
+}
+
 const EQUIPMENT_SEARCH_GROUP_ENV_VARS = [
   'ENTRA_PRINCIPALS_GROUP_ID',
   'ENTRA_VICE_PRINCIPALS_GROUP_ID',

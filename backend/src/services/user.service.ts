@@ -1,5 +1,8 @@
 import { PrismaClient, User, Prisma } from '@prisma/client';
+import { Client } from '@microsoft/microsoft-graph-client';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { getMaintenanceAssignableGroupIds } from '../utils/groupAuth';
+import { createGraphClient } from '../utils/graphClient';
 
 /**
  * Query parameters for finding users
@@ -83,6 +86,50 @@ export interface SupervisorAssignment {
  */
 export class UserService {
   constructor(private prisma: PrismaClient) {}
+
+  // In-memory cache of the maintenance groups' member Entra IDs, used by the
+  // MAINTENANCE branch of searchForAutocomplete. Queried live from Graph
+  // rather than User.cachedGroups, which is only populated when a user logs
+  // into this app themselves — county-wide/school maintenance staff who
+  // rarely do that would otherwise never appear. Short TTL keeps repeated
+  // autocomplete keystrokes from each re-hitting Graph.
+  private maintenanceMemberCache: { entraIds: Set<string>; fetchedAt: number } | null = null;
+  private static readonly MAINTENANCE_MEMBER_CACHE_TTL_MS = 5 * 60 * 1000;
+
+  /**
+   * Fetch every member ID of a single Entra group, following pagination.
+   * Mirrors the pagination loop in UserSyncService.syncGroupUsers.
+   */
+  private async fetchGroupMemberEntraIds(graphClient: Client, groupId: string): Promise<string[]> {
+    const ids: string[] = [];
+    let nextLink: string | null = `/groups/${groupId}/members?$select=id`;
+    while (nextLink) {
+      const response: { value: { id: string }[]; '@odata.nextLink'?: string } = await graphClient.api(nextLink).get();
+      ids.push(...response.value.map((m) => m.id));
+      nextLink = response['@odata.nextLink'] ? response['@odata.nextLink'].split('/v1.0')[1] : null;
+    }
+    return ids;
+  }
+
+  /**
+   * Entra IDs of everyone in the three maintenance-assignable groups
+   * (county-wide, school, director), live from Graph and cached briefly.
+   */
+  private async getMaintenanceAssignableEntraIds(): Promise<Set<string>> {
+    const cache = this.maintenanceMemberCache;
+    if (cache && Date.now() - cache.fetchedAt < UserService.MAINTENANCE_MEMBER_CACHE_TTL_MS) {
+      return cache.entraIds;
+    }
+
+    const groupIds = getMaintenanceAssignableGroupIds();
+    const graphClient = await createGraphClient();
+    const memberLists = await Promise.all(
+      groupIds.map((groupId) => this.fetchGroupMemberEntraIds(graphClient, groupId))
+    );
+    const entraIds = new Set(memberLists.flat());
+    this.maintenanceMemberCache = { entraIds, fetchedAt: Date.now() };
+    return entraIds;
+  }
 
   /**
    * Get paginated list of users with optional search and filters
@@ -548,9 +595,16 @@ export class UserService {
    * Search active users for autocomplete dropdowns
    * @param query - Search string (searches displayName, firstName, lastName, email)
    * @param limit - Max results to return (capped at 50)
+   * @param workOrderDepartment - Restrict to users assignable to a work order in this
+   *   department (used by the work order Assign To / Request Input pickers):
+   *   TECHNOLOGY -> ADMIN-role users or Technology Assistant supervisors;
+   *   MAINTENANCE -> members of the three maintenance Entra groups, resolved
+   *   live from Graph (see getMaintenanceAssignableEntraIds — User.cachedGroups
+   *   is only populated when a user logs into this app themselves, which
+   *   understates group membership for staff who rarely do).
    * @returns Slim user list suitable for autocomplete
    */
-  async searchForAutocomplete(query: string, limit = 20, locationId?: string, staffOnly = false): Promise<UserSearchResult[]> {
+  async searchForAutocomplete(query: string, limit = 20, locationId?: string, staffOnly = false, workOrderDepartment?: 'TECHNOLOGY' | 'MAINTENANCE'): Promise<UserSearchResult[]> {
     const orConditions: Prisma.UserWhereInput[] = [];
 
     if (query.length >= 2) {
@@ -569,9 +623,32 @@ export class UserService {
       );
     }
 
+    // Combine the free-text OR block with the department assignee OR block via
+    // AND so both apply together, rather than one OR clobbering the other.
+    const andConditions: Prisma.UserWhereInput[] = [];
+    if (orConditions.length > 0) andConditions.push({ OR: orConditions });
+    if (workOrderDepartment === 'TECHNOLOGY') {
+      andConditions.push({
+        OR: [
+          { role: 'ADMIN' },
+          { locationSupervisors: { some: { supervisorType: 'TECHNOLOGY_ASSISTANT' } } },
+        ],
+      });
+    } else if (workOrderDepartment === 'MAINTENANCE') {
+      const maintenanceEntraIds = await this.getMaintenanceAssignableEntraIds();
+      // Fail closed if no members were resolved (misconfigured groups, Graph
+      // returned nothing) — match nothing rather than silently returning
+      // every user.
+      andConditions.push(
+        maintenanceEntraIds.size > 0
+          ? { entraId: { in: Array.from(maintenanceEntraIds) } }
+          : { id: '__no_maintenance_members_found__' }
+      );
+    }
+
     const where: Prisma.UserWhereInput = {
       isActive: true,
-      ...(orConditions.length > 0 && { OR: orConditions }),
+      ...(andConditions.length > 0 && { AND: andConditions }),
     };
 
     if (staffOnly) {

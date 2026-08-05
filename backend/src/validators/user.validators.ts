@@ -71,6 +71,12 @@ export const SearchUsersQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(50).default(20).optional(),
   locationId: z.string().uuid().optional(),
   staffOnly: z.coerce.boolean().optional(),
+  /**
+   * Restrict results to users assignable to a work order in this department:
+   * TECHNOLOGY -> ADMIN-role users or Technology Assistant supervisors;
+   * MAINTENANCE -> members of the three maintenance Entra groups.
+   */
+  workOrderDepartment: z.enum(['TECHNOLOGY', 'MAINTENANCE']).optional(),
 });
 
 /**

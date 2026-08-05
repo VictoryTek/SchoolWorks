@@ -90,10 +90,11 @@ class UserService {
   }
 
   // Search users for autocomplete (accessible to TECHNOLOGY permission holders)
-  async searchUsers(query: string, limit = 20, locationId?: string, staffOnly?: boolean): Promise<UserSearchResult[]> {
+  async searchUsers(query: string, limit = 20, locationId?: string, staffOnly?: boolean, workOrderDepartment?: 'TECHNOLOGY' | 'MAINTENANCE'): Promise<UserSearchResult[]> {
     const params = new URLSearchParams({ q: query, limit: limit.toString() });
     if (locationId) params.append('locationId', locationId);
     if (staffOnly) params.append('staffOnly', 'true');
+    if (workOrderDepartment) params.append('workOrderDepartment', workOrderDepartment);
     const response = await api.get(`/users/search?${params}`);
     return response.data;
   }
