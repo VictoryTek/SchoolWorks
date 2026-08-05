@@ -31,7 +31,10 @@ export default function WizardStep1LinkAndDate({ values, onChange, errors }: Wiz
 
   const { data: equipData, isLoading: equipLoading } = useQuery({
     queryKey: ['equipment-search-wizard', equipSearch],
-    queryFn:  () => inventoryService.getInventory({ search: equipSearch, limit: 50, status: 'active' }),
+    // Filtered by isDisposed, not status: incidents are filed against devices that are
+    // checked out to someone, and checkout sets status to 'checked_out'. Filtering on
+    // status: 'active' hid exactly the devices this search exists to find.
+    queryFn:  () => inventoryService.getInventory({ search: equipSearch, limit: 50, isDisposed: false }),
     enabled:  values.linkedTo === 'device' && equipSearch.length >= 2,
     staleTime: 30_000,
   });

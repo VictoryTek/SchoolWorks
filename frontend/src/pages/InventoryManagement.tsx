@@ -205,7 +205,21 @@ export const InventoryManagement = () => {
       hideOnMobile: true,
       render: (item) =>
         item.serialNumber ? (
-          <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{item.serialNumber}</span>
+          <span
+            title={item.serialNumber}
+            style={{
+              fontFamily: 'monospace',
+              fontSize: '0.8125rem',
+              whiteSpace: 'nowrap',
+              display: 'inline-block',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              verticalAlign: 'bottom',
+            }}
+          >
+            {item.serialNumber}
+          </span>
         ) : (
           <span style={{ color: 'var(--slate-400)' }}>—</span>
         ),
@@ -259,7 +273,21 @@ export const InventoryManagement = () => {
       hideOnMobile: true,
       render: (item) =>
         item.poNumber ? (
-          <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', whiteSpace: 'nowrap' }}>{item.poNumber}</span>
+          <span
+            title={item.poNumber}
+            style={{
+              fontFamily: 'monospace',
+              fontSize: '0.8125rem',
+              whiteSpace: 'nowrap',
+              display: 'inline-block',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              verticalAlign: 'bottom',
+            }}
+          >
+            {item.poNumber}
+          </span>
         ) : (
           <span style={{ color: 'var(--slate-400)' }}>—</span>
         ),
@@ -277,7 +305,18 @@ export const InventoryManagement = () => {
       hideOnMobile: true,
       render: (item) =>
         item.purchaseDate ? (
-          <span style={{ whiteSpace: 'nowrap' }}>{new Date(item.purchaseDate).toLocaleDateString()}</span>
+          <span
+            style={{
+              whiteSpace: 'nowrap',
+              display: 'inline-block',
+              maxWidth: '100%',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              verticalAlign: 'bottom',
+            }}
+          >
+            {new Date(item.purchaseDate).toLocaleDateString()}
+          </span>
         ) : (
           <span style={{ color: 'var(--slate-400)' }}>—</span>
         ),
