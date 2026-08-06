@@ -410,16 +410,24 @@ export class UserRoomAssignmentService {
   async getUsersByLocation(locationId: string) {
     const location = await this.prisma.officeLocation.findUnique({
       where: { id: locationId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, type: true },
     });
 
     if (!location) {
       throw new NotFoundError('OfficeLocation', locationId);
     }
 
+    // Entra's `officeLocation` attribute reflects the building a staff member physically
+    // sits in, so it lines up with a SCHOOL location's name. Department staff (Transportation,
+    // Maintenance, Technology, etc.) are tagged with whichever building they work out of
+    // (often "District Office"), never with their department's name — there's no Entra
+    // attribute that scopes them to their department. For DEPARTMENT locations, skip the
+    // officeLocation filter and let admins search the full active staff list instead.
+    const isDepartment = location.type === 'DEPARTMENT';
+
     return this.prisma.user.findMany({
       where: {
-        officeLocation: location.name,
+        ...(isDepartment ? {} : { officeLocation: location.name }),
         email: { endsWith: '@ocboe.com' },
         NOT: { email: { endsWith: '@students.ocboe.com' } },
         isActive: true,
