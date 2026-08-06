@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import {
@@ -10,7 +10,6 @@ import {
   CircularProgress,
   Divider,
   Paper,
-  TextField,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -26,10 +25,7 @@ export default function RepairTicketDetailPage() {
   const goBack = useGoBack();
   const queryClient  = useQueryClient();
 
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [repairCost,     setRepairCost]     = useState('');
-  const [repairNotes,    setRepairNotes]    = useState('');
-  const [actionError,    setActionError]    = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: ticket, isLoading, isError } = useQuery<RepairTicket>({
     queryKey: ['repair-tickets', id],
@@ -37,22 +33,9 @@ export default function RepairTicketDetailPage() {
     enabled:  !!id,
   });
 
-  useEffect(() => {
-    if (ticket) {
-      setTrackingNumber(ticket.trackingNumber ?? '');
-      setRepairCost(ticket.repairCost ?? '');
-      setRepairNotes(ticket.repairNotes ?? '');
-    }
-  }, [ticket]);
-
   const statusMutation = useMutation({
     mutationFn: (status: RepairTicketStatus) =>
-      repairTicketService.updateStatus(id!, {
-        status,
-        ...(trackingNumber && { trackingNumber }),
-        ...(repairCost     && { repairCost: Number(repairCost) }),
-        ...(repairNotes    && { repairNotes }),
-      }),
+      repairTicketService.updateStatus(id!, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['repair-tickets', id] });
       setActionError(null);
@@ -95,66 +78,32 @@ export default function RepairTicketDetailPage() {
       {actionError && <Alert severity="error" sx={{ mb: 2 }}>{actionError}</Alert>}
 
       {/* Details */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, gap: { xs: 2, md: 3 } }}>
-        <Card>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Ticket Details</Typography>
-            <Divider sx={{ mb: 1.5 }} />
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
-              <Typography variant="body2" color="text.secondary">Vendor</Typography>
-              <Typography variant="body2">{ticket.vendor?.name ?? '—'}</Typography>
-              <Typography variant="body2" color="text.secondary">Created By</Typography>
-              <Typography variant="body2">
-                {ticket.creator ? `${ticket.creator.firstName} ${ticket.creator.lastName}` : ticket.createdBy}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">Sent for Repair</Typography>
-              <Typography variant="body2">
-                {ticket.sentForRepairAt ? new Date(ticket.sentForRepairAt).toLocaleDateString() : '—'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">Expected Return</Typography>
-              <Typography variant="body2">
-                {ticket.expectedReturnDate ? new Date(ticket.expectedReturnDate).toLocaleDateString() : '—'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">Returned</Typography>
-              <Typography variant="body2">
-                {ticket.returnedAt ? new Date(ticket.returnedAt).toLocaleDateString() : '—'}
-              </Typography>
-            </Box>
-          </CardContent>
-        </Card>
-
-        {/* Editable fields */}
-        <Card>
-          <CardContent>
-            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Update Fields</Typography>
-            <Divider sx={{ mb: 1.5 }} />
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <TextField
-                label="Tracking Number"
-                size="small"
-                value={trackingNumber}
-                onChange={(e) => setTrackingNumber(e.target.value)}
-              />
-              <TextField
-                label="Repair Cost ($)"
-                size="small"
-                type="number"
-                inputProps={{ min: 0, step: '0.01' }}
-                value={repairCost}
-                onChange={(e) => setRepairCost(e.target.value)}
-              />
-              <TextField
-                label="Repair Notes"
-                size="small"
-                multiline
-                rows={2}
-                value={repairNotes}
-                onChange={(e) => setRepairNotes(e.target.value)}
-              />
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
+      <Card>
+        <CardContent>
+          <Typography variant="subtitle1" fontWeight={600} gutterBottom>Ticket Details</Typography>
+          <Divider sx={{ mb: 1.5 }} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">Vendor</Typography>
+            <Typography variant="body2">{ticket.vendor?.name ?? '—'}</Typography>
+            <Typography variant="body2" color="text.secondary">Created By</Typography>
+            <Typography variant="body2">
+              {ticket.creator ? `${ticket.creator.firstName} ${ticket.creator.lastName}` : ticket.createdBy}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">Sent for Repair</Typography>
+            <Typography variant="body2">
+              {ticket.sentForRepairAt ? new Date(ticket.sentForRepairAt).toLocaleDateString() : '—'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">Expected Return</Typography>
+            <Typography variant="body2">
+              {ticket.expectedReturnDate ? new Date(ticket.expectedReturnDate).toLocaleDateString() : '—'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">Returned</Typography>
+            <Typography variant="body2">
+              {ticket.returnedAt ? new Date(ticket.returnedAt).toLocaleDateString() : '—'}
+            </Typography>
+          </Box>
+        </CardContent>
+      </Card>
 
       {/* Status Transition Buttons */}
       <Card sx={{ mt: 3 }}>

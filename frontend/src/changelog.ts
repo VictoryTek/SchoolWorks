@@ -44,6 +44,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed the Create Incident wizard\'s Date of Damage saving as the day before what was picked in most US timezones, caused by the date being parsed as UTC midnight instead of local time.',
       'Fixed the Create Incident button on Active Checkouts prefilling Date of Damage with the device\'s original checkout date instead of today\'s date.',
       'Remove the new incident button from the incident page, since it was redundant with the Create Incident button on Active Checkouts and the Incidents page itself.',
+      'Removed Update Fields card from repair ticket detail page, since it was redundant with the Update Status and Change Priority actions in Comments & Activity.',
+    ],
   },
   {
     version: '1.7.1',
