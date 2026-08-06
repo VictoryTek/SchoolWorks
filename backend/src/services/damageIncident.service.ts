@@ -645,14 +645,26 @@ export async function getUserIncidentSummary(userId: string) {
   // Device incidents (equipmentId IS NOT NULL) are excluded — damage caused by
   // a defective product or normal wear is not the user's fault and must never
   // contribute to the 3-strike consultation requirement.
+  // `totalCount`/`recentIncidents` below are policy-scoped to this narrower set —
+  // used by the wizard's consultation warning and the building-admin alert email.
+  // Do not widen them for general "how many incidents has this user had" display
+  // purposes; use `allTotalCount` (and the general-purpose `activeCount`/`yearCount`
+  // below) for that instead.
   const userOnlyWhere = { userId, equipmentId: null } as const;
+  // General-purpose: every incident linked to this user, device or not — for
+  // display contexts (e.g. the user's checkout history page) that aren't the
+  // consultation policy.
+  const allWhere = { userId } as const;
 
-  const [totalCount, activeCount, recentIncidents, settings] = await Promise.all([
+  const [totalCount, allTotalCount, activeCount, recentIncidents, settings] = await Promise.all([
     prisma.damageIncident.count({
       where: { ...userOnlyWhere, status: { notIn: ['waived'] } },
     }),
     prisma.damageIncident.count({
-      where: { ...userOnlyWhere, status: { notIn: ['resolved', 'waived'] } },
+      where: { ...allWhere, status: { notIn: ['waived'] } },
+    }),
+    prisma.damageIncident.count({
+      where: { ...allWhere, status: { notIn: ['resolved', 'waived'] } },
     }),
     prisma.damageIncident.findMany({
       where:   userOnlyWhere,
@@ -673,10 +685,10 @@ export async function getUserIncidentSummary(userId: string) {
 
   const schoolYear = settings?.currentFiscalYear ?? null;
   const yearCount = schoolYear
-    ? await prisma.damageIncident.count({ where: { ...userOnlyWhere, schoolYear } })
+    ? await prisma.damageIncident.count({ where: { ...allWhere, schoolYear } })
     : 0;
 
-  return { userId, totalCount, activeCount, schoolYear, yearCount, recentIncidents };
+  return { userId, totalCount, allTotalCount, activeCount, schoolYear, yearCount, recentIncidents };
 }
 
 // ---------------------------------------------------------------------------

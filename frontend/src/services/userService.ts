@@ -66,7 +66,11 @@ export interface UserIncidentSummaryItem {
 
 export interface UserIncidentSummary {
   userId: string;
+  /** Policy-scoped: excludes device-linked incidents (see backend for why). Used by the
+   *  Create Incident wizard's 3-strike consultation threshold — not a general incident count. */
   totalCount: number;
+  /** All incidents linked to this user, device-linked or not. Use this for general display. */
+  allTotalCount: number;
   activeCount: number;
   schoolYear: string | null;
   yearCount: number;

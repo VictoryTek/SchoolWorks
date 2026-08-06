@@ -71,12 +71,6 @@ export default function WizardStep4DeviceExchange({
   const [exchangeResult, setExchangeResult] = useState<DeviceExchangeResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
 
-  // ── Check-in form state ──────────────────────────────────────────────────
-  const [skipCheckin,      setSkipCheckin]      = useState(false);
-  const [returnCondition,  setReturnCondition]  = useState<Condition | ''>('');
-  const [returnNotes,      setReturnNotes]      = useState('');
-  const [checkinError,     setCheckinError]     = useState<string | null>(null);
-
   // ── Check-out form state ─────────────────────────────────────────────────
   const [skipCheckout,         setSkipCheckout]         = useState(false);
   const [deviceSearch,         setDeviceSearch]         = useState('');
@@ -95,6 +89,8 @@ export default function WizardStep4DeviceExchange({
 
   // ── Fetch the prefill assignment (to show broken device info) ───────────
   const prefillAssignmentId = step1.assignmentId;
+  // Check-in requires a real assignmentId; when there isn't one there's nothing to check in.
+  const hasAssignment = !!prefillAssignmentId;
   const { data: prefillAssignment } = useQuery({
     queryKey: ['assignment-prefill', prefillAssignmentId],
     queryFn:  () => deviceAssignmentService.getById(prefillAssignmentId!),
@@ -130,11 +126,11 @@ export default function WizardStep4DeviceExchange({
   // ── Exchange mutation ────────────────────────────────────────────────────
   const exchangeMutation = useMutation({
     mutationFn: () => {
-      const checkin = skipCheckin ? undefined : {
-        assignmentId:    prefillAssignmentId ?? (prefillAssignment?.id ?? ''),
-        returnCondition: returnCondition as Condition,
-        returnNotes:     returnNotes || undefined,
-      };
+      // The device is already known damaged from Step 2 — no need to ask again.
+      const checkin = hasAssignment ? {
+        assignmentId:    prefillAssignmentId!,
+        returnCondition: 'damaged' as Condition,
+      } : undefined;
       const checkout = skipCheckout ? undefined : {
         equipmentId:       selectedDevice!.id,
         userId:            step1.userId!,
@@ -163,17 +159,6 @@ export default function WizardStep4DeviceExchange({
   const handleCompleteExchange = useCallback(() => {
     let valid = true;
 
-    if (!skipCheckin) {
-      if (!returnCondition) {
-        setCheckinError('Return condition is required');
-        valid = false;
-      } else {
-        setCheckinError(null);
-      }
-    } else {
-      setCheckinError(null);
-    }
-
     if (!skipCheckout) {
       if (!selectedDevice) {
         setCheckoutError('Select a replacement device or skip checkout');
@@ -189,7 +174,7 @@ export default function WizardStep4DeviceExchange({
     }
 
     if (valid) exchangeMutation.mutate();
-  }, [skipCheckin, skipCheckout, returnCondition, selectedDevice, checkoutCondition, exchangeMutation]);
+  }, [skipCheckout, selectedDevice, checkoutCondition, exchangeMutation]);
 
   const isBusy = exchangeMutation.isPending;
   const incident = createdIncident;
@@ -307,113 +292,37 @@ export default function WizardStep4DeviceExchange({
 
       {/* Panel A — Check In Broken Device */}
       <Paper variant="outlined" sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-          <Typography variant="subtitle2" fontWeight={600}>
-            ♻ Check In Broken Device
-          </Typography>
-          <FormControlLabel
-            control={
-              <Checkbox
-                size="small"
-                checked={skipCheckin}
-                onChange={(e) => { setSkipCheckin(e.target.checked); setCheckinError(null); }}
-              />
-            }
-            label={<Typography variant="caption">Skip — already returned or N/A</Typography>}
-            sx={{ mr: 0 }}
-          />
-        </Box>
+        <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 1.5 }}>
+          ♻ Check In Broken Device
+        </Typography>
 
-        {!skipCheckin && (
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-            {/* Pre-populated device / assignee info */}
-            {prefillAssignment ? (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                <Chip
-                  size="small"
-                  label={
-                    prefillAssignment.equipment
-                      ? `${prefillAssignment.equipment.assetTag} — ${prefillAssignment.equipment.name}`
-                      : incident.equipment
-                        ? `${incident.equipment.assetTag} — ${incident.equipment.name}`
-                        : 'Device on record'
-                  }
-                  variant="outlined"
-                  color="default"
-                />
-                {prefillAssignment.user && (
-                  <Chip
-                    size="small"
-                    label={`${prefillAssignment.user.firstName} ${prefillAssignment.user.lastName}`}
-                    variant="outlined"
-                    color="primary"
-                  />
-                )}
-              </Box>
-            ) : incident.equipment ? (
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                <Chip
-                  size="small"
-                  label={`${incident.equipment.assetTag} — ${incident.equipment.name}`}
-                  variant="outlined"
-                  color="default"
-                />
-                {incident.user && (
-                  <Chip
-                    size="small"
-                    label={`${incident.user.firstName} ${incident.user.lastName}`}
-                    variant="outlined"
-                    color="primary"
-                  />
-                )}
-              </Box>
-            ) : (
-              <Alert severity="info" sx={{ py: 0.5 }}>
-                No active checkout on record — check in manually if needed, or skip.
-              </Alert>
-            )}
-
-            {/* Return condition */}
-            <Box>
-              <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-                Condition on Return *
-              </Typography>
-              <Select
-                size="small"
-                displayEmpty
-                value={returnCondition}
-                onChange={(e) => { setReturnCondition(e.target.value as Condition); setCheckinError(null); }}
-                sx={{ minWidth: 180 }}
-                error={!!checkinError && !returnCondition}
-              >
-                <MenuItem value="" disabled><em>Select condition</em></MenuItem>
-                {CONDITION_OPTIONS.map((o) => (
-                  <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-                ))}
-              </Select>
-              {checkinError && (
-                <FormHelperText error>{checkinError}</FormHelperText>
-              )}
-            </Box>
-
-            {/* Return notes */}
-            <TextField
-              label="Return Notes"
+        {hasAssignment ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            <Chip
               size="small"
-              multiline
-              rows={2}
-              value={returnNotes}
-              onChange={(e) => setReturnNotes(e.target.value)}
-              inputProps={{ maxLength: 1000 }}
-              helperText={`${returnNotes.length}/1000`}
+              label={
+                prefillAssignment?.equipment
+                  ? `${prefillAssignment.equipment.assetTag} — ${prefillAssignment.equipment.name}`
+                  : incident.equipment
+                    ? `${incident.equipment.assetTag} — ${incident.equipment.name}`
+                    : 'Device on record'
+              }
+              variant="outlined"
+              color="default"
             />
+            {prefillAssignment?.user && (
+              <Chip
+                size="small"
+                label={`${prefillAssignment.user.firstName} ${prefillAssignment.user.lastName}`}
+                variant="outlined"
+                color="primary"
+              />
+            )}
           </Box>
-        )}
-
-        {skipCheckin && (
-          <Typography variant="body2" color="text.secondary" fontStyle="italic">
-            Check-in skipped.
-          </Typography>
+        ) : (
+          <Alert severity="info" sx={{ py: 0.5 }}>
+            No active checkout on record for this device — nothing to check in.
+          </Alert>
         )}
       </Paper>
 
@@ -589,7 +498,7 @@ export default function WizardStep4DeviceExchange({
         >
           {isBusy
             ? 'Processing…'
-            : skipCheckin && skipCheckout
+            : !hasAssignment && skipCheckout
               ? 'Skip Exchange & Close Incident'
               : 'Complete Exchange'}
         </Button>

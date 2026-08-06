@@ -60,7 +60,7 @@ type WizardAction =
   | { type: 'RESET_WITH';     payload: WizardState };
 
 const INITIAL_STATE: WizardState = {
-  step1:           { linkedTo: 'device' },
+  step1:           {},
   step2:           { damageType: 'other', severity: 'minor' },
   errors1:         {},
   errors2:         {},
@@ -154,13 +154,11 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   // ----- Incident summary for threshold check (3+ incidents) -----
-  // Only runs when the incident is explicitly linked to a USER (not a device).
-  // When linkedTo === 'device', userId may still be populated from an assignment
-  // context but the incident is a device incident — no consultation check needed.
+  // Runs whenever a user is linked to the incident (device may or may not also be linked).
   const { data: incidentSummary } = useQuery({
     queryKey: ['user-incident-summary', state.step1.userId],
     queryFn:  () => userService.getUserIncidentSummary(state.step1.userId!),
-    enabled:  !!state.step1.userId && state.step1.linkedTo === 'user',
+    enabled:  !!state.step1.userId,
     staleTime: 30_000,
   });
 
@@ -171,7 +169,6 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
     if (!initialIncident && prefill) {
       base.step1 = {
         ...base.step1,
-        linkedTo:     prefill.equipmentId ? 'device' : prefill.userId ? 'user' : 'device',
         equipmentId:  prefill.equipmentId,
         userId:       prefill.userId,
         assignmentId: prefill.assignmentId,

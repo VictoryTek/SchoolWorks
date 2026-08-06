@@ -124,27 +124,21 @@ export default function IncidentsPage() {
       ),
     },
     {
-      key:    'type',
-      label:  'Type',
-      render: (row) => (
-        <Chip
-          label={row.equipment ? '💻 Device' : '👤 User'}
-          size="small"
-          color={row.equipment ? 'info' : 'secondary'}
-          variant="outlined"
-        />
-      ),
+      key:    'user',
+      label:  'User',
+      render: (row) =>
+        row.user
+          ? <Typography variant="body2">{row.user.firstName} {row.user.lastName}</Typography>
+          : <Typography variant="body2" color="text.secondary">—</Typography>,
     },
     {
       key:         'device',
-      label:       'Device / User',
+      label:       'Device',
       isSecondary: true,
       render:      (row) =>
         row.equipment
           ? <Typography variant="body2">{row.equipment.assetTag} — {row.equipment.name}</Typography>
-          : row.user
-            ? <Typography variant="body2">{row.user.firstName} {row.user.lastName}</Typography>
-            : <Typography variant="body2" color="text.secondary">—</Typography>,
+          : <Typography variant="body2" color="text.secondary">—</Typography>,
     },
     {
       key:    'damageDate',

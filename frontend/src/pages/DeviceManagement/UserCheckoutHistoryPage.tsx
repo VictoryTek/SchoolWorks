@@ -103,8 +103,10 @@ export default function UserCheckoutHistoryPage() {
     || userSummary.displayName
     || userSummary.email;
 
-  const activeCount   = incidentSummary?.activeCount ?? 0;
-  const totalCount    = incidentSummary?.totalCount  ?? 0;
+  const activeCount   = incidentSummary?.activeCount   ?? 0;
+  // Total Incidents on this page is a general count (all incidents involving this
+  // user), not the wizard's device-excluded consultation-threshold count.
+  const totalCount    = incidentSummary?.allTotalCount ?? 0;
   const incidentColor = totalCount >= 3 ? 'error' : totalCount >= 2 ? 'warning' : 'success';
 
   // ─────────────────────────────────────────────────────────────────────

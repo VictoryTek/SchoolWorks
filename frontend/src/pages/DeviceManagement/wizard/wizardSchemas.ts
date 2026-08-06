@@ -1,15 +1,16 @@
 import { z } from 'zod';
 
 export const Step1Schema = z.object({
-  linkedTo:     z.enum(['device', 'user']),
   equipmentId:  z.string().uuid().optional(),
   userId:       z.string().uuid().optional(),
   assignmentId: z.string().uuid().optional(),
   damageDate:   z.string().min(1, 'Date of damage is required'),
-}).refine(
-  (d) => (d.linkedTo === 'device' ? !!d.equipmentId : !!d.userId),
-  { message: 'Please select a device or user', path: ['equipmentId'] },
-);
+}).superRefine((d, ctx) => {
+  if (!d.equipmentId && !d.userId) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select a device or user', path: ['equipmentId'] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Select a device or user', path: ['userId'] });
+  }
+});
 
 export const Step2Schema = z.object({
   damageType:    z.enum([

@@ -1,11 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Autocomplete,
   Box,
   FormControl,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import { useQuery } from '@tanstack/react-query';
@@ -35,7 +33,7 @@ export default function WizardStep1LinkAndDate({ values, onChange, errors }: Wiz
     // checked out to someone, and checkout sets status to 'checked_out'. Filtering on
     // status: 'active' hid exactly the devices this search exists to find.
     queryFn:  () => inventoryService.getInventory({ search: equipSearch, limit: 50, isDisposed: false }),
-    enabled:  values.linkedTo === 'device' && equipSearch.length >= 2,
+    enabled:  equipSearch.length >= 2,
     staleTime: 30_000,
   });
 
@@ -75,82 +73,60 @@ export default function WizardStep1LinkAndDate({ values, onChange, errors }: Wiz
 
   const equipOptions: InventoryItem[] = equipData?.items ?? [];
 
-  const handleLinkedToChange = useCallback(
-    (_: React.MouseEvent<HTMLElement>, val: 'device' | 'user' | null) => {
-      if (!val) return;
-      // Only switch the mode — preserve both IDs so toggling back restores the pre-filled value.
-      // The create call already sends only the ID that matches the active linkedTo.
-      onChange({ linkedTo: val });
-    },
-    [onChange],
-  );
-
   const today = new Date().toISOString().slice(0, 10);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
-      {/* Device vs User toggle */}
-      <Box>
-        <Typography variant="body2" color="text.secondary" gutterBottom>
-          Link this incident to a:
-        </Typography>
-        <ToggleButtonGroup
-          value={values.linkedTo}
-          exclusive
-          onChange={handleLinkedToChange}
-          size="small"
-        >
-          <ToggleButton value="device">💻 Device</ToggleButton>
-          <ToggleButton value="user">👤 User</ToggleButton>
-        </ToggleButtonGroup>
-      </Box>
+      <Typography variant="body2" color="text.secondary">
+        Link this incident to a device, a user, or both:
+      </Typography>
 
-      {/* Equipment search (Device path) */}
-      {values.linkedTo === 'device' && (
-        <Autocomplete<InventoryItem>
-          options={equipOptions}
-          loading={equipLoading}
-          value={equipOption}
-          inputValue={equipInputValue}
-          onInputChange={(_, v, reason) => {
-            // Always keep the displayed text in sync (including MUI's 'reset' event,
-            // which fires when `value` changes programmatically — e.g. on prefill).
-            setEquipInputValue(v);
-            if (reason === 'input') setEquipSearch(v);
-            else if (reason === 'clear') setEquipSearch('');
-          }}
-          getOptionLabel={getEquipLabel}
-          isOptionEqualToValue={(a, b) => a.id === b.id}
-          onChange={(_, opt) => {
-            setEquipOption(opt);
-            onChange({ equipmentId: opt?.id ?? undefined });
-          }}
-          noOptionsText={equipSearch.length < 2 ? 'Type 2+ characters to search' : 'No devices found'}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Device *"
-              size="small"
-              error={!!errors.equipmentId}
-              helperText={errors.equipmentId ?? 'Search by asset tag or name'}
-            />
-          )}
-        />
-      )}
+      {/* Equipment search */}
+      <Autocomplete<InventoryItem>
+        // Keyed on the resolved option so the field fully remounts the instant a prefilled
+        // device loads — MUI's Autocomplete can otherwise visually desync from its controlled
+        // value/inputValue when they're set asynchronously post-mount.
+        key={equipOption ? equipOption.id : 'equip-search'}
+        options={equipOptions}
+        loading={equipLoading}
+        value={equipOption}
+        inputValue={equipInputValue}
+        onInputChange={(_, v, reason) => {
+          // Always keep the displayed text in sync (including MUI's 'reset' event,
+          // which fires when `value` changes programmatically — e.g. on prefill).
+          setEquipInputValue(v);
+          if (reason === 'input') setEquipSearch(v);
+          else if (reason === 'clear') setEquipSearch('');
+        }}
+        getOptionLabel={getEquipLabel}
+        isOptionEqualToValue={(a, b) => a.id === b.id}
+        onChange={(_, opt) => {
+          setEquipOption(opt);
+          onChange({ equipmentId: opt?.id ?? undefined });
+        }}
+        noOptionsText={equipSearch.length < 2 ? 'Type 2+ characters to search' : 'No devices found'}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label="Device"
+            size="small"
+            error={!!errors.equipmentId}
+            helperText={errors.equipmentId ?? 'Search by asset tag or name'}
+          />
+        )}
+      />
 
-      {/* User search (User path) */}
-      {values.linkedTo === 'user' && (
-        <DeviceManagementUserSearch
-          label="User (student / staff) *"
-          value={userOption}
-          onChange={(opt) => {
-            setUserOption(opt);
-            onChange({ userId: opt?.id ?? undefined });
-          }}
-          error={!!errors.userId}
-          helperText={errors.userId}
-        />
-      )}
+      {/* User search */}
+      <DeviceManagementUserSearch
+        label="User (student / staff)"
+        value={userOption}
+        onChange={(opt) => {
+          setUserOption(opt);
+          onChange({ userId: opt?.id ?? undefined });
+        }}
+        error={!!errors.userId}
+        helperText={errors.userId}
+      />
 
       {/* Date of Damage */}
       <FormControl error={!!errors.damageDate}>
