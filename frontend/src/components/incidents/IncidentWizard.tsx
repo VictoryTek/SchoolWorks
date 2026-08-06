@@ -204,7 +204,11 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
         equipmentId:            s1.equipmentId || undefined,
         userId:                 s1.userId      || undefined,
         assignmentId:           s1.assignmentId,
-        damageDate:             s1.damageDate ? new Date(s1.damageDate).toISOString() : undefined,
+        // Append a local time-of-day (no timezone designator) rather than converting the
+        // bare date string directly — a date-only ISO string parses as UTC midnight, which
+        // rolls back to the previous local day in any timezone behind UTC. Noon keeps the
+        // instant safely away from either day boundary. Mirrors FieldTripRequestPage.tsx.
+        damageDate:             s1.damageDate ? new Date(s1.damageDate + 'T12:00:00').toISOString() : undefined,
         damageType:             s2.damageType,
         severity:               s2.severity,
         description:            s2.description,
@@ -248,7 +252,11 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
         equipmentId:            s1.equipmentId || undefined,
         userId:                 s1.userId      || undefined,
         assignmentId:           s1.assignmentId,
-        damageDate:             s1.damageDate ? new Date(s1.damageDate).toISOString() : undefined,
+        // Append a local time-of-day (no timezone designator) rather than converting the
+        // bare date string directly — a date-only ISO string parses as UTC midnight, which
+        // rolls back to the previous local day in any timezone behind UTC. Noon keeps the
+        // instant safely away from either day boundary. Mirrors FieldTripRequestPage.tsx.
+        damageDate:             s1.damageDate ? new Date(s1.damageDate + 'T12:00:00').toISOString() : undefined,
         damageType:             s2.damageType,
         severity:               s2.severity,
         description:            s2.description,

@@ -73,7 +73,10 @@ export default function WizardStep1LinkAndDate({ values, onChange, errors }: Wiz
 
   const equipOptions: InventoryItem[] = equipData?.items ?? [];
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Built from local date components rather than toISOString(), which computes "today" in
+  // UTC and can be off by a day near midnight in any US timezone.
+  const now   = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>

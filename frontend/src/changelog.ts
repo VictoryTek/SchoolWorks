@@ -41,6 +41,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fixed Total Incidents showing 0 on a user\'s checkout history page when they had device-related incidents on record — it was only counting incidents not tied to a device, which is correct for the Create Incident wizard\'s 3-strike consultation warning but wrong for a general total.',
       'Replaced the Type column on the Incidents page with a User column showing the linked user, now that an incident can be linked to both a device and a user at once.',
       'Renamed the Incidents page\'s Device / User column to just Device, now that the linked user has its own column.',
+      'Fixed the Create Incident wizard\'s Date of Damage saving as the day before what was picked in most US timezones, caused by the date being parsed as UTC midnight instead of local time.',
+      'Fixed the Create Incident button on Active Checkouts prefilling Date of Damage with the device\'s original checkout date instead of today\'s date.',
     ],
   },
   {

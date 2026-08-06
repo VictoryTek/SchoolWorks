@@ -51,6 +51,13 @@ function chargerSerialDisplay(serial: string, truncate: boolean): string {
     : serial;
 }
 
+// Local date components rather than toISOString(), which computes "today" in UTC
+// and can be off by a day near midnight in any US timezone.
+function todayLocal(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 // Active checkouts page — /device-management/checkouts
 export default function CheckoutPage() {
   const navigate = useNavigate();
@@ -257,7 +264,7 @@ export default function CheckoutPage() {
               size="small"
               startIcon={<ReportProblemIcon />}
               component={RouterLink}
-              to={`/incidents/new?equipmentId=${r.equipmentId}&userId=${r.userId ?? ''}&assignmentId=${r.id}&damageDate=${r.checkoutAt.slice(0, 10)}`}
+              to={`/incidents/new?equipmentId=${r.equipmentId}&userId=${r.userId ?? ''}&assignmentId=${r.id}&damageDate=${todayLocal()}`}
               onClick={(e) => e.stopPropagation()}
               sx={{ whiteSpace: 'nowrap' }}
             >
@@ -411,7 +418,7 @@ export default function CheckoutPage() {
                     chargerSerialNumber: target.chargerAssignment.charger.serialNumber,
                   });
                 } else if (shouldCreateIncident && target) {
-                  navigate(`/incidents/new?equipmentId=${target.equipmentId}&userId=${target.userId ?? ''}&assignmentId=${target.id}&damageDate=${new Date().toISOString().slice(0, 10)}`);
+                  navigate(`/incidents/new?equipmentId=${target.equipmentId}&userId=${target.userId ?? ''}&assignmentId=${target.id}&damageDate=${todayLocal()}`);
                 }
                 checkinMutation.mutate();
               }}
