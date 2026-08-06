@@ -43,7 +43,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Renamed the Incidents page\'s Device / User column to just Device, now that the linked user has its own column.',
       'Fixed the Create Incident wizard\'s Date of Damage saving as the day before what was picked in most US timezones, caused by the date being parsed as UTC midnight instead of local time.',
       'Fixed the Create Incident button on Active Checkouts prefilling Date of Damage with the device\'s original checkout date instead of today\'s date.',
-    ],
+      'Remove the new incident button from the incident page, since it was redundant with the Create Incident button on Active Checkouts and the Incidents page itself.',
   },
   {
     version: '1.7.1',

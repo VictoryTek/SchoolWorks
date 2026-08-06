@@ -3,14 +3,12 @@ import { useFilterParams } from '@/hooks/useFilterParams';
 import {
   Alert,
   Box,
-  Button,
   Chip,
   TablePagination,
   TextField,
   Typography,
   InputAdornment,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -174,15 +172,8 @@ export default function IncidentsPage() {
   return (
     <Box sx={{ p: { xs: 1.5, sm: 3 } }}>
       {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h5" fontWeight={700}>Incidents</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => navigate('/incidents/new')}
-        >
-          New Incident
-        </Button>
       </Box>
 
       {/* Search */}
