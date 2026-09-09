@@ -205,9 +205,16 @@ export function FieldTripDetailPage() {
   const stageMinLevel          = STAGE_MIN_LEVEL[trip.status] ?? 99;
   const isCorrectStageApprover = isAdmin || userFieldTripsLevel === stageMinLevel;
 
-  // Check if the current user already approved at a prior stage
+  // Check if the current user already approved at a prior stage during the CURRENT
+  // submission cycle. Scoped to trip.submittedAt so it matches the backend's own
+  // duplicate-approver guard (fieldTrip.service.ts approve()): resubmit() resets
+  // submittedAt, so an approval from before a send-back/resubmit no longer counts
+  // and the approver can act again once the trip cycles back to their stage.
   const hasAlreadyApproved = trip.approvals?.some(
-    (a) => a.actedById === user?.id && a.action === 'APPROVED',
+    (a) =>
+      a.actedById === user?.id &&
+      a.action === 'APPROVED' &&
+      (!trip.submittedAt || new Date(a.actedAt) >= new Date(trip.submittedAt)),
   ) ?? false;
 
   const showActionButtons = isPending && !isOwner && !isTerminal && !hasAlreadyApproved && isCorrectStageApprover;
