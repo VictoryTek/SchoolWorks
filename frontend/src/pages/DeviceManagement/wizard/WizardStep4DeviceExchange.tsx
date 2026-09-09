@@ -145,7 +145,11 @@ export default function WizardStep4DeviceExchange({
         checkoutCondition: checkoutCondition as Condition,
         notes:             checkoutNotes || undefined,
       };
-      return deviceExchangeService.exchange(createdIncident.id, { checkin, checkout });
+      // The repair ticket for an accidental-damage incident is created here,
+      // not by the wizard's earlier submit step — only once the exchange
+      // actually completes, so an abandoned wizard never leaves one stranded.
+      const createRepairTicket = createdIncident.intent !== 'intentional' && !!createdIncident.equipmentId;
+      return deviceExchangeService.exchange(createdIncident.id, { checkin, checkout, createRepairTicket });
     },
     onSuccess: (result) => {
       setExchangeResult(result);
@@ -154,6 +158,7 @@ export default function WizardStep4DeviceExchange({
       queryClient.invalidateQueries({ queryKey: ['damage-incidents'] });
       queryClient.invalidateQueries({ queryKey: ['device-assignments'] });
       queryClient.invalidateQueries({ queryKey: ['inventory'] });
+      queryClient.invalidateQueries({ queryKey: ['repair-tickets'] });
     },
     onError: (err) => {
       const reason = getApiErrorMessage(err);

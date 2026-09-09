@@ -38,6 +38,10 @@ export default function RepairTicketDetailPage() {
       repairTicketService.updateStatus(id!, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['repair-tickets', id] });
+      // A status change can advance/close the linked damage incident's
+      // workflowStep server-side — invalidate so the incidents list/detail
+      // pick up the change instead of showing stale data.
+      queryClient.invalidateQueries({ queryKey: ['damage-incidents'] });
       setActionError(null);
     },
     onError: () => setActionError('Failed to update status.'),
@@ -45,7 +49,10 @@ export default function RepairTicketDetailPage() {
 
   const cancelMutation = useMutation({
     mutationFn: () => repairTicketService.cancel(id!),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['repair-tickets', id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['repair-tickets', id] });
+      queryClient.invalidateQueries({ queryKey: ['damage-incidents'] });
+    },
     onError: () => setActionError('Failed to cancel ticket.'),
   });
 
@@ -154,8 +161,10 @@ export default function RepairTicketDetailPage() {
         </CardContent>
       </Card>
 
-      {/* Linked Damage Incident */}
-      {ticket.damageIncident && (
+      {/* Linked Damage Incident — falls back to the ticket's own damage
+          details when there's no linked incident (a device-only ticket
+          created from the inventory drawer). */}
+      {ticket.damageIncident ? (
         <Card sx={{ mt: 3 }}>
           <CardContent>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>Linked Damage Incident</Typography>
@@ -176,6 +185,19 @@ export default function RepairTicketDetailPage() {
                 View Incident
               </Button>
             </Box>
+          </CardContent>
+        </Card>
+      ) : (ticket.damageType || ticket.severity) && (
+        <Card sx={{ mt: 3 }}>
+          <CardContent>
+            <Typography variant="subtitle1" fontWeight={600} gutterBottom>Damage Details</Typography>
+            <Divider sx={{ mb: 1.5 }} />
+            <Typography variant="body2">
+              Type: {ticket.damageType ? ticket.damageType.replace(/_/g, ' ') : '—'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Severity: {ticket.severity ?? '—'}
+            </Typography>
           </CardContent>
         </Card>
       )}

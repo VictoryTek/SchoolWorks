@@ -1,4 +1,4 @@
-import type { RepairTicketStatus } from '@mgspe/shared-types';
+import type { RepairTicketStatus, DamageType, DamageSeverity } from '@mgspe/shared-types';
 
 export interface RepairTicket {
   id:                 string;
@@ -15,6 +15,10 @@ export interface RepairTicket {
   trackingNumber:     string | null;
   repairNotes:        string | null;
   internalNotes:      string | null;
+  // Self-describing when there's no linked damage incident (e.g. a
+  // ticket-only report created from the inventory drawer).
+  damageType:         DamageType | null;
+  severity:           DamageSeverity | null;
   createdAt:          string;
   updatedAt:          string;
   equipment?:      { id: string; assetTag: string; name: string; brands: { name: string } | null; models: { name: string } | null };
@@ -30,6 +34,8 @@ export interface CreateRepairTicketData {
   expectedReturnDate?: string;
   repairNotes?:        string;
   internalNotes?:      string;
+  damageType?:         DamageType;
+  severity?:           DamageSeverity;
 }
 
 export interface UpdateRepairStatusData {

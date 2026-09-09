@@ -64,6 +64,7 @@ type HistoryRow =
       checkoutAt: string;
       returnedAt: string | null;
       parentEquipmentId?: string;
+      parentAssetTag?: string;
     };
 
 function buildHistoryRows(assignments: DeviceAssignment[]): HistoryRow[] {
@@ -79,6 +80,7 @@ function buildHistoryRows(assignments: DeviceAssignment[]): HistoryRow[] {
         checkoutAt: ca.checkoutAt ?? a.checkoutAt,
         returnedAt: ca.returnedAt,
         parentEquipmentId: a.equipment?.id,
+        parentAssetTag: a.equipment?.assetTag,
       });
     }
   }
@@ -287,7 +289,7 @@ export default function UserCheckoutHistoryPage() {
                       }
                       return row.equipment ? (
                         <RouterLink
-                          to={`/device-management/devices/${row.equipment.id}`}
+                          to={`/inventory?search=${encodeURIComponent(row.equipment.assetTag)}`}
                           style={{ fontFamily: 'monospace', fontWeight: 600 }}
                           onClick={(e) => e.stopPropagation()}
                         >
@@ -355,8 +357,8 @@ export default function UserCheckoutHistoryPage() {
                 rows={buildHistoryRows(assignments)}
                 getRowKey={(row) => row.kind === 'charger' ? `c-${row.id}` : `d-${row.id}`}
                 onRowClick={(row) => {
-                  const equipmentId = row.kind === 'charger' ? row.parentEquipmentId : row.equipment?.id;
-                  if (equipmentId) navigate(`/device-management/devices/${equipmentId}`);
+                  const assetTag = row.kind === 'charger' ? row.parentAssetTag : row.equipment?.assetTag;
+                  if (assetTag) navigate(`/inventory?search=${encodeURIComponent(assetTag)}`);
                 }}
               />
             </Paper>

@@ -46,6 +46,9 @@ interface DisplayStep {
 function buildDisplaySteps(incident: DamageIncident): DisplayStep[] {
   const isIntentional   = incident.intent === 'intentional';
   const deviceExchanged = incident.workflowStep === 'DEVICE_EXCHANGE' || incident.workflowStep === 'CLOSED';
+  // A device-only incident (no user/assignment) has no one to exchange a
+  // device with — omit the step entirely rather than showing it stuck blank.
+  const hasExchangeStep = !!incident.userId || !!incident.assignmentId;
   const latestTicket    = incident.repairTickets?.[0];
   const sentToRepair    = !!latestTicket && ['sent_to_vendor', 'returned', 'unrepairable'].includes(latestTicket.status);
   const repairCompleted = latestTicket?.status === 'returned';
@@ -54,8 +57,11 @@ function buildDisplaySteps(incident: DamageIncident): DisplayStep[] {
 
   const steps: DisplayStep[] = [
     { key: 'DAMAGE_REPORTED', label: 'Damage Reported',   completed: true },
-    { key: 'DEVICE_EXCHANGE', label: 'Device Exchanged',  completed: deviceExchanged },
   ];
+
+  if (hasExchangeStep) {
+    steps.push({ key: 'DEVICE_EXCHANGE', label: 'Device Exchanged', completed: deviceExchanged });
+  }
 
   if (!isIntentional) {
     steps.push(
@@ -82,6 +88,8 @@ function getNextActionLabel(incident: DamageIncident): string | null {
   // Device Exchange already ran — the incident closes automatically once
   // the linked repair ticket resolves, so there's nothing left to do here.
   if (incident.workflowStep === 'DEVICE_EXCHANGE') return null;
+  // Device-only incident — no user/assignment to exchange a device with.
+  if (!incident.userId && !incident.assignmentId) return null;
   if (incident.intent === 'intentional' && (incident.invoices?.length ?? 0) === 0) {
     return 'Create Invoice';
   }

@@ -111,7 +111,11 @@ const STATUS_CHIP_COLOUR: Record<string, 'success' | 'error' | 'warning' | 'defa
   not_enrolled: 'default',
 };
 
-const ACTIONS = Object.keys(INTUNE_ACTION_LABELS) as IntuneAction[];
+// setDeviceName is excluded from the generic dropdown: it needs a per-device new name
+// the generic dispatch can't collect — the dedicated rename button/dialog handles it.
+const ACTIONS = (Object.keys(INTUNE_ACTION_LABELS) as IntuneAction[]).filter(
+  (a) => a !== 'setDeviceName',
+);
 
 // ─── buildDryRunResult ────────────────────────────────────────────────────────
 

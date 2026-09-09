@@ -1643,6 +1643,8 @@ model RepairTicket {
   trackingNumber     String?
   repairNotes        String?
   internalNotes      String?
+  damageType         String?   // Self-describing when there is no linked DamageIncident
+  severity           String?
   schoolYear         String?   // "YYYY-YYYY" school year label, stamped at rollover
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt

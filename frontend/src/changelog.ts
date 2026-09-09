@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.9.5',
+    changes: [
+      'Fixed the Approve/Deny buttons on a field trip staying hidden forever for an approver who had already approved it once, even after a later-stage approver sent it back for revision and it was resubmitted — the buttons now reappear once the trip cycles back to that approver\'s stage.',
+      'Damage/repair reporting is now created from exactly two places: Create Incident, for a device checked out to someone, and a new "Report Damage" button on an inventory item\'s detail panel, for a device that isn\'t checked out. The old duplicate "Create Ticket" form on Repair Tickets and the separate Device Detail page have been removed.',
+      'Clicking an inventory item now opens a redesigned detail panel with tabs for Details, Damage, Repairs, Invoices, Checkouts, and Changes (full audit history), instead of a single scrolling summary.',
+      'An incident\'s Workflow Progress no longer shows a "Device Exchanged" step for incidents that don\'t involve a checked-out device — previously it could sit stuck incomplete forever for those.',
+      'Incidents left stuck at "Damage Reported" with no repair ticket or invoice yet — e.g. an abandoned Create Incident session — are now flagged "Incomplete" on the Incidents list instead of sitting invisibly stalled.',
+      'A repair ticket created without a linked incident (from the new inventory "Report Damage" button) now shows its own damage type and severity.',
+      'The Incidents page\'s Workflow Step column now updates automatically every 30 seconds and immediately reflects a status change made on a linked repair ticket, instead of requiring a manual page reload.',
+      'Removed "Rename Device" from the Intune Scan & Actions "Choose an action…" dropdown — selecting it always failed silently; use the dedicated Rename Device button instead.',
+    ],
+  },
+  {
     version: '1.9.3',
     changes: [
       'Provisioning\'s status banner now correctly shows "Sync Enabled" whenever any of the staff, student, or legacy sync schedules is running, instead of sometimes showing "Sync Disabled" while a split schedule was actually active.',

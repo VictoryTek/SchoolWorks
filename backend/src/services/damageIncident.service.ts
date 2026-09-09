@@ -477,6 +477,32 @@ export async function deviceExchange(
       data:  { workflowStep: 'DEVICE_EXCHANGE' },
     });
 
+    // The wizard defers repair-ticket creation to here instead of the end of
+    // the Damage Details step, so an abandoned wizard never leaves a
+    // stranded ticket behind. This must run before the checkin/checkout
+    // blocks below — hasActiveRepair (computed further down) looks up an
+    // in-flight ticket for this equipment, and the checkin block's
+    // equipment-status update also depends on that lookup.
+    if (data.createRepairTicket && incident.equipmentId) {
+      const existingActiveTicket = await tx.repairTicket.findFirst({
+        where:  { damageIncidentId: incidentId, status: { in: ['pending', 'sent_to_vendor'] } },
+        select: { id: true },
+      });
+      if (!existingActiveTicket) {
+        const ticketNumber = await generateTicketNumber(tx);
+        await tx.repairTicket.create({
+          data: {
+            ticketNumber,
+            equipmentId:      incident.equipmentId,
+            damageIncidentId: incidentId,
+            createdBy:        performedByUserId,
+            damageType:       incident.damageType,
+            severity:         incident.severity,
+          },
+        });
+      }
+    }
+
     let txCheckinAssignment  = null;
     let txCheckoutAssignment = null;
     let activeRepairFromCheckin: { id: string } | null = null;

@@ -222,7 +222,7 @@ export default function CheckoutPage() {
           <span>
             <Link
               component={RouterLink}
-              to={`/device-management/devices/${eq.id}`}
+              to={`/inventory?search=${encodeURIComponent(eq.assetTag)}`}
               sx={{ fontFamily: 'monospace', fontWeight: 600 }}
               onClick={(e) => e.stopPropagation()}
             >

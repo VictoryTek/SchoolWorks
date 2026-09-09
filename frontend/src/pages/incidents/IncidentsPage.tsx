@@ -96,12 +96,18 @@ export default function IncidentsPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['incidents-page', { page, pageSize }],
+    // Shares the 'damage-incidents' prefix with every other incident-mutating
+    // call site (IncidentWizard, CreateInvoiceDialog, RepairTicketsPage,
+    // RepairTicketDetailPage) so their invalidateQueries calls reach this list.
+    queryKey: ['damage-incidents', 'list', { page, pageSize }],
     queryFn:  () =>
       incidentService.getIncidents({
         page:  page + 1,
         limit: pageSize,
       }),
+    // Keep the Workflow Step column current on its own while the page stays
+    // open, without requiring a manual refresh.
+    refetchInterval: 30_000,
   });
 
   const rows = (data?.items ?? []).filter((r) => {
@@ -158,7 +164,16 @@ export default function IncidentsPage() {
     {
       key:    'workflowStep',
       label:  'Workflow Step',
-      render: (row) => <WorkflowStepChip step={row.workflowStep} />,
+      render: (row) => (
+        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+          <WorkflowStepChip step={row.workflowStep} />
+          {row.workflowStep === 'DAMAGE_REPORTED'
+            && (row._count?.repairTickets ?? 0) === 0
+            && (row._count?.invoices ?? 0) === 0 && (
+            <Chip size="small" label="Incomplete" color="error" variant="outlined" />
+          )}
+        </Box>
+      ),
     },
     {
       key:          'createdAt',

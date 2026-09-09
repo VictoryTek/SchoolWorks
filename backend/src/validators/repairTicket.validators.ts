@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DamageTypeEnum, DamageSeverityEnum } from './damageIncident.validators';
 
 export const CreateRepairTicketSchema = z.object({
   equipmentId:        z.string().uuid(),
@@ -7,6 +8,8 @@ export const CreateRepairTicketSchema = z.object({
   expectedReturnDate: z.string().datetime().optional(),
   repairNotes:        z.string().optional(),
   internalNotes:      z.string().optional(),
+  damageType:         DamageTypeEnum.optional(),
+  severity:           DamageSeverityEnum.optional(),
 });
 
 export const UpdateRepairTicketSchema = z.object({

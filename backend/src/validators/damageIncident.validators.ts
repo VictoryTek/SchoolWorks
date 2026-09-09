@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 // ─── Shared enums ─────────────────────────────────────────────────────────────
 
-const DamageTypeEnum     = z.enum(['broken_screen', 'liquid_damage', 'physical_damage', 'missing_keys', 'missing_charger', 'missing_device', 'other']);
-const DamageSeverityEnum = z.enum(['minor', 'moderate', 'severe', 'total_loss']);
+export const DamageTypeEnum     = z.enum(['broken_screen', 'liquid_damage', 'physical_damage', 'missing_keys', 'missing_charger', 'missing_device', 'other']);
+export const DamageSeverityEnum = z.enum(['minor', 'moderate', 'severe', 'total_loss']);
 const IncidentIntentEnum = z.enum(['accidental', 'intentional']);
 
 export const IncidentWorkflowStepEnum = z.enum([
@@ -99,6 +99,7 @@ export const DeviceExchangeSchema = z.object({
     checkoutCondition: CheckoutConditionEnum,
     notes:             z.string().max(1000).optional(),
   }).optional(),
+  createRepairTicket: z.boolean().default(false),
 });
 
 // ─── Notify Building Admin ────────────────────────────────────────────────────

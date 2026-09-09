@@ -17,8 +17,9 @@ export interface DeviceExchangeCheckoutPayload {
 }
 
 export interface DeviceExchangeRequest {
-  checkin?:  DeviceExchangeCheckinPayload;
-  checkout?: DeviceExchangeCheckoutPayload;
+  checkin?:            DeviceExchangeCheckinPayload;
+  checkout?:           DeviceExchangeCheckoutPayload;
+  createRepairTicket?: boolean;
 }
 
 export interface DeviceExchangeResponse {

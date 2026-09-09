@@ -38,7 +38,6 @@ import {
   TransportationRequestDetailPage,
 } from './pages/TransportationRequests'
 import CheckoutPage from './pages/DeviceManagement/CheckoutPage'
-import DeviceDetailPage from './pages/DeviceManagement/DeviceDetailPage'
 import UserCheckoutHistoryPage from './pages/DeviceManagement/UserCheckoutHistoryPage'
 import CheckoutScanPage from './pages/DeviceManagement/CheckoutScanPage'
 import BulkCheckoutPage from './pages/DeviceManagement/BulkCheckoutPage'
@@ -439,13 +438,7 @@ function App() {
         />
         <Route
           path="/device-management/devices/:id"
-          element={
-            <ProtectedRoute requireDeviceManagement>
-              <AppLayout>
-                <DeviceDetailPage />
-              </AppLayout>
-            </ProtectedRoute>
-          }
+          element={<Navigate to="/inventory" replace />}
         />
         <Route
           path="/device-management/checkouts/users/:userId/history"

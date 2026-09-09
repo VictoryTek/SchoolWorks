@@ -26,7 +26,6 @@ import WizardStep2DamageDetails from '../../pages/DeviceManagement/wizard/Wizard
 import WizardStep4DeviceExchange from '../../pages/DeviceManagement/wizard/WizardStep4DeviceExchange';
 import CreateInvoiceDialog from '../DeviceManagement/CreateInvoiceDialog';
 import { damageIncidentService } from '../../services/damageIncident.service';
-import { repairTicketService } from '../../services/repairTicket.service';
 import { userService } from '../../services/userService';
 import {
   Step1Schema,
@@ -218,28 +217,42 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
         autoCreateInvoice:      false,
       });
 
-      if (inc.equipmentId) {
-        // Vendor assignment and sending to a vendor happen later, on the repair
-        // ticket detail page — the tech creating the incident doesn't decide that.
-        await repairTicketService.create({
-          equipmentId:      inc.equipmentId,
-          damageIncidentId: inc.id,
-        });
-      }
-      await damageIncidentService.updateWorkflowStep(inc.id, { workflowStep: 'PENDING_REPAIR' });
-
+      // The repair ticket is created later, inside the backend's deviceExchange
+      // transaction (Device Exchange step), and only once the exchange actually
+      // completes — not here. An abandoned wizard now leaves the incident at
+      // DAMAGE_REPORTED (already set by create() above, since intent is present)
+      // with no ticket, instead of stranding a live one.
       return inc;
     },
     onSuccess: (incident) => {
       dispatch({ type: 'SET_INCIDENT', payload: incident });
       queryClient.invalidateQueries({ queryKey: ['damage-incidents'] });
-      queryClient.invalidateQueries({ queryKey: ['repair-tickets'] });
       // Don't call onCreated here — the incident record exists but the wizard
       // isn't finished yet (Device Exchange is next). onCreated fires once,
       // from WizardStep4DeviceExchange's onFinish, when the flow truly ends.
       setActiveStep(2);
     },
     onError: () => setApiError('Failed to submit incident. Please try again.'),
+  });
+
+  // ----- Persist Damage Details edits when resuming an existing incident -----
+  // (accidentalSubmitMutation only creates; resuming must not re-create/re-submit.)
+  const updateIncidentMutation = useMutation({
+    mutationFn: () => {
+      const s2 = state.step2 as Step2Values;
+      return damageIncidentService.update(initialIncident!.id, {
+        damageType:    s2.damageType,
+        severity:      s2.severity,
+        description:   s2.description,
+        estimatedCost: s2.estimatedCost ? parseFloat(s2.estimatedCost) : undefined,
+      });
+    },
+    onSuccess: (incident) => {
+      dispatch({ type: 'SET_INCIDENT', payload: incident });
+      queryClient.invalidateQueries({ queryKey: ['damage-incidents'] });
+      setActiveStep(2);
+    },
+    onError: () => setApiError('Failed to save changes. Please try again.'),
   });
 
   // ----- Submit (intentional): create incident then open invoice dialog -----
@@ -328,10 +341,15 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
     }
     if (state.step2.intent === 'intentional') {
       setActiveStep(2);
+    } else if (initialIncident) {
+      // Resuming an incident that already exists — skip straight ahead
+      // instead of re-running the submit mutation (which would re-create
+      // side effects), but persist any edits made to Damage Details first.
+      updateIncidentMutation.mutate();
     } else {
       accidentalSubmitMutation.mutate();
     }
-  }, [state.step2, initialIncident, accidentalSubmitMutation]);
+  }, [state.step2, initialIncident, accidentalSubmitMutation, updateIncidentMutation]);
 
   const handleInvoiceCreated = useCallback(
     (_invoiceId: string) => {
@@ -357,6 +375,7 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
 
   const isBusy =
     accidentalSubmitMutation.isPending ||
+    updateIncidentMutation.isPending ||
     intentionalSubmitMutation.isPending ||
     workflowMutation.isPending;
 

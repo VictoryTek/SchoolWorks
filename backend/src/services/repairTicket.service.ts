@@ -76,6 +76,8 @@ export async function create(data: CreateData, createdByUserId: string) {
           expectedReturnDate: data.expectedReturnDate ? new Date(data.expectedReturnDate) : null,
           repairNotes:        data.repairNotes ?? null,
           internalNotes:      data.internalNotes ?? null,
+          damageType:         data.damageType ?? null,
+          severity:           data.severity ?? null,
         },
         include: detailInclude,
       });
