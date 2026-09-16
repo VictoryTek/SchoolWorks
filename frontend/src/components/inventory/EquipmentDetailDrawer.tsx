@@ -2,7 +2,7 @@
  * Equipment Detail Drawer
  * Right-side slide-in panel showing full details for a selected inventory item.
  *
- * Six tabs (Details/Damage/Repairs/Invoices/Checkouts/Changes) — only Details
+ * Six tabs (Details/Damage/Repairs/Invoices/Checkouts/History) — only Details
  * is editable content; the rest are read-only history. The only creation
  * entry point in the whole drawer is the header's "Report Damage" button.
  */
@@ -28,11 +28,16 @@ import {
   Typography,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import BuildIcon from '@mui/icons-material/Build';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import HistoryIcon from '@mui/icons-material/History';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { InventoryItem } from '../../types/inventory.types';
 import InventoryFormDialog from './InventoryFormDialog';
-import InventoryHistoryDialog from './InventoryHistoryDialog';
 import DetailsTab from './drawer/DetailsTab';
 import DamageTab from './drawer/DamageTab';
 import RepairsTab from './drawer/RepairsTab';
@@ -53,18 +58,27 @@ interface EquipmentDetailDrawerProps {
   onItemChanged?: () => void;
 }
 
-const TABS = ['Details', 'Damage', 'Repairs', 'Invoices', 'Checkouts', 'Changes'] as const;
+const TABS = [
+  { label: 'Details',   icon: <InfoOutlinedIcon fontSize="small" /> },
+  { label: 'Damage',    icon: <WarningAmberIcon fontSize="small" /> },
+  { label: 'Repairs',   icon: <BuildIcon fontSize="small" /> },
+  { label: 'Invoices',  icon: <ReceiptLongIcon fontSize="small" /> },
+  { label: 'Checkouts', icon: <SwapHorizIcon fontSize="small" /> },
+  { label: 'History',   icon: <HistoryIcon fontSize="small" /> },
+] as const;
 
 const RAIL_WIDTH = 112;
 const CONTENT_WIDTH = 480;
 
-// Filled rounded pill on the selected tab instead of the default underline —
+// Filled rounded-rect on the selected tab instead of the default underline —
 // this app considers the default MUI tab look dated everywhere this drawer
-// touches it.
+// touches it. Targets `.MuiTab-root.Mui-selected` (beats MUI's own selected
+// rule on specificity) rather than `!important`-ing a lower-specificity
+// selector, which previously left the selected label unreadable.
 const pillTabsSx = {
   '& .MuiTabs-indicator': { display: 'none' },
-  '& .MuiTab-root': { minHeight: 40, borderRadius: 999, textTransform: 'none' },
-  '& .Mui-selected': { bgcolor: 'primary.main', color: 'primary.contrastText !important' },
+  '& .MuiTab-root': { minHeight: 40, borderRadius: 2, textTransform: 'none' },
+  '& .MuiTab-root.Mui-selected': { bgcolor: 'primary.main', color: 'primary.contrastText' },
 } as const;
 
 const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: EquipmentDetailDrawerProps) => {
@@ -74,7 +88,6 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
 
   const [activeTab, setActiveTab] = useState(0);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
 
   // Ticket-only "Report Damage" dialog (device has no active checkout)
   const [reportDialogOpen, setReportDialogOpen] = useState(false);
@@ -162,7 +175,7 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
         PaperProps={{
           // No `position` override here — .MuiDrawer-paperAnchorRight already
           // applies position:fixed, which pins the drawer to the right edge.
-          // The rail lives *inside* this box (a flex sidebar), not floated
+          // The rail floats *inside* this box with a positive offset, not
           // outside it — a negative-offset rail was tried first and clipped
           // against the browser's own left edge on any window narrower than
           // drawer-width + rail-width, which is common. Keeping it inside
@@ -190,13 +203,13 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
               <Typography variant="h6" fontWeight={700}>{item.assetTag}</Typography>
               <Typography variant="body2" color="text.secondary">{item.name}</Typography>
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Button variant="outlined" size="small" onClick={handleReportDamage}>
-                Report Damage
-              </Button>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
               <IconButton onClick={handleClose} size="small" title="Close">
                 <CloseIcon />
               </IconButton>
+              <Button variant="outlined" size="small" onClick={handleReportDamage}>
+                Report Damage
+              </Button>
             </Box>
           </Box>
 
@@ -210,33 +223,46 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
                 scrollButtons="auto"
                 sx={{ px: 1, ...pillTabsSx }}
               >
-                {TABS.map((label) => <Tab key={label} label={label} />)}
+                {TABS.map(({ label }) => <Tab key={label} label={label} />)}
               </Tabs>
             </Box>
           )}
 
-          {/* Rail (desktop) + active tab content, side by side, full remaining height */}
-          <Box sx={{ flex: 1, display: 'flex', minHeight: 0 }}>
+          {/* Rail (desktop, floating card) + active tab content, full remaining height */}
+          <Box sx={{ flex: 1, display: 'flex', minHeight: 0, position: 'relative' }}>
             {isDesktop && (
-              <Tabs
-                orientation="vertical"
-                value={activeTab}
-                onChange={(_, v) => setActiveTab(v)}
+              <Box
                 sx={{
-                  width: RAIL_WIDTH,
-                  flexShrink: 0,
-                  borderRight: 1,
+                  position: 'absolute',
+                  left: 12,
+                  top: 16,
+                  zIndex: 2,
+                  bgcolor: 'background.paper',
+                  border: 1,
                   borderColor: 'divider',
-                  py: 1,
-                  ...pillTabsSx,
+                  borderRadius: 3,
+                  boxShadow: 3,
                 }}
               >
-                {TABS.map((label) => (
-                  <Tab key={label} label={label} sx={{ fontSize: '0.75rem', minWidth: 0 }} />
-                ))}
-              </Tabs>
+                <Tabs
+                  orientation="vertical"
+                  value={activeTab}
+                  onChange={(_, v) => setActiveTab(v)}
+                  sx={{ width: RAIL_WIDTH, py: 1, ...pillTabsSx }}
+                >
+                  {TABS.map(({ label, icon }) => (
+                    <Tab
+                      key={label}
+                      icon={icon}
+                      iconPosition="top"
+                      label={label}
+                      sx={{ fontSize: '0.75rem', minWidth: 0 }}
+                    />
+                  ))}
+                </Tabs>
+              </Box>
             )}
-            <Box sx={{ flex: 1, minWidth: 0, overflowY: 'auto' }}>
+            <Box sx={{ flex: 1, minWidth: 0, overflowY: 'auto', pl: isDesktop ? `${RAIL_WIDTH}px` : 0 }}>
               {renderTabContent()}
             </Box>
           </Box>
@@ -251,9 +277,6 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
             }}
           >
             <Button onClick={handleClose} size="small">Close</Button>
-            <Button variant="outlined" size="small" onClick={() => setHistoryDialogOpen(true)}>
-              History
-            </Button>
             <Button variant="contained" size="small" onClick={() => setEditDialogOpen(true)}>
               Edit Item
             </Button>
@@ -270,13 +293,6 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
           setEditDialogOpen(false);
           onItemChanged?.();
         }}
-      />
-
-      {/* History Dialog */}
-      <InventoryHistoryDialog
-        open={historyDialogOpen}
-        item={item}
-        onClose={() => setHistoryDialogOpen(false)}
       />
 
       {/* Report Damage (ticket-only) Dialog — no linked incident, since

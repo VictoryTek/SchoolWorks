@@ -7,6 +7,7 @@ import type {
   CheckinFormData,
   ChargerAssignmentRecord,
   UpdateAssignmentRequest,
+  CarryoverCharger,
 } from '../types/deviceAssignment.types';
 
 const BASE = '/device-assignments';
@@ -41,6 +42,9 @@ export const deviceAssignmentService = {
 
   getByUser: (userId: string): Promise<DeviceAssignment[]> =>
     api.get(`${BASE}/user/${userId}`).then((r) => r.data),
+
+  getCarryoverCharger: (userId: string): Promise<CarryoverCharger | null> =>
+    api.get(`${BASE}/user/${userId}/carryover-charger`).then((r) => r.data),
 
   getByEquipment: (equipmentId: string): Promise<DeviceAssignment[]> =>
     api.get(`${BASE}/equipment/${equipmentId}`).then((r) => r.data),

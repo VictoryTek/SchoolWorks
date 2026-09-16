@@ -100,3 +100,9 @@ export interface UpdateAssignmentRequest {
   checkoutCondition?: CheckoutCondition;
   notes?: string;
 }
+
+/** A charger already checked out to a user that will carry over to their next device checkout. */
+export interface CarryoverCharger {
+  id: string;
+  charger: { id: string; serialNumber: string };
+}

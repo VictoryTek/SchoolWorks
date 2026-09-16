@@ -41,6 +41,13 @@ router.get(
 );
 
 router.get(
+  '/user/:userId/carryover-charger',
+  requireDeviceManagementAccess(),
+  validateRequest(UserIdParamSchema, 'params'),
+  controller.getCarryoverCharger
+);
+
+router.get(
   '/user/:userId',
   requireDeviceManagementAccess(),
   validateRequest(UserIdParamSchema, 'params'),

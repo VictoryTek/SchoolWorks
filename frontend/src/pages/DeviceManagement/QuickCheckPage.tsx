@@ -61,6 +61,7 @@ interface SuccessSummary {
   shouldCreateChargerIncident?: boolean;
   chargerAssignmentId?: string;
   chargerSerialNumber?: string;
+  chargerCarriedOver?: boolean;
   chargerAssignError?: string;
   equipmentId?: string;
   userId?: string;
@@ -259,6 +260,7 @@ export default function QuickCheckPage() {
       if (!result) return;
 
       let chargerSerialNumber: string | undefined;
+      let chargerCarriedOver: boolean | undefined;
       let chargerAssignError: string | undefined;
       if (chargerAssignedRef.current && chargerSerialRef.current.trim()) {
         const serial = chargerSerialRef.current.trim();
@@ -268,6 +270,11 @@ export default function QuickCheckPage() {
         } catch (err) {
           chargerAssignError = getApiError(err);
         }
+      } else if (assignment.chargerAssignment) {
+        // No manual scan this checkout — a charger came back on the response,
+        // meaning it carried over from a previously returned device.
+        chargerSerialNumber = assignment.chargerAssignment.charger.serialNumber;
+        chargerCarriedOver = true;
       }
 
       setPageState({
@@ -280,6 +287,7 @@ export default function QuickCheckPage() {
           condition: checkoutConditionRef.current,
           time: new Date(),
           chargerSerialNumber,
+          chargerCarriedOver,
           chargerAssignError,
         },
       });
@@ -350,6 +358,24 @@ export default function QuickCheckPage() {
 
   const hasOpenCharger = !!scanResultData?.activeAssignment?.chargerAssignment
     && !scanResultData.activeAssignment.chargerAssignment.returnedAt;
+
+  // Charger already checked out to the selected assignee that will carry over to
+  // this checkout automatically — checkout mode only.
+  const { data: carryoverCharger } = useQuery({
+    queryKey: ['carryover-charger', selectedUser?.id],
+    queryFn:  () => deviceAssignmentService.getCarryoverCharger(selectedUser!.id),
+    enabled:  mode === 'checkout' && !!selectedUser,
+  });
+
+  // Once a carry-over charger is known, drop any pending manual "assign a
+  // charger" state so the success handler can't assign a second charger over it.
+  useEffect(() => {
+    if (carryoverCharger) {
+      setChargerAssigned(false);
+      setChargerSerial('');
+      setChargerFieldError(null);
+    }
+  }, [carryoverCharger]);
 
   const { data: fetchedRepairTicket } = useQuery({
     queryKey: ['active-repair-ticket', scanResultData?.equipment.id],
@@ -481,6 +507,11 @@ export default function QuickCheckPage() {
                         Charger
                       </Typography>
                       <Typography variant="body2" fontFamily="monospace">{summary.chargerSerialNumber}</Typography>
+                      {summary.chargerCarriedOver && (
+                        <Typography variant="caption" color="text.secondary" display="block">
+                          Carried over from previously returned device.
+                        </Typography>
+                      )}
                     </div>
                   )}
                 </Box>
@@ -829,42 +860,52 @@ export default function QuickCheckPage() {
                     />
 
                     {/* Charger assignment */}
-                    <Box sx={{ mb: chargerAssigned ? 1 : 2 }}>
-                      <Typography variant="body2" sx={{ mb: 0.5 }}>
-                        Will a charger be assigned to this device?
-                      </Typography>
-                      <ToggleButtonGroup
-                        exclusive
-                        value={chargerAssigned}
-                        onChange={(_, val) => {
-                          if (val === null) return;
-                          setChargerAssigned(val);
-                          setChargerFieldError(null);
-                          if (!val) setChargerSerial('');
-                        }}
-                        size="small"
-                        disabled={isSubmitting}
-                      >
-                        <ToggleButton value={true}>Yes</ToggleButton>
-                        <ToggleButton value={false}>No</ToggleButton>
-                      </ToggleButtonGroup>
-                    </Box>
-                    {chargerAssigned && (
-                      <TextField
-                        label="Charger Serial Number"
-                        value={chargerSerial}
-                        onChange={(e) => {
-                          setChargerSerial(e.target.value);
-                          setChargerFieldError(null);
-                        }}
-                        size="small"
-                        fullWidth
-                        required
-                        error={!!chargerFieldError}
-                        helperText={chargerFieldError ?? undefined}
-                        sx={{ mb: 2 }}
-                        disabled={isSubmitting}
-                      />
+                    {carryoverCharger ? (
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        Charger S/N {carryoverCharger.charger.serialNumber} is already checked
+                        out to this user and will carry over to this device — no need to scan
+                        another.
+                      </Alert>
+                    ) : (
+                      <>
+                        <Box sx={{ mb: chargerAssigned ? 1 : 2 }}>
+                          <Typography variant="body2" sx={{ mb: 0.5 }}>
+                            Will a charger be assigned to this device?
+                          </Typography>
+                          <ToggleButtonGroup
+                            exclusive
+                            value={chargerAssigned}
+                            onChange={(_, val) => {
+                              if (val === null) return;
+                              setChargerAssigned(val);
+                              setChargerFieldError(null);
+                              if (!val) setChargerSerial('');
+                            }}
+                            size="small"
+                            disabled={isSubmitting}
+                          >
+                            <ToggleButton value={true}>Yes</ToggleButton>
+                            <ToggleButton value={false}>No</ToggleButton>
+                          </ToggleButtonGroup>
+                        </Box>
+                        {chargerAssigned && (
+                          <TextField
+                            label="Charger Serial Number"
+                            value={chargerSerial}
+                            onChange={(e) => {
+                              setChargerSerial(e.target.value);
+                              setChargerFieldError(null);
+                            }}
+                            size="small"
+                            fullWidth
+                            required
+                            error={!!chargerFieldError}
+                            helperText={chargerFieldError ?? undefined}
+                            sx={{ mb: 2 }}
+                            disabled={isSubmitting}
+                          />
+                        )}
+                      </>
                     )}
                   </>
                 )}

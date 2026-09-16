@@ -55,6 +55,40 @@ const openChargerAssignmentSelect = {
   charger: { select: { id: true, serialNumber: true } },
 } as const;
 
+// Full relation set returned by checkout() — matches the shape the Active
+// Checkouts list and the Quick Check success card expect, including the paired
+// charger (which checkout() may carry over from a returned device).
+const checkoutAssignmentInclude = {
+  user:             { select: userSelect },
+  checkedOutByUser: { select: { firstName: true, lastName: true } },
+  equipment:        { select: equipmentSelect },
+  location:         { select: { id: true, name: true } },
+  chargerAssignment: { select: openChargerAssignmentSelect },
+} as const;
+
+/**
+ * The charger a user still holds whose own device checkout is already closed —
+ * the "stranded" charger that checkout() carries onto the user's next device.
+ * Shared by checkout() and the pre-checkout lookup so the UI notice and the
+ * actual carryover can never disagree. Returns the most recent one, or null.
+ */
+export function findCarryoverChargerAssignment(client: Prisma.TransactionClient, userId: string) {
+  return client.chargerAssignment.findFirst({
+    where: {
+      userId,
+      returnedAt:       null,
+      deviceAssignment: { returnedAt: { not: null } },
+    },
+    orderBy: { checkoutAt: 'desc' },
+    select:  { id: true, charger: { select: { id: true, serialNumber: true } } },
+  });
+}
+
+/** Read-only pre-checkout lookup for the "already has a charger" UI notice. */
+export function getCarryoverCharger(userId: string) {
+  return findCarryoverChargerAssignment(prisma, userId);
+}
+
 // ---------------------------------------------------------------------------
 // Service functions
 // ---------------------------------------------------------------------------
@@ -179,7 +213,7 @@ export async function checkout(data: CheckoutData, performedByUserId: string) {
       }
 
       // Create the assignment
-      const assignment = await tx.deviceAssignment.create({
+      const created = await tx.deviceAssignment.create({
         data: {
           equipmentId:       data.equipmentId,
           userId:            data.userId,
@@ -189,12 +223,7 @@ export async function checkout(data: CheckoutData, performedByUserId: string) {
           notes:             data.notes ?? null,
           locationId,
         },
-        include: {
-          user:            { select: userSelect },
-          checkedOutByUser: { select: { firstName: true, lastName: true } },
-          equipment:       { select: equipmentSelect },
-          location:        { select: { id: true, name: true } },
-        },
+        select: { id: true },
       });
 
       // Update equipment status, assigned user, and location
@@ -207,11 +236,36 @@ export async function checkout(data: CheckoutData, performedByUserId: string) {
         },
       });
 
+      // If this user still holds a charger whose own device was already
+      // returned (checked in separately, "charger returned?" answered No),
+      // it follows them onto this new checkout instead of staying stranded
+      // on the now-closed old one.
+      const strandedCharger = await findCarryoverChargerAssignment(tx, data.userId);
+      if (strandedCharger) {
+        // chargerId / checkoutAt / checkoutBy / notes are left untouched — the
+        // charger has been continuously checked out to this person, and
+        // charger.status stays 'checked_out' because it never physically returned.
+        await tx.chargerAssignment.update({
+          where: { id: strandedCharger.id },
+          data: {
+            deviceAssignmentId: created.id,
+            userId:             data.userId,
+            assigneeType:       data.assigneeType,
+          },
+        });
+      }
+
+      const assignment = await tx.deviceAssignment.findUniqueOrThrow({
+        where:   { id: created.id },
+        include: checkoutAssignmentInclude,
+      });
+
       log.info('Device checked out', {
         assignmentId: assignment.id,
         equipmentId:  data.equipmentId,
         userId:       data.userId,
         performedBy:  performedByUserId,
+        chargerCarriedOver: !!strandedCharger,
       });
 
       return assignment;

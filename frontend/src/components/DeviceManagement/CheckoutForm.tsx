@@ -15,6 +15,7 @@ import {
   ToggleButtonGroup,
   Typography,
 } from '@mui/material';
+import { useQuery } from '@tanstack/react-query';
 import { deviceAssignmentService } from '../../services/deviceAssignment.service';
 import { DeviceManagementUserSearch, type UserOption } from './UserSearchAutocomplete';
 import type { CheckoutFormData, DeviceAssignment } from '../../types/deviceAssignment.types';
@@ -51,6 +52,15 @@ export function CheckoutForm({ equipmentId, onSuccess, onCancel }: CheckoutFormP
   });
 
   const assigneeType = watch('assigneeType');
+  const selectedUser = watch('user');
+
+  // Charger already checked out to the selected assignee that will carry over
+  // to this checkout automatically.
+  const { data: carryoverCharger } = useQuery({
+    queryKey: ['carryover-charger', selectedUser?.id],
+    queryFn:  () => deviceAssignmentService.getCarryoverCharger(selectedUser!.id),
+    enabled:  !!selectedUser,
+  });
 
   const onSubmit = async (values: FormValues) => {
     if (!values.user) return;
@@ -143,6 +153,14 @@ export function CheckoutForm({ equipmentId, onSuccess, onCancel }: CheckoutFormP
           <TextField {...field} label="Notes (optional)" multiline rows={2} size="small" fullWidth />
         )}
       />
+
+      {/* Carryover charger notice */}
+      {carryoverCharger && (
+        <Alert severity="info">
+          Charger S/N {carryoverCharger.charger.serialNumber} is already checked out to this
+          user and will carry over to this device — no need to scan another.
+        </Alert>
+      )}
 
       {/* Actions */}
       <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>

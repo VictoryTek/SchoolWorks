@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.9.6',
+    changes: [
+      'A charger a student was still holding is no longer stranded on their old, already-returned laptop when the check-in and the next checkout happen as two separate actions (e.g. Quick Check, the scan-to-checkout form, or Bulk Check Out) — it now follows them onto their new device automatically, the same way it already did for a single-request device exchange.',
+      'Quick Check and the single-device checkout form now say "a charger is already checked out to this user and will carry over" instead of asking whether to assign one, when the assignee already has an unreturned charger — so you no longer get a "already assigned to this checkout" error from re-scanning it.',
+      'The equipment detail drawer\'s tab rail is now a floating rounded card with an icon above each tab label, matching the intended design instead of the plain bordered sidebar it shipped with; the selected tab\'s label is now visible (it could render invisible on the blue highlight). The sixth tab is relabeled "History", the footer\'s redundant History button was removed, and "Report Damage" now sits under the close button instead of beside it.',
+    ],
+  },
+  {
     version: '1.9.5',
     changes: [
       'Fixed the Approve/Deny buttons on a field trip staying hidden forever for an approver who had already approved it once, even after a later-stage approver sent it back for revision and it was resubmitted — the buttons now reappear once the trip cycles back to that approver\'s stage.',

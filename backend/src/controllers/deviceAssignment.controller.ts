@@ -154,6 +154,19 @@ export const getByUser = async (req: AuthRequest, res: Response): Promise<void> 
 };
 
 // ---------------------------------------------------------------------------
+// Read — pre-checkout carryover charger notice
+// ---------------------------------------------------------------------------
+
+export const getCarryoverCharger = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const result = await service.getCarryoverCharger(req.params['userId'] as string);
+    res.json(result);
+  } catch (error) {
+    handleControllerError(error, res);
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Read — by equipment
 // ---------------------------------------------------------------------------
 
