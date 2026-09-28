@@ -15,6 +15,7 @@ import type {
   DeviceExchangeSchema,
 } from '../validators/damageIncident.validators';
 import { generateInvoiceNumber } from './invoice.service';
+import { findCarryoverChargerAssignment } from './deviceAssignment.service';
 
 const log = createLogger('DamageIncidentService');
 
@@ -510,7 +511,7 @@ export async function deviceExchange(
     if (data.checkin) {
       const existingAssignment = await tx.deviceAssignment.findUnique({
         where:  { id: data.checkin.assignmentId },
-        select: { id: true, equipmentId: true, returnedAt: true },
+        select: { id: true, equipmentId: true, returnedAt: true, userId: true },
       });
       if (!existingAssignment) throw new NotFoundError('DeviceAssignment', data.checkin.assignmentId);
       if (existingAssignment.returnedAt) {
@@ -546,6 +547,23 @@ export async function deviceExchange(
           assignedToUserId: null,
         },
       });
+
+      // Skip's "also check in charger" option — only relevant when there's no
+      // replacement checkout (with one, the existing carry-over logic below
+      // already moves the charger onto the new device instead).
+      if (data.checkin.returnCharger && !data.checkout) {
+        const openCharger = await findCarryoverChargerAssignment(tx, existingAssignment.userId);
+        if (openCharger) {
+          await tx.chargerAssignment.update({
+            where: { id: openCharger.id },
+            data:  { returnedAt: new Date(), returnedBy: performedByUserId },
+          });
+          await tx.charger.update({
+            where: { id: openCharger.charger.id },
+            data:  { status: 'active' },
+          });
+        }
+      }
     }
 
     if (data.checkout) {

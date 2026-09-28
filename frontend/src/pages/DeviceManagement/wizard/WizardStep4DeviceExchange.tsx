@@ -28,6 +28,7 @@ import { deviceExchangeService } from '../../../services/deviceExchange.service'
 import type { DeviceExchangeResponse } from '../../../services/deviceExchange.service';
 import type { InventoryItem } from '../../../types/inventory.types';
 import type { DamageIncident } from '../../../types/damageIncident.types';
+import { goesStraightToInvoice } from '../../../components/DeviceManagement/damageOptions';
 import type { Step1Values } from './wizardSchemas';
 
 // ---------------------------------------------------------------------------
@@ -87,6 +88,7 @@ export default function WizardStep4DeviceExchange({
   const [checkoutNotes,        setCheckoutNotes]        = useState('');
   const [checkoutError,        setCheckoutError]        = useState<string | null>(null);
   const [filterByCategory,     setFilterByCategory]     = useState(true);
+  const [returnCharger,        setReturnCharger]        = useState(false);
 
   // ── Debounce device search ───────────────────────────────────────────────
   useEffect(() => {
@@ -104,6 +106,19 @@ export default function WizardStep4DeviceExchange({
     enabled:  !!prefillAssignmentId,
     staleTime: 60_000,
   });
+
+  // ── Charger the student still holds — either paired with this checkout, or
+  // stranded on an earlier already-returned one (see getCarryoverCharger) ───
+  const { data: carryoverCharger } = useQuery({
+    queryKey: ['carryover-charger', step1.userId],
+    queryFn:  () => deviceAssignmentService.getCarryoverCharger(step1.userId!),
+    enabled:  !!step1.userId,
+    staleTime: 30_000,
+  });
+  const openCharger =
+    (prefillAssignment?.chargerAssignment && !prefillAssignment.chargerAssignment.returnedAt
+      ? prefillAssignment.chargerAssignment
+      : null) ?? carryoverCharger ?? null;
 
   // ── Broken device category for filtering ────────────────────────────────
   // Fetch the broken device's full inventory record to get categoryId
@@ -137,6 +152,7 @@ export default function WizardStep4DeviceExchange({
       const checkin = hasAssignment ? {
         assignmentId:    prefillAssignmentId!,
         returnCondition: 'damaged' as Condition,
+        returnCharger:   skipCheckout && !!openCharger && returnCharger,
       } : undefined;
       const checkout = skipCheckout ? undefined : {
         equipmentId:       selectedDevice!.id,
@@ -148,7 +164,7 @@ export default function WizardStep4DeviceExchange({
       // The repair ticket for an accidental-damage incident is created here,
       // not by the wizard's earlier submit step — only once the exchange
       // actually completes, so an abandoned wizard never leaves one stranded.
-      const createRepairTicket = createdIncident.intent !== 'intentional' && !!createdIncident.equipmentId;
+      const createRepairTicket = !goesStraightToInvoice(createdIncident) && !!createdIncident.equipmentId;
       return deviceExchangeService.exchange(createdIncident.id, { checkin, checkout, createRepairTicket });
     },
     onSuccess: (result) => {
@@ -344,6 +360,24 @@ export default function WizardStep4DeviceExchange({
             No active checkout on record for this device — nothing to check in.
           </Alert>
         )}
+
+        {skipCheckout && openCharger && (
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Checkbox
+                size="small"
+                checked={returnCharger}
+                onChange={(e) => setReturnCharger(e.target.checked)}
+              />
+            }
+            label={
+              <Typography variant="caption">
+                Also check in charger ({openCharger.charger.serialNumber})
+              </Typography>
+            }
+          />
+        )}
       </Paper>
 
       {/* Panel B — Check Out Replacement Device */}
@@ -518,8 +552,8 @@ export default function WizardStep4DeviceExchange({
         >
           {isBusy
             ? 'Processing…'
-            : !hasAssignment && skipCheckout
-              ? 'Skip Exchange & Close Incident'
+            : skipCheckout
+              ? 'Finish'
               : 'Complete Exchange'}
         </Button>
       </Box>

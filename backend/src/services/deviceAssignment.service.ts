@@ -752,6 +752,7 @@ export async function getById(id: string) {
       checkedOutByUser: { select: { firstName: true, lastName: true } },
       returnedByUser:  { select: { firstName: true, lastName: true } },
       location:        { select: { id: true, name: true } },
+      chargerAssignment: { select: openChargerAssignmentSelect },
       damageIncidents: {
         orderBy: { reportedAt: 'desc' },
         take: 5,

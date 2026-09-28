@@ -6,6 +6,7 @@ export interface DeviceExchangeCheckinPayload {
   assignmentId:    string;
   returnCondition: string;
   returnNotes?:    string;
+  returnCharger?:  boolean;
 }
 
 export interface DeviceExchangeCheckoutPayload {

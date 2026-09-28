@@ -27,3 +27,15 @@ export const SEVERITY_COLORS: Record<string, 'success' | 'warning' | 'error' | '
   severe:     'error',
   total_loss: 'error',
 };
+
+/**
+ * A lost device (Missing Device, Total Loss) has nothing to repair, so like
+ * intentional damage it skips the repair ticket and goes straight to invoice.
+ */
+export function goesStraightToInvoice(inc: {
+  intent?: string | null;
+  damageType?: string | null;
+  severity?: string | null;
+}): boolean {
+  return inc.intent === 'intentional' || (inc.damageType === 'missing_device' && inc.severity === 'total_loss');
+}

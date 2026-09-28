@@ -91,6 +91,9 @@ export const DeviceExchangeSchema = z.object({
     assignmentId:    z.string().uuid(),
     returnCondition: ReturnConditionEnum,
     returnNotes:     z.string().max(1000).optional(),
+    // Only honoured when there is no replacement checkout — with a
+    // replacement, the existing carry-over logic already moves the charger.
+    returnCharger:   z.boolean().default(false),
   }).optional(),
   checkout: z.object({
     equipmentId:       z.string().uuid(),

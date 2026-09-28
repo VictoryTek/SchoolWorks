@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.9.7',
+    changes: [
+      'Field trip approval routing (and the purchase order no-office-location fallback) now stays correct after a supervisor assignment changes — the underlying routing list is rebuilt automatically as part of the existing supervisor sync job, instead of only reflecting whoever was assigned back when a one-off setup script last ran. Manually-assigned supervisors are never affected.',
+      'Finishing a device exchange from an incident (Active Checkouts → Create Incident → complete the exchange) now returns you to Active Checkouts with the search box cleared, instead of restoring your old search for a device that just changed hands and showing "No active checkouts found." Cancelling out of the incident wizard still returns you to your search exactly as before.',
+      'A lost device (Missing Device, Total Loss) reported as Accidental now goes straight to the invoice step, the same as Intentional damage, since there is nothing to repair — no repair ticket is created for it. A warning explains this on the Damage Details step.',
+      'The incident wizard\'s Device Exchange step now says "Finish" instead of "Complete Exchange" when you tick "Skip — no replacement needed," and if the student still has a charger checked out, you can check it in at the same time instead of it staying listed as outstanding.',
+    ],
+  },
+  {
     version: '1.9.6',
     changes: [
       'A charger a student was still holding is no longer stranded on their old, already-returned laptop when the check-in and the next checkout happen as two separate actions (e.g. Quick Check, the scan-to-checkout form, or Bulk Check Out) — it now follows them onto their new device automatically, the same way it already did for a single-request device exchange.',

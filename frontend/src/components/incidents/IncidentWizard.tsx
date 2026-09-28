@@ -27,6 +27,7 @@ import WizardStep4DeviceExchange from '../../pages/DeviceManagement/wizard/Wizar
 import CreateInvoiceDialog from '../DeviceManagement/CreateInvoiceDialog';
 import { damageIncidentService } from '../../services/damageIncident.service';
 import { userService } from '../../services/userService';
+import { goesStraightToInvoice } from '../DeviceManagement/damageOptions';
 import {
   Step1Schema,
   Step2Schema,
@@ -85,9 +86,10 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 
 function getInitialStep(inc: DamageIncident | undefined): number {
   if (!inc?.workflowStep) return 0;
-  // Device Exchange is the last step: index 2 for accidental (no repair-detail
-  // step), index 3 for intentional (has the Create Invoice step before it).
-  const deviceExchangeStep = inc.intent === 'intentional' ? 3 : 2;
+  // Device Exchange is the last step: index 2 when repair is skipped entirely
+  // (no repair-detail step), index 3 when there's a Create Invoice step before it
+  // — intentional damage, or a lost device (Missing Device + Total Loss).
+  const deviceExchangeStep = goesStraightToInvoice(inc) ? 3 : 2;
   switch (inc.workflowStep) {
     case 'DAMAGE_REPORTED':  return 1;
     case 'PENDING_REPAIR':
@@ -117,8 +119,8 @@ function buildInitialState(inc: DamageIncident | undefined): WizardState {
 // Step labels
 // ---------------------------------------------------------------------------
 
-function getStepLabels(intent: string | undefined): string[] {
-  return intent === 'intentional'
+function getStepLabels(invoiceFlow: boolean): string[] {
+  return invoiceFlow
     ? ['Link & Date', 'Damage Details', 'Create Invoice', 'Device Exchange']
     : ['Link & Date', 'Damage Details', 'Device Exchange'];
 }
@@ -346,6 +348,11 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
       // instead of re-running the submit mutation (which would re-create
       // side effects), but persist any edits made to Damage Details first.
       updateIncidentMutation.mutate();
+    } else if (goesStraightToInvoice(state.step2)) {
+      // Accidental but a lost device (Missing Device + Total Loss) — no
+      // incident exists yet; the Create Invoice step's own button creates it
+      // via intentionalSubmitMutation when clicked, same as the intentional path.
+      setActiveStep(2);
     } else {
       accidentalSubmitMutation.mutate();
     }
@@ -368,10 +375,9 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
   // Derived
   // ---------------------------------------------------------------------------
 
-  const intent        = state.step2.intent;
-  const stepLabels    = getStepLabels(intent);
+  const invoiceFlow   = goesStraightToInvoice(state.step2);
+  const stepLabels    = getStepLabels(invoiceFlow);
   const incident      = state.createdIncident;
-  const isIntentional = intent === 'intentional';
 
   const isBusy =
     accidentalSubmitMutation.isPending ||
@@ -454,12 +460,12 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
               onChange={(patch) => dispatch({ type: 'PATCH_STEP2', payload: patch })}
               errors={state.errors2}
             />
-            {!isIntentional && thresholdWarning}
+            {!invoiceFlow && thresholdWarning}
           </>
         );
 
       case 2: {
-        if (isIntentional) {
+        if (invoiceFlow) {
           const hasInvoice =
             (incident?.invoices?.length ?? 0) > 0 ||
             (incident?._count?.invoices ?? 0) > 0;
@@ -480,7 +486,7 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
               ) : (
                 <>
                   <Alert severity="info">
-                    Intentional damage skips repair. Submitting will create the incident record and open the invoice form.
+                    {state.step2.intent === 'intentional' ? 'Intentional damage' : 'A lost device'} skips repair. Submitting will create the incident record and open the invoice form.
                   </Alert>
                   <Button
                     variant="contained"
@@ -532,13 +538,13 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
   }
 
   function renderActions() {
-    const deviceExchangeStep = isIntentional ? 3 : 2;
+    const deviceExchangeStep = invoiceFlow ? 3 : 2;
     if (activeStep === deviceExchangeStep) {
       // WizardStep4DeviceExchange renders its own Back and Complete Exchange buttons
       return null;
     }
 
-    if (activeStep === 2 && isIntentional) {
+    if (activeStep === 2 && invoiceFlow) {
       // Invoice creation is handled via separate dialog button above
       return (
         <Button variant="outlined" onClick={() => setActiveStep(1)} disabled={isBusy}>
@@ -556,12 +562,12 @@ export default function IncidentWizard({ open, onClose, onCreated, initialIncide
           <Button
             variant="contained"
             onClick={handleNextStep1}
-            disabled={isBusy || (!isIntentional && requiresAdminNotify)}
+            disabled={isBusy || (!invoiceFlow && requiresAdminNotify)}
             startIcon={isBusy ? <CircularProgress size={16} /> : undefined}
           >
             {isBusy
-              ? (isIntentional ? 'Creating...' : 'Submitting...')
-              : (isIntentional ? 'Next' : 'Submit')}
+              ? (invoiceFlow ? 'Creating...' : 'Submitting...')
+              : (invoiceFlow ? 'Next' : 'Submit')}
           </Button>
         </>
       );

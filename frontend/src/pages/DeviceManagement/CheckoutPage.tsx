@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 import { useGoBack } from '@/hooks/useGoBack';
 import { useFilterParams } from '@/hooks/useFilterParams';
 import { useAutoFocusSearch } from '../../hooks/useAutoFocusSearch';
@@ -66,6 +66,7 @@ function todayLocal(): string {
 // Active checkouts page — /device-management/checkouts
 export default function CheckoutPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const goBack = useGoBack();
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
@@ -100,6 +101,17 @@ export default function CheckoutPage() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setDebouncedSearch(val), 300);
   }, [setFilters]);
+
+  // Handed to the incident wizard so that, once it FINISHES (not Cancel/Back),
+  // it can return here with the search cleared instead of restoring a query
+  // for a device that's no longer checked out (see IncidentWizardPage).
+  const returnToParams = new URLSearchParams(location.search);
+  returnToParams.delete('search');
+  returnToParams.delete('page');
+  const returnToQuery = returnToParams.toString();
+  const wizardReturnState = {
+    returnTo: `${location.pathname}${returnToQuery ? `?${returnToQuery}` : ''}`,
+  };
 
   // Checkin dialog state
   // True only for a row whose device side closed but whose paired charger did not.
@@ -339,6 +351,7 @@ export default function CheckoutPage() {
               startIcon={<ReportProblemIcon />}
               component={RouterLink}
               to={`/incidents/new?equipmentId=${r.equipmentId}&userId=${r.userId ?? ''}&assignmentId=${r.id}&damageDate=${todayLocal()}`}
+              state={wizardReturnState}
               onClick={(e) => e.stopPropagation()}
               sx={{ whiteSpace: 'nowrap' }}
             >
@@ -493,7 +506,10 @@ export default function CheckoutPage() {
                     chargerSerialNumber: target.chargerAssignment.charger.serialNumber,
                   });
                 } else if (shouldCreateIncident && target) {
-                  navigate(`/incidents/new?equipmentId=${target.equipmentId}&userId=${target.userId ?? ''}&assignmentId=${target.id}&damageDate=${todayLocal()}`);
+                  navigate(
+                    `/incidents/new?equipmentId=${target.equipmentId}&userId=${target.userId ?? ''}&assignmentId=${target.id}&damageDate=${todayLocal()}`,
+                    { state: wizardReturnState },
+                  );
                 }
                 checkinMutation.mutate();
               }}

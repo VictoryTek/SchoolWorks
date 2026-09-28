@@ -25,6 +25,7 @@ import { InvoiceStatusChip } from '../../components/DeviceManagement/InvoiceStat
 import { PhotoUploadGrid } from '../../components/DeviceManagement/PhotoUploadGrid';
 import CreateInvoiceDialog from '../../components/DeviceManagement/CreateInvoiceDialog';
 import IncidentWizard from '../../components/incidents/IncidentWizard';
+import { goesStraightToInvoice } from '../../components/DeviceManagement/damageOptions';
 import type { DamageIncident } from '../../types/damageIncident.types';
 import type { IncidentIntent, InvoiceStatus } from '@mgspe/shared-types';
 
@@ -44,7 +45,7 @@ interface DisplayStep {
 // its own underlying fact (repair ticket status, invoice existence, etc.)
 // instead of a single ordinal position in workflowStep.
 function buildDisplaySteps(incident: DamageIncident): DisplayStep[] {
-  const isIntentional   = incident.intent === 'intentional';
+  const skipsRepair     = goesStraightToInvoice(incident);
   const deviceExchanged = incident.workflowStep === 'DEVICE_EXCHANGE' || incident.workflowStep === 'CLOSED';
   // A device-only incident (no user/assignment) has no one to exchange a
   // device with — omit the step entirely rather than showing it stuck blank.
@@ -63,7 +64,7 @@ function buildDisplaySteps(incident: DamageIncident): DisplayStep[] {
     steps.push({ key: 'DEVICE_EXCHANGE', label: 'Device Exchanged', completed: deviceExchanged });
   }
 
-  if (!isIntentional) {
+  if (!skipsRepair) {
     steps.push(
       { key: 'SENT_TO_REPAIR',  label: 'Sent to Repair',   completed: sentToRepair },
       { key: 'REPAIR_COMPLETE', label: 'Repair Completed', completed: repairCompleted },
@@ -90,7 +91,7 @@ function getNextActionLabel(incident: DamageIncident): string | null {
   if (incident.workflowStep === 'DEVICE_EXCHANGE') return null;
   // Device-only incident — no user/assignment to exchange a device with.
   if (!incident.userId && !incident.assignmentId) return null;
-  if (incident.intent === 'intentional' && (incident.invoices?.length ?? 0) === 0) {
+  if (goesStraightToInvoice(incident) && (incident.invoices?.length ?? 0) === 0) {
     return 'Create Invoice';
   }
   return 'Complete Device Exchange';

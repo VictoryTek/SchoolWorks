@@ -14,6 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { DamageType, DamageSeverity } from '@mgspe/shared-types';
+import { goesStraightToInvoice } from '../../../components/DeviceManagement/damageOptions';
 import type { Step2Values } from './wizardSchemas';
 
 const DAMAGE_TYPES: { value: DamageType; label: string }[] = [
@@ -102,6 +103,14 @@ export default function WizardStep2DamageDetails({ values, onChange, errors }: W
         <Alert severity="warning" sx={{ mt: 0 }}>
           <Typography variant="body2">
             Intentional damage will proceed <strong>directly to invoice</strong> — no repair ticket will be created.
+          </Typography>
+        </Alert>
+      )}
+
+      {values.intent === 'accidental' && goesStraightToInvoice(values) && (
+        <Alert severity="warning" sx={{ mt: 0 }}>
+          <Typography variant="body2">
+            A lost device (Missing Device, Total Loss) will proceed directly to invoice — no repair ticket will be created.
           </Typography>
         </Alert>
       )}
