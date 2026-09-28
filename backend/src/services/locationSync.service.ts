@@ -379,6 +379,12 @@ export class LocationSyncService {
       }
     }
 
+    // Rebuild per-teacher UserSupervisor rows now that LocationSupervisor is current.
+    const userSyncResult = await this.syncUserSupervisorAssignments();
+    assignmentsCreated += userSyncResult.assignmentsCreated;
+    assignmentsSkipped += userSyncResult.assignmentsSkipped;
+    errorDetails.push(...userSyncResult.errorDetails);
+
     const durationMs = Date.now() - startTime;
     this.logger.info('Supervisor assignment sync completed', {
       assignmentsCreated,
@@ -398,6 +404,104 @@ export class LocationSyncService {
       errorDetails,
       durationMs,
     };
+  }
+
+  /**
+   * Rebuild all UserSupervisor rows — the per-teacher supervisor list that
+   * field trip approval routing (and the PO no-office-location fallback) reads
+   * from. Resolves each active staff member's officeLocation through the same
+   * alias-aware LOCATION_MAPPING used for LocationSupervisor above, instead of
+   * an exact name match, so legacy names (e.g. 'Ridgemont Elementary') keep
+   * resolving correctly during a rename transition rather than silently
+   * failing to match.
+   *
+   * Only rows with assignedBy 'SYSTEM' (the retired one-off
+   * scripts/assign-user-supervisors.ts marker) or 'SYSTEM_SYNC' (this
+   * method's own marker) are ever deleted/rebuilt — manually-assigned rows
+   * (assignedBy set to a real user id) are never touched, matching the same
+   * safety rule used for LocationSupervisor above.
+   */
+  private async syncUserSupervisorAssignments(): Promise<{
+    assignmentsCreated: number;
+    assignmentsSkipped: number;
+    errorDetails: Array<{ group: string; email?: string; message: string }>;
+  }> {
+    let assignmentsCreated = 0;
+    let assignmentsSkipped = 0;
+    const errorDetails: Array<{ group: string; email?: string; message: string }> = [];
+
+    const deleted = await this.prisma.userSupervisor.deleteMany({
+      where: { assignedBy: { in: ['SYSTEM', 'SYSTEM_SYNC'] } },
+    });
+    this.logger.info('Cleared sync-managed user-supervisor assignments (manual assignments preserved)', {
+      count: deleted.count,
+    });
+
+    const staff = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        officeLocation: { not: null },
+        email: { endsWith: '@ocboe.com', mode: 'insensitive' },
+        NOT: { email: { endsWith: '@students.ocboe.com', mode: 'insensitive' } },
+      },
+      select: { id: true, email: true, officeLocation: true },
+    });
+
+    for (const user of staff) {
+      const location = await this.getOrCreateLocationFromMapping(
+        user.officeLocation!,
+        'user-supervisor-sync',
+      );
+
+      if (!location) {
+        assignmentsSkipped++;
+        continue;
+      }
+
+      const supervisors = await this.prisma.locationSupervisor.findMany({
+        where: {
+          locationId: location.id,
+          supervisorType: { in: ['PRINCIPAL', 'VICE_PRINCIPAL'] },
+        },
+      });
+
+      if (supervisors.length === 0) {
+        assignmentsSkipped++;
+        continue;
+      }
+
+      for (const supervisor of supervisors) {
+        if (supervisor.userId === user.id) continue;
+
+        try {
+          await this.prisma.userSupervisor.create({
+            data: {
+              userId:       user.id,
+              supervisorId: supervisor.userId,
+              locationId:   location.id,
+              isPrimary:    supervisor.isPrimary,
+              assignedBy:   'SYSTEM_SYNC',
+              notes:        `Auto-assigned based on office location: ${user.officeLocation}`,
+            },
+          });
+          assignmentsCreated++;
+        } catch (error: unknown) {
+          const message =
+            error instanceof Error ? error.message : 'Unknown error';
+          if (message.toLowerCase().includes('unique constraint')) {
+            assignmentsSkipped++;
+          } else {
+            errorDetails.push({ group: 'user-supervisor-sync', email: user.email, message });
+            this.logger.error('Error creating user-supervisor assignment', {
+              email: user.email,
+              error,
+            });
+          }
+        }
+      }
+    }
+
+    return { assignmentsCreated, assignmentsSkipped, errorDetails };
   }
 
   /** Look up or create a location by its code (used for departmentCode overrides). */
