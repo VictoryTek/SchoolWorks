@@ -575,21 +575,36 @@ export class FieldTripTransportationService {
       throw new AuthorizationError('You do not have permission to view the transportation approval history');
     }
 
+    // With no explicit status filter, also surface requests whose *field trip*
+    // was sent back for revision or denied — these never got their own
+    // TRANSPORTATION_APPROVED/DENIED decision, so they'd otherwise be
+    // invisible here and in the pending queue (which requires the trip to be
+    // APPROVED) forever. An explicit status filter is left exactly as narrow
+    // as requested.
+    const statusFilter = filters.status
+      ? { status: filters.status }
+      : {
+          OR: [
+            { status: { in: ['TRANSPORTATION_APPROVED', 'TRANSPORTATION_DENIED'] } },
+            { fieldTripRequest: { status: { in: ['NEEDS_REVISION', 'DENIED'] } } },
+          ],
+        };
+
     return prisma.fieldTripTransportationRequest.findMany({
       where: {
-        status: filters.status
-          ? filters.status
-          : { in: ['TRANSPORTATION_APPROVED', 'TRANSPORTATION_DENIED'] },
-        ...(filters.from || filters.to
-          ? {
-              fieldTripRequest: {
-                tripDate: {
-                  ...(filters.from ? { gte: new Date(filters.from) } : {}),
-                  ...(filters.to ? { lte: new Date(filters.to) } : {}),
+        AND: [
+          statusFilter,
+          ...(filters.from || filters.to
+            ? [{
+                fieldTripRequest: {
+                  tripDate: {
+                    ...(filters.from ? { gte: new Date(filters.from) } : {}),
+                    ...(filters.to ? { lte: new Date(filters.to) } : {}),
+                  },
                 },
-              },
-            }
-          : {}),
+              }]
+            : []),
+        ],
       },
       include: TRANSPORT_WITH_TRIP,
       orderBy: { updatedAt: 'desc' },

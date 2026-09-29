@@ -36,8 +36,8 @@ const FIELD_TRIP_WORKFLOW_STAGES: WorkflowStage[] = [
   { status: 'DRAFT',                    label: 'Draft Created',                           stage: '' },
   { status: 'PENDING_SUPERVISOR',       label: 'Pending Supervisor Approval',             stage: 'SUPERVISOR' },
   { status: 'PENDING_ASST_DIRECTOR',    label: 'Pending Asst. Director Approval',         stage: 'ASST_DIRECTOR' },
-  { status: 'PENDING_DIRECTOR',         label: 'Pending Director of Schools Approval',    stage: 'DIRECTOR' },
   { status: 'PENDING_FINANCE_DIRECTOR', label: 'Pending Finance Director Approval',       stage: 'FINANCE_DIRECTOR' },
+  { status: 'PENDING_DIRECTOR',         label: 'Pending Director of Schools Approval',    stage: 'DIRECTOR' },
   { status: 'APPROVED',                 label: 'Approved',                                stage: '' },
 ];
 

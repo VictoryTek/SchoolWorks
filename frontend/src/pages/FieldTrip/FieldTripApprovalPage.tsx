@@ -384,7 +384,15 @@ const transportHistoryColumns: Column<FieldTripTransportationRequest>[] = [
   {
     key: 'status',
     label: 'Transport Status',
-    render: (row) => <TransportStatusChip status={row.status as TransportationStatus} />,
+    render: (row) => {
+      const tripStatus = row.fieldTripRequest?.status;
+      const onHold = (tripStatus === 'NEEDS_REVISION' || tripStatus === 'DENIED')
+        && row.status !== 'TRANSPORTATION_APPROVED'
+        && row.status !== 'TRANSPORTATION_DENIED';
+      return onHold
+        ? <StatusChip status={tripStatus as FieldTripStatus} />
+        : <TransportStatusChip status={row.status as TransportationStatus} />;
+    },
   },
   {
     key: 'decidedBy',

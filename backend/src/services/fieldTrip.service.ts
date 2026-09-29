@@ -3,7 +3,7 @@
  *
  * Business logic for the field trip approval workflow:
  *   DRAFT → PENDING_SUPERVISOR (or PENDING_ASST_DIRECTOR if no supervisor)
- *         → PENDING_DIRECTOR → PENDING_FINANCE_DIRECTOR → APPROVED
+ *         → PENDING_FINANCE_DIRECTOR → PENDING_DIRECTOR → APPROVED
  *   Any pending state → DENIED (via deny)
  *
  * Follows the PurchaseOrderService class pattern exactly.
@@ -24,9 +24,9 @@ import { generateFieldTripPdf } from './fieldTripPdf.service';
 /** Maps the current pending status to the next status in the approval chain. */
 const APPROVAL_CHAIN: Record<string, string> = {
   PENDING_SUPERVISOR:       'PENDING_ASST_DIRECTOR',
-  PENDING_ASST_DIRECTOR:    'PENDING_DIRECTOR',
-  PENDING_DIRECTOR:         'PENDING_FINANCE_DIRECTOR',
-  PENDING_FINANCE_DIRECTOR: 'APPROVED',
+  PENDING_ASST_DIRECTOR:    'PENDING_FINANCE_DIRECTOR',
+  PENDING_FINANCE_DIRECTOR: 'PENDING_DIRECTOR',
+  PENDING_DIRECTOR:         'APPROVED',
 };
 
 /** Maps the current status to the stage label stored in FieldTripApproval.stage. */
