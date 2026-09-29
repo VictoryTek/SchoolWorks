@@ -15,8 +15,10 @@ import {
   Button,
   Chip,
   Paper,
+  Stack,
   Tab,
   Tabs,
+  TextField,
   Typography,
 } from '@mui/material';
 import DirectionsBusIcon from '@mui/icons-material/DirectionsBus';
@@ -44,8 +46,9 @@ import { PageBackButton } from '../../components/layout/PageBackButton';
 export function FieldTripApprovalPage() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  // Tab lives in the URL so Back from a trip returns to the tab it was opened from
-  const [filters, setFilters] = useFilterParams({ tab: '0' });
+  // Tab (and Transportation History's date range) live in the URL so Back
+  // from a trip returns to the same tab/filters it was opened from
+  const [filters, setFilters] = useFilterParams({ tab: '0', historyFrom: '', historyTo: '' });
   const activeTab = Number(filters.tab) || 0;
 
   const { data: trips, isLoading, error } = useQuery<FieldTripRequest[]>({
@@ -80,8 +83,11 @@ export function FieldTripApprovalPage() {
     isLoading: transportHistoryLoading,
     error: transportHistoryError,
   } = useQuery<FieldTripTransportationRequest[]>({
-    queryKey: ['field-trips', 'transportation', 'history'],
-    queryFn:  () => fieldTripTransportationService.listHistory(),
+    queryKey: ['field-trips', 'transportation', 'history', filters.historyFrom, filters.historyTo],
+    queryFn:  () => fieldTripTransportationService.listHistory({
+      from: filters.historyFrom || undefined,
+      to:   filters.historyTo || undefined,
+    }),
     enabled:  activeTab === 3,
   });
 
@@ -223,6 +229,36 @@ export function FieldTripApprovalPage() {
               Failed to load transportation approval history.
             </Alert>
           )}
+          <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" sx={{ mb: 2 }}>
+            <TextField
+              size="small"
+              type="date"
+              label="From"
+              value={filters.historyFrom}
+              onChange={(e) => setFilters({ historyFrom: e.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ width: { xs: 'unset', sm: 150 } }}
+            />
+            <TextField
+              size="small"
+              type="date"
+              label="To"
+              value={filters.historyTo}
+              onChange={(e) => setFilters({ historyTo: e.target.value })}
+              slotProps={{ inputLabel: { shrink: true } }}
+              sx={{ width: { xs: 'unset', sm: 150 } }}
+            />
+            {(filters.historyFrom || filters.historyTo) && (
+              <Button size="small" onClick={() => setFilters({ historyFrom: '', historyTo: '' })}>
+                Clear
+              </Button>
+            )}
+            {!filters.historyFrom && !filters.historyTo && (
+              <Typography variant="caption" color="text.secondary">
+                Showing upcoming trips only — pick a date range to view past trips.
+              </Typography>
+            )}
+          </Stack>
           <Paper variant="outlined">
             <ResponsiveTable<FieldTripTransportationRequest>
               columns={transportHistoryColumns}
@@ -230,7 +266,7 @@ export function FieldTripApprovalPage() {
               getRowKey={(row) => row.id}
               onRowClick={(row) => navigate(`/field-trips/${row.fieldTripRequestId}/transportation/view`)}
               loading={transportHistoryLoading}
-              emptyMessage="No transportation requests have been decided yet."
+              emptyMessage="No transportation requests found for this view."
               rowActions={(row) => (
                 <Button
                   size="small"

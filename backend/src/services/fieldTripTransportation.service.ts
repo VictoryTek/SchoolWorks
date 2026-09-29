@@ -590,24 +590,35 @@ export class FieldTripTransportationService {
           ],
         };
 
+    // Default view (no explicit from/to): only trips that haven't happened
+    // yet — a trip rolls off automatically once its own date (or return
+    // date, for overnight trips) has passed. Passing an explicit from/to
+    // overrides this and shows exactly that window instead, past dates
+    // included — that's how the date selector surfaces past trips on demand.
+    const hasExplicitRange = Boolean(filters.from || filters.to);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const dateFilter = hasExplicitRange
+      ? {
+          fieldTripRequest: {
+            tripDate: {
+              ...(filters.from ? { gte: new Date(filters.from) } : {}),
+              ...(filters.to ? { lte: new Date(filters.to) } : {}),
+            },
+          },
+        }
+      : {
+          OR: [
+            { fieldTripRequest: { returnDate: { gte: startOfToday } } },
+            { fieldTripRequest: { returnDate: null, tripDate: { gte: startOfToday } } },
+          ],
+        };
+
     return prisma.fieldTripTransportationRequest.findMany({
-      where: {
-        AND: [
-          statusFilter,
-          ...(filters.from || filters.to
-            ? [{
-                fieldTripRequest: {
-                  tripDate: {
-                    ...(filters.from ? { gte: new Date(filters.from) } : {}),
-                    ...(filters.to ? { lte: new Date(filters.to) } : {}),
-                  },
-                },
-              }]
-            : []),
-        ],
-      },
+      where: { AND: [statusFilter, dateFilter] },
       include: TRANSPORT_WITH_TRIP,
-      orderBy: { updatedAt: 'desc' },
+      orderBy: { fieldTripRequest: { tripDate: 'asc' } },
     });
   }
 
