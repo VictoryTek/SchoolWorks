@@ -20,6 +20,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'The incident wizard\'s Device Exchange step now says "Finish" instead of "Complete Exchange" when you tick "Skip — no replacement needed," and if the student still has a charger checked out, you can check it in at the same time instead of it staying listed as outstanding.',
       'Field trip approvals now route to the Finance Director before the Director of Schools for final sign-off, instead of the other way around — the order is now Supervisor, Assistant Director of Schools, Finance Director, then Director of Schools.',
       'A field trip\'s transportation request no longer vanishes from the Transportation History tab when the trip itself is sent back for revision or denied — it now shows up there tagged with the trip\'s own status, instead of being invisible in both the pending queue and history until someone happens to remember it.',
+      'Transportation History now includes a date range filter, allowing you to view past trips within a specified period.',
     ],
   },
   {
