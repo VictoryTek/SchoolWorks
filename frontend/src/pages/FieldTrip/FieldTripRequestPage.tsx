@@ -21,6 +21,11 @@ import {
   Button,
   Checkbox,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
   FormControl,
   FormHelperText,
   FormLabel,
@@ -47,7 +52,7 @@ import { useIsMobile } from '../../hooks/useResponsive';
 import { fieldTripService }                          from '../../services/fieldTrip.service';
 import { fieldTripTransportationService }            from '../../services/fieldTripTransportation.service';
 import { locationService }                           from '../../services/location.service';
-import type { CreateFieldTripDto, FieldTripRequest, ChaperoneEntry } from '../../types/fieldTrip.types';
+import type { CreateFieldTripDto, FieldTripRequest, ChaperoneEntry, FundraiserEntry } from '../../types/fieldTrip.types';
 import type { OfficeLocation }                       from '../../types/location.types';
 import { useAuthStore }                              from '../../store/authStore';
 import { FieldTripDatePicker }                       from '../../components/FieldTripDatePicker';
@@ -146,6 +151,7 @@ interface FormState {
   // Transportation Step 2 fields
   transportNeedsDriver:         string;
   transportDriverName:          string;
+  transportDriverPaymentSource: string;
   transportLoadingLocation:     string;
   transportLoadingTime:         string;
   transportArriveLocation:      string;
@@ -156,8 +162,13 @@ interface FormState {
   transportSpedBus:             string;
   transportItinerary:           string;
   transportAdditionalDests:     Array<{ name: string; arriveTime: string; leaveTime: string }>;
+  studentsContribute:    boolean;
   costPerStudent:        string;
   totalCost:             string;
+  schoolGroupClubContribution: string;
+  studentContribution:   string;
+  fundraiserNeeded:      boolean;
+  fundraisers:           FundraiserEntry[];
   fundingSource:         string;
   chaperoneInfo:         string;
   emergencyContact:      string;
@@ -197,6 +208,7 @@ const EMPTY_FORM: FormState = {
   transportationDetails: '',
   transportNeedsDriver:         'true',
   transportDriverName:          '',
+  transportDriverPaymentSource: '',
   transportLoadingLocation:     '',
   transportLoadingTime:         '',
   transportArriveLocation:      '',
@@ -207,8 +219,13 @@ const EMPTY_FORM: FormState = {
   transportSpedBus:             'false',
   transportItinerary:           '',
   transportAdditionalDests:     [],
+  studentsContribute:    true,
   costPerStudent:        '',
   totalCost:             '',
+  schoolGroupClubContribution: '',
+  studentContribution:   '',
+  fundraiserNeeded:      false,
+  fundraisers:           [],
   fundingSource:         '',
   chaperoneInfo:         '',
   emergencyContact:      '',
@@ -248,6 +265,7 @@ function tripToFormState(trip: FieldTripRequest): FormState {
     transportationDetails: trip.transportationDetails ?? '',
     transportNeedsDriver:         'true',
     transportDriverName:          '',
+    transportDriverPaymentSource: '',
     transportLoadingLocation:     '',
     transportLoadingTime:         trip.transportationNeeded ? (trip.departureTime ?? '') : '',
     transportArriveLocation:      '',
@@ -258,8 +276,13 @@ function tripToFormState(trip: FieldTripRequest): FormState {
     transportSpedBus:             'false',
     transportItinerary:           '',
     transportAdditionalDests:     [],
+    studentsContribute:    trip.studentsContribute ?? true,
     costPerStudent:        trip.costPerStudent != null ? String(trip.costPerStudent) : '',
     totalCost:             trip.totalCost      != null ? String(trip.totalCost)      : '',
+    schoolGroupClubContribution: trip.schoolGroupClubContribution != null ? String(trip.schoolGroupClubContribution) : '',
+    studentContribution:   trip.studentContribution != null ? String(trip.studentContribution) : '',
+    fundraiserNeeded:      trip.fundraiserNeeded ?? false,
+    fundraisers:           Array.isArray(trip.fundraisers) ? trip.fundraisers : [],
     fundingSource:         trip.fundingSource  ?? '',
     chaperoneInfo:         trip.chaperoneInfo  ?? '',
     emergencyContact:      trip.emergencyContact ?? '',
@@ -298,8 +321,17 @@ function formToDto(form: FormState): CreateFieldTripDto {
     departureTime:         form.transportationNeeded ? (form.transportLoadingTime || '') : form.departureTime.trim(),
     returnTime:            form.transportationNeeded ? (form.transportReturnToSchoolTime || '') : form.returnTime.trim(),
     transportationDetails: form.transportationNeeded ? (form.transportationDetails.trim() || null) : null,
-    costPerStudent:        parseFloat(form.costPerStudent),
+    studentsContribute:    form.studentsContribute,
+    costPerStudent:        form.studentsContribute ? null : parseFloat(form.costPerStudent),
     totalCost:             parseFloat(form.totalCost),
+    schoolGroupClubContribution: form.studentsContribute ? parseFloat(form.schoolGroupClubContribution) : null,
+    studentContribution:   form.studentsContribute ? parseFloat(form.studentContribution) : null,
+    fundraiserNeeded:      form.fundraiserNeeded,
+    fundraisers:           form.fundraiserNeeded
+                              ? form.fundraisers
+                                  .filter(f => f.name.trim())
+                                  .map(f => ({ name: f.name.trim(), projectedRevenue: f.projectedRevenue }))
+                              : [],
     fundingSource:         form.fundingSource.trim(),
     chaperoneInfo:         form.chaperoneInfo.trim() || null,
     emergencyContact:      form.emergencyContact.trim(),
@@ -403,12 +435,28 @@ function validateStep(step: number, form: FormState, isRevision = false, isBusQu
     // Funding source
     if (!form.fundingSource.trim()) errors.fundingSource = 'Funding source / account number is required';
     // Cost / total
-    const costPS = parseFloat(form.costPerStudent);
-    if (form.costPerStudent === '' || isNaN(costPS) || costPS < 0)
-      errors.costPerStudent = 'Enter a valid cost (0 or greater)';
+    if (form.studentsContribute) {
+      const clubContrib = parseFloat(form.schoolGroupClubContribution);
+      if (form.schoolGroupClubContribution === '' || isNaN(clubContrib) || clubContrib < 0)
+        errors.schoolGroupClubContribution = 'Enter a valid amount (0 or greater)';
+      const studentContrib = parseFloat(form.studentContribution);
+      if (form.studentContribution === '' || isNaN(studentContrib) || studentContrib < 0)
+        errors.studentContribution = 'Enter a valid amount (0 or greater)';
+    } else {
+      const costPS = parseFloat(form.costPerStudent);
+      if (form.costPerStudent === '' || isNaN(costPS) || costPS < 0)
+        errors.costPerStudent = 'Enter a valid cost (0 or greater)';
+    }
     const totalC = parseFloat(form.totalCost);
     if (form.totalCost === '' || isNaN(totalC) || totalC < 0)
-      errors.totalCost = 'Total cost could not be calculated — enter a valid Cost Per Student';
+      errors.totalCost = 'Total cost could not be calculated — enter valid contribution amounts';
+    // Fundraisers
+    if (form.fundraiserNeeded) {
+      if (form.fundraisers.length === 0)
+        errors.fundraisers = 'At least one fundraiser is required';
+      else if (form.fundraisers.some(f => !f.name.trim()))
+        errors.fundraisers = 'All fundraiser entries must have a name';
+    }
     // Overnight safety precautions
     if (form.isOvernightTrip && !form.overnightSafetyPrecautions.trim())
       errors.overnightSafetyPrecautions = 'Safety precautions are required for overnight trips';
@@ -442,6 +490,8 @@ export function FieldTripRequestPage() {
   const [errors, setErrors]         = useState<FieldErrors>({});
   const [savedId, setSavedId]       = useState<string | null>(id ?? null);
   const [saveError, setSaveError]   = useState<string | null>(null);
+  const [policyDialogOpen, setPolicyDialogOpen] = useState(!id);
+  const [policyAcknowledged, setPolicyAcknowledged] = useState(false);
 
   // Load school locations (type=SCHOOL, active only)
   const { data: allLocations = [] } = useQuery<OfficeLocation[]>({
@@ -533,6 +583,7 @@ export function FieldTripRequestPage() {
             chaperoneCount,
             needsDriver: form.transportNeedsDriver === 'true',
             driverName: form.transportDriverName || undefined,
+            driverPaymentSource: (form.transportDriverPaymentSource || undefined) as 'GROUP_CLUB' | 'DISTRICT' | undefined,
             loadingLocation: form.transportLoadingLocation,
             loadingTime: form.transportLoadingTime,
             arriveFirstDestTime: form.transportArriveFirstDestTime || undefined,
@@ -554,7 +605,7 @@ export function FieldTripRequestPage() {
   // Handlers
   // ---------------------------------------------------------------------------
 
-  const handleChange = (field: keyof FormState, value: string | boolean | ChaperoneEntry[] | string[] | Array<{ name: string; arriveTime: string; leaveTime: string }>) => {
+  const handleChange = (field: keyof FormState, value: string | boolean | ChaperoneEntry[] | FundraiserEntry[] | string[] | Array<{ name: string; arriveTime: string; leaveTime: string }>) => {
     setForm((prev) => {
       const next = { ...prev, [field]: value } as FormState;
       if (field === 'schoolBuilding' && !getGradeOptions(value as string).includes(next.gradeClass)) {
@@ -562,14 +613,27 @@ export function FieldTripRequestPage() {
         next.subjectArea = '';
       }
       if (field === 'gradeClass' && value !== 'High School') next.subjectArea = '';
-      // Auto-calculate total cost when costPerStudent or studentCount changes
-      if (field === 'costPerStudent' || field === 'studentCount') {
-        const perStudent = parseFloat(field === 'costPerStudent' ? (value as string) : next.costPerStudent);
-        const count      = parseInt(field === 'studentCount'    ? (value as string) : next.studentCount, 10);
-        if (!isNaN(perStudent) && perStudent >= 0 && !isNaN(count) && count > 0) {
-          next.totalCost = (perStudent * count).toFixed(2);
+      // Auto-calculate total cost: (School/Club + Student per-student contributions) × student
+      // count when students contribute, otherwise flat Cost Per Student × student count.
+      if (field === 'studentsContribute' || field === 'schoolGroupClubContribution' ||
+          field === 'studentContribution' || field === 'costPerStudent' || field === 'studentCount') {
+        const count = parseInt(field === 'studentCount' ? (value as string) : next.studentCount, 10);
+        const studentsContribute = field === 'studentsContribute' ? (value as boolean) : next.studentsContribute;
+        if (studentsContribute) {
+          const clubContribution    = parseFloat(field === 'schoolGroupClubContribution' ? (value as string) : next.schoolGroupClubContribution);
+          const studentContribution = parseFloat(field === 'studentContribution'         ? (value as string) : next.studentContribution);
+          if (!isNaN(clubContribution) && clubContribution >= 0 && !isNaN(studentContribution) && studentContribution >= 0 && !isNaN(count) && count > 0) {
+            next.totalCost = ((clubContribution + studentContribution) * count).toFixed(2);
+          } else {
+            next.totalCost = '';
+          }
         } else {
-          next.totalCost = '';
+          const costPerStudent = parseFloat(field === 'costPerStudent' ? (value as string) : next.costPerStudent);
+          if (!isNaN(costPerStudent) && costPerStudent >= 0 && !isNaN(count) && count > 0) {
+            next.totalCost = (costPerStudent * count).toFixed(2);
+          } else {
+            next.totalCost = '';
+          }
         }
       }
       return next;
@@ -664,6 +728,56 @@ export function FieldTripRequestPage() {
 
   return (
     <Box sx={{ p: { xs: 1.5, sm: 3 }, maxWidth: 900, mx: 'auto' }}>
+      {/* Board Policy 4.302 acknowledgment — required before starting a new request */}
+      {!id && (
+        <Dialog open={policyDialogOpen} maxWidth="sm" fullWidth>
+          <DialogTitle>Board Policy 4.302</DialogTitle>
+          <DialogContent>
+            <Typography variant="body1" gutterBottom>
+              Before completing this field trip request, have you:
+            </Typography>
+            <Box component="ol" sx={{ pl: 3, mb: 1 }}>
+              <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                Obtained advance approval from your building principal?
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                Determined how you will be traveling and if you will need a bus driver?
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                Secured funding for the trip or have a plan for how the trip will be funded?
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ mb: 1 }}>
+                Determined the number of chaperones necessary to meet the prescribed ratios and
+                determined if any will need background checks?
+              </Typography>
+              <Typography component="li" variant="body2">
+                If needed, worked with the building administration to obtain a substitute for
+                days of the trip.
+              </Typography>
+            </Box>
+            <FormControlLabel
+              sx={{ mt: 1 }}
+              control={
+                <Checkbox
+                  checked={policyAcknowledged}
+                  onChange={(e) => setPolicyAcknowledged(e.target.checked)}
+                />
+              }
+              label="I have reviewed and addressed the items above."
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button
+              variant="contained"
+              disabled={!policyAcknowledged}
+              onClick={() => setPolicyDialogOpen(false)}
+            >
+              Continue
+            </Button>
+          </DialogActions>
+        </Dialog>
+      )}
+
       {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <PageBackButton sx={{ mr: 1 }} />
@@ -1100,6 +1214,23 @@ export function FieldTripRequestPage() {
               </FormControl>
             </Grid>
 
+            {/* Driver payment source */}
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormControl fullWidth disabled={isReadOnly}>
+                <InputLabel id="driver-payment-source-label">Who is paying the bus driver?</InputLabel>
+                <Select
+                  labelId="driver-payment-source-label"
+                  label="Who is paying the bus driver?"
+                  value={form.transportDriverPaymentSource}
+                  onChange={(e) => handleChange('transportDriverPaymentSource', e.target.value)}
+                >
+                  <MenuItem value=""><em>Not specified</em></MenuItem>
+                  <MenuItem value="GROUP_CLUB">Group/Club Paid</MenuItem>
+                  <MenuItem value="DISTRICT">District Paid</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+
             {/* Driver name — only shown when needsDriver === 'false' */}
             {form.transportNeedsDriver === 'false' && (
               <Grid size={12}>
@@ -1473,6 +1604,14 @@ export function FieldTripRequestPage() {
               />
             </Grid>
 
+            {/* ── Cost Details ── */}
+            <Grid size={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                Cost Details
+              </Typography>
+            </Grid>
+
             {/* 8. Funding Source / Account Number */}
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
@@ -1487,24 +1626,79 @@ export function FieldTripRequestPage() {
               />
             </Grid>
 
-            {/* 9. Cost Per Student */}
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                fullWidth
-                label="Cost Per Student"
-                type="number"
-                inputProps={{ min: 0, step: '0.01' }}
-                InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
-                value={form.costPerStudent}
-                onChange={(e) => handleChange('costPerStudent', e.target.value)}
-                error={!!errors.costPerStudent}
-                helperText={errors.costPerStudent}
-                disabled={isReadOnly}
-                required
-              />
+            {/* 8a. Will students contribute to the cost? */}
+            <Grid size={12}>
+              <FormControl component="fieldset" disabled={isReadOnly}>
+                <FormLabel component="legend" sx={{ fontWeight: 500, color: 'text.primary', mb: 0.5 }}>
+                  Will students contribute to the cost of this trip?
+                </FormLabel>
+                <RadioGroup
+                  row
+                  value={form.studentsContribute ? 'yes' : 'no'}
+                  onChange={(e) => handleChange('studentsContribute', e.target.value === 'yes')}
+                >
+                  <FormControlLabel value="yes" control={<Radio />} label="Yes" />
+                  <FormControlLabel value="no"  control={<Radio />} label="No"  />
+                </RadioGroup>
+              </FormControl>
             </Grid>
 
-            {/* 10. Total Cost — auto-calculated from Cost Per Student × Student Count */}
+            {form.studentsContribute ? (
+              <>
+                {/* 9a. School/Club Contribution (per student) */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="School/Club Contribution (Per Student)"
+                    type="number"
+                    inputProps={{ min: 0, step: '0.01' }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+                    value={form.schoolGroupClubContribution}
+                    onChange={(e) => handleChange('schoolGroupClubContribution', e.target.value)}
+                    error={!!errors.schoolGroupClubContribution}
+                    helperText={errors.schoolGroupClubContribution}
+                    disabled={isReadOnly}
+                    required
+                  />
+                </Grid>
+
+                {/* 9b. Student Contribution (per student) */}
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    fullWidth
+                    label="Student Contribution (Per Student)"
+                    type="number"
+                    inputProps={{ min: 0, step: '0.01' }}
+                    InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+                    value={form.studentContribution}
+                    onChange={(e) => handleChange('studentContribution', e.target.value)}
+                    error={!!errors.studentContribution}
+                    helperText={errors.studentContribution}
+                    disabled={isReadOnly}
+                    required
+                  />
+                </Grid>
+              </>
+            ) : (
+              /* 9. Cost Per Student */
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  fullWidth
+                  label="Cost Per Student"
+                  type="number"
+                  inputProps={{ min: 0, step: '0.01' }}
+                  InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+                  value={form.costPerStudent}
+                  onChange={(e) => handleChange('costPerStudent', e.target.value)}
+                  error={!!errors.costPerStudent}
+                  helperText={errors.costPerStudent}
+                  disabled={isReadOnly}
+                  required
+                />
+              </Grid>
+            )}
+
+            {/* 10. Total Cost — auto-calculated */}
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 fullWidth
@@ -1514,12 +1708,98 @@ export function FieldTripRequestPage() {
                 InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
                 value={form.totalCost}
                 error={!!errors.totalCost}
-                helperText={errors.totalCost ?? `Cost Per Student × ${form.studentCount || 0} students`}
-                disabled={isReadOnly}
+                helperText={errors.totalCost ?? (form.studentsContribute
+                  ? `(School/Club + Student Contribution) × ${form.studentCount || 0} students`
+                  : `Cost Per Student × ${form.studentCount || 0} students`)}
+                disabled
                 required
-                sx={{ '& .MuiInputBase-input': { bgcolor: 'action.hover', cursor: 'default' } }}
               />
             </Grid>
+
+            {/* 10a. Will a fundraiser be needed to meet funding obligations? */}
+            <Grid size={12}>
+              <FormControl component="fieldset" disabled={isReadOnly}>
+                <FormLabel component="legend" sx={{ fontWeight: 500, color: 'text.primary', mb: 0.5 }}>
+                  Will a fundraiser be needed to meet funding obligations?
+                </FormLabel>
+                <RadioGroup
+                  row
+                  value={form.fundraiserNeeded ? 'yes' : 'no'}
+                  onChange={(e) => handleChange('fundraiserNeeded', e.target.value === 'yes')}
+                >
+                  <FormControlLabel value="yes" control={<Radio />} label="Yes" />
+                  <FormControlLabel value="no"  control={<Radio />} label="No"  />
+                </RadioGroup>
+              </FormControl>
+            </Grid>
+
+            {/* 10b. Fundraiser list (dynamic) — only when a fundraiser is needed */}
+            {form.fundraiserNeeded && (
+              <Grid size={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Fundraisers
+                  <Box component="span" sx={{ color: 'error.main' }}> *</Box>
+                </Typography>
+                {errors.fundraisers && (
+                  <FormHelperText error sx={{ mb: 1 }}>{errors.fundraisers}</FormHelperText>
+                )}
+                {form.fundraisers.map((fundraiser, idx) => (
+                  <Box key={idx} sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <TextField
+                      label={`Fundraiser ${idx + 1} Name`}
+                      value={fundraiser.name}
+                      onChange={(e) => {
+                        const updated = [...form.fundraisers];
+                        updated[idx] = { ...updated[idx], name: e.target.value };
+                        handleChange('fundraisers', updated);
+                      }}
+                      size="small"
+                      sx={{ flex: 2, minWidth: 200 }}
+                      disabled={isReadOnly}
+                      required
+                    />
+                    <TextField
+                      label="Projected Revenue"
+                      type="number"
+                      inputProps={{ min: 0, step: '0.01' }}
+                      InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment> }}
+                      value={fundraiser.projectedRevenue || ''}
+                      onChange={(e) => {
+                        const updated = [...form.fundraisers];
+                        updated[idx] = { ...updated[idx], projectedRevenue: parseFloat(e.target.value) || 0 };
+                        handleChange('fundraisers', updated);
+                      }}
+                      size="small"
+                      sx={{ flex: 1, minWidth: 160 }}
+                      disabled={isReadOnly}
+                    />
+                    {!isReadOnly && (
+                      <Button
+                        size="small"
+                        color="error"
+                        onClick={() => handleChange('fundraisers', form.fundraisers.filter((_, i) => i !== idx))}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Box>
+                ))}
+                {!isReadOnly && form.fundraisers.length < 20 && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() =>
+                      handleChange('fundraisers', [
+                        ...form.fundraisers,
+                        { name: '', projectedRevenue: 0 },
+                      ])
+                    }
+                  >
+                    + Add Fundraiser
+                  </Button>
+                )}
+              </Grid>
+            )}
 
             {/* 11. Reimbursement Expenses */}
             <Grid size={12}>

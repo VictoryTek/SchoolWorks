@@ -2,7 +2,8 @@
  * Field Trip Service
  *
  * Business logic for the field trip approval workflow:
- *   DRAFT → PENDING_SUPERVISOR (or PENDING_ASST_DIRECTOR if no supervisor)
+ *   DRAFT → PENDING_BOOKKEEPER
+ *         → PENDING_SUPERVISOR (or PENDING_ASST_DIRECTOR if no supervisor)
  *         → PENDING_FINANCE_DIRECTOR → PENDING_DIRECTOR → APPROVED
  *   Any pending state → DENIED (via deny)
  *
@@ -21,7 +22,12 @@ import { generateFieldTripPdf } from './fieldTripPdf.service';
 // Workflow constants
 // ---------------------------------------------------------------------------
 
-/** Maps the current pending status to the next status in the approval chain. */
+/**
+ * Maps the current pending status to the next status in the approval chain.
+ * PENDING_BOOKKEEPER is intentionally absent — its next status is dynamic
+ * (PENDING_SUPERVISOR or PENDING_ASST_DIRECTOR depending on whether the
+ * submitter has a supervisor) and is resolved inline inside approve().
+ */
 const APPROVAL_CHAIN: Record<string, string> = {
   PENDING_SUPERVISOR:       'PENDING_ASST_DIRECTOR',
   PENDING_ASST_DIRECTOR:    'PENDING_FINANCE_DIRECTOR',
@@ -31,6 +37,7 @@ const APPROVAL_CHAIN: Record<string, string> = {
 
 /** Maps the current status to the stage label stored in FieldTripApproval.stage. */
 const STATUS_TO_STAGE: Record<string, string> = {
+  PENDING_BOOKKEEPER:       'BOOKKEEPER',
   PENDING_SUPERVISOR:       'SUPERVISOR',
   PENDING_ASST_DIRECTOR:    'ASST_DIRECTOR',
   PENDING_DIRECTOR:         'DIRECTOR',
@@ -39,6 +46,7 @@ const STATUS_TO_STAGE: Record<string, string> = {
 
 /** Minimum permission level required to act at each pending stage. */
 const STAGE_MIN_LEVEL: Record<string, number> = {
+  PENDING_BOOKKEEPER:       7,
   PENDING_SUPERVISOR:       3,
   PENDING_ASST_DIRECTOR:    4,
   PENDING_DIRECTOR:         5,
@@ -46,7 +54,13 @@ const STAGE_MIN_LEVEL: Record<string, number> = {
 };
 
 /** Statuses that are considered "active" (can be approved or denied). */
-const PENDING_STATUSES = Object.keys(APPROVAL_CHAIN);
+const PENDING_STATUSES = [
+  'PENDING_BOOKKEEPER',
+  'PENDING_SUPERVISOR',
+  'PENDING_ASST_DIRECTOR',
+  'PENDING_FINANCE_DIRECTOR',
+  'PENDING_DIRECTOR',
+];
 
 /** Maximum number of trips needing a district bus/driver allowed on a single calendar day. */
 const BUS_QUOTA_PER_DAY = 8;
@@ -142,8 +156,13 @@ export class FieldTripService {
         returnTime:           data.returnTime,
         transportationNeeded: data.transportationNeeded,
         transportationDetails: data.transportationDetails ?? null,
-        costPerStudent:       data.costPerStudent,
+        studentsContribute:   data.studentsContribute,
+        costPerStudent:       data.studentsContribute ? null : (data.costPerStudent ?? null),
         totalCost:            data.totalCost,
+        schoolGroupClubContribution: data.studentsContribute ? (data.schoolGroupClubContribution ?? null) : null,
+        studentContribution:  data.studentsContribute ? (data.studentContribution ?? null) : null,
+        fundraiserNeeded:     data.fundraiserNeeded,
+        fundraisers:          data.fundraiserNeeded ? (data.fundraisers ?? []) : [],
         fundingSource:        data.fundingSource,
         chaperoneInfo:        data.chaperoneInfo,
         emergencyContact:     data.emergencyContact,
@@ -201,8 +220,13 @@ export class FieldTripService {
     if (data.returnTime            !== undefined) updateData.returnTime            = data.returnTime;
     if (data.transportationNeeded  !== undefined) updateData.transportationNeeded  = data.transportationNeeded;
     if (data.transportationDetails !== undefined) updateData.transportationDetails = data.transportationDetails ?? null;
+    if (data.studentsContribute    !== undefined) updateData.studentsContribute    = data.studentsContribute;
     if (data.costPerStudent        !== undefined) updateData.costPerStudent        = data.costPerStudent ?? null;
     if (data.totalCost             !== undefined) updateData.totalCost             = data.totalCost ?? null;
+    if (data.schoolGroupClubContribution !== undefined) updateData.schoolGroupClubContribution = data.schoolGroupClubContribution ?? null;
+    if (data.studentContribution   !== undefined) updateData.studentContribution   = data.studentContribution ?? null;
+    if (data.fundraiserNeeded      !== undefined) updateData.fundraiserNeeded      = data.fundraiserNeeded;
+    if (data.fundraisers           !== undefined) updateData.fundraisers           = data.fundraisers ?? [];
     if (data.fundingSource         !== undefined) updateData.fundingSource         = data.fundingSource ?? null;
     if (data.chaperoneInfo         !== undefined) updateData.chaperoneInfo         = data.chaperoneInfo ?? null;
     if (data.emergencyContact      !== undefined) updateData.emergencyContact      = data.emergencyContact ?? null;
@@ -257,8 +281,9 @@ export class FieldTripService {
 
     await this.checkBusQuota(trip.transportationNeeded, trip.busQuotaAcknowledged, trip.tripDate, trip.returnDate);
 
-    const firstStatus =
-      snapshot.supervisorEmails.length > 0 ? 'PENDING_SUPERVISOR' : 'PENDING_ASST_DIRECTOR';
+    // Bookkeeper is unconditionally the first approval stage — the
+    // supervisor-skip decision is resolved later, when the Bookkeeper approves.
+    const firstStatus = 'PENDING_BOOKKEEPER';
 
     const settings = await prisma.systemSettings.findUnique({ where: { id: 'singleton' } });
 
@@ -303,6 +328,9 @@ export class FieldTripService {
     isAdmin:   boolean,
     notes?:    string,
     boardApprovalAcknowledged?: boolean,
+    fundingObligationsAcknowledged?: boolean,
+    bookkeeperAccountNumber?: string,
+    adequateFundingAcknowledged?: boolean,
   ) {
     const trip = await this.findOrThrow(id);
 
@@ -319,12 +347,40 @@ export class FieldTripService {
       );
     }
 
-    const stage      = STATUS_TO_STAGE[trip.status];
-    const nextStatus = APPROVAL_CHAIN[trip.status];
+    const stage = STATUS_TO_STAGE[trip.status];
+
+    // PENDING_BOOKKEEPER's next stage is dynamic: skip to PENDING_ASST_DIRECTOR
+    // when the submitter has no supervisor, mirroring the logic that used to
+    // run at submit-time before Bookkeeper became the unconditional first stage.
+    const nextStatus =
+      trip.status === 'PENDING_BOOKKEEPER'
+        ? (((trip.approverEmailsSnapshot as FieldTripApproverSnapshot | null)?.supervisorEmails?.length ?? 0) > 0
+            ? 'PENDING_SUPERVISOR'
+            : 'PENDING_ASST_DIRECTOR')
+        : APPROVAL_CHAIN[trip.status];
 
     if (stage === 'DIRECTOR' && trip.isOvernightTrip && !boardApprovalAcknowledged) {
       throw new ValidationError(
         'This is an overnight trip. You must acknowledge that the request has Board approval before approving.',
+      );
+    }
+
+    if (stage === 'BOOKKEEPER') {
+      if (!fundingObligationsAcknowledged) {
+        throw new ValidationError(
+          'You must confirm that the Group/Club has met all funding obligations for this trip before approving.',
+        );
+      }
+      if (!bookkeeperAccountNumber || !bookkeeperAccountNumber.trim()) {
+        throw new ValidationError(
+          'Please enter the account number that funds will be taken from before approving.',
+        );
+      }
+    }
+
+    if (stage === 'FINANCE_DIRECTOR' && !adequateFundingAcknowledged) {
+      throw new ValidationError(
+        'You must confirm the account has adequate funding for this trip before approving.',
       );
     }
 
@@ -369,6 +425,8 @@ export class FieldTripService {
           actedByName:        approverName,
           notes:              notes ?? null,
           boardApprovalAcknowledged: stage === 'DIRECTOR' && trip.isOvernightTrip ? true : false,
+          fundingObligationsAcknowledged: stage === 'BOOKKEEPER' ? true : false,
+          adequateFundingAcknowledged: stage === 'FINANCE_DIRECTOR' ? true : false,
         },
       });
 
@@ -377,6 +435,7 @@ export class FieldTripService {
         data: {
           status:     nextStatus,
           ...(nextStatus === 'APPROVED' ? { approvedAt: new Date() } : {}),
+          ...(stage === 'BOOKKEEPER' ? { bookkeeperAccountNumber: bookkeeperAccountNumber!.trim() } : {}),
         },
         include: TRIP_WITH_RELATIONS,
       });
@@ -591,8 +650,7 @@ export class FieldTripService {
     // toward the day's bus quota, so it must not be counted as competing against itself.
     await this.checkBusQuota(trip.transportationNeeded, trip.busQuotaAcknowledged, trip.tripDate, trip.returnDate, trip.id);
 
-    const firstStatus =
-      snapshot.supervisorEmails.length > 0 ? 'PENDING_SUPERVISOR' : 'PENDING_ASST_DIRECTOR';
+    const firstStatus = 'PENDING_BOOKKEEPER';
 
     loggers.fieldTrip.info('Resubmitting field trip for revision', { userId, id, firstStatus });
 
@@ -978,6 +1036,7 @@ export function getEmailsForStatus(
 ): string[] {
   if (!snapshot) return [];
   switch (status) {
+    case 'PENDING_BOOKKEEPER':       return snapshot.bookkeeperEmails;
     case 'PENDING_SUPERVISOR':       return snapshot.supervisorEmails;
     case 'PENDING_ASST_DIRECTOR':    return snapshot.asstDirectorEmails;
     case 'PENDING_DIRECTOR':         return snapshot.directorEmails;
@@ -989,6 +1048,7 @@ export function getEmailsForStatus(
 /** Human-readable label for each pending stage. */
 export function getStageName(status: string): string {
   const names: Record<string, string> = {
+    PENDING_BOOKKEEPER:       'Bookkeeper',
     PENDING_SUPERVISOR:       'Supervisor',
     PENDING_ASST_DIRECTOR:    'Assistant Director of Schools',
     PENDING_DIRECTOR:         'Director of Schools',

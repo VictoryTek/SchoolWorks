@@ -706,8 +706,14 @@ model FieldTripRequest {
   returnTime            String                  @db.VarChar(20)
   transportationNeeded  Boolean                 @default(false)
   transportationDetails String?                 @db.Text
+  studentsContribute    Boolean                 @default(true)
   costPerStudent        Decimal?                @db.Decimal(10, 2)
   totalCost             Decimal?                @db.Decimal(10, 2)
+  schoolGroupClubContribution Decimal?          @db.Decimal(10, 2)
+  studentContribution   Decimal?                @db.Decimal(10, 2)
+  fundraiserNeeded      Boolean                 @default(false)
+  fundraisers           Json?                   // Array of { name: string, projectedRevenue: number }
+  bookkeeperAccountNumber String?               @db.VarChar(200)  // Set by Bookkeeper on approval; Finance Director confirms it
   fundingSource         String?                 @db.VarChar(200)
   chaperoneInfo         String?                 @db.Text
   emergencyContact      String?                 @db.VarChar(500)
@@ -773,6 +779,8 @@ model FieldTripApproval {
   notes                 String?           @db.Text
   denialReason          String?           @db.Text
   boardApprovalAcknowledged Boolean       @default(false)
+  fundingObligationsAcknowledged Boolean @default(false)
+  adequateFundingAcknowledged Boolean   @default(false)
 
   fieldTripRequest      FieldTripRequest   @relation(fields: [fieldTripRequestId], references: [id], onDelete: Cascade)
   actedBy               User              @relation("FieldTripApprover", fields: [actedById], references: [id])
@@ -811,6 +819,7 @@ model FieldTripTransportationRequest {
   chaperoneCount          Int                           // numeric chaperone count
   needsDriver             Boolean                       // true = district driver requested
   driverName              String?   @db.VarChar(200)    // required when needsDriver = false
+  driverPaymentSource     String?   @db.VarChar(20)     // 'GROUP_CLUB' | 'DISTRICT'
   loadingLocation         String    @db.VarChar(500)    // specific loading place
   loadingTime             String    @db.VarChar(20)     // when buses arrive / students board
   arriveFirstDestTime     String?   @db.VarChar(20)     // estimated arrival at first stop

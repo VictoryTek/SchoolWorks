@@ -36,6 +36,10 @@ export const PART_C_TRANSPORTATION_TYPES = [
 
 export type PartCTransportationType = (typeof PART_C_TRANSPORTATION_TYPES)[number];
 
+export const DRIVER_PAYMENT_SOURCES = ['GROUP_CLUB', 'DISTRICT'] as const;
+
+export type DriverPaymentSource = (typeof DRIVER_PAYMENT_SOURCES)[number];
+
 // ---------------------------------------------------------------------------
 // Shared destination schema
 // ---------------------------------------------------------------------------
@@ -54,6 +58,7 @@ export const CreateTransportationSchema = z.object({
   chaperoneCount:         z.number().int().min(0).max(200),
   needsDriver:            z.boolean(),
   driverName:             z.string().max(200).optional().nullable(),
+  driverPaymentSource:    z.enum(DRIVER_PAYMENT_SOURCES).optional().nullable(),
   loadingLocation:        z.string().min(1).max(500),
   loadingTime:            z.string().min(1).max(20),
   arriveFirstDestTime:    z.string().max(20).optional().nullable(),

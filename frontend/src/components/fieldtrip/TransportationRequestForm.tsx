@@ -84,6 +84,7 @@ interface FormState {
   chaperoneCount:         string;
   needsDriver:            string;   // 'true' | 'false'
   driverName:             string;
+  driverPaymentSource:    string;   // 'GROUP_CLUB' | 'DISTRICT' | ''
   loadingLocation:        string;
   loadingTime:            string;
   arriveFirstDestTime:    string;
@@ -104,6 +105,7 @@ export function TransportationRequestForm({ tripId, trip, existing, onSaved, onS
     chaperoneCount:         String(existing?.chaperoneCount ?? 1),
     needsDriver:            String(existing?.needsDriver ?? true),
     driverName:             existing?.driverName ?? '',
+    driverPaymentSource:    existing?.driverPaymentSource ?? '',
     loadingLocation:        existing?.loadingLocation ?? '',
     loadingTime:            existing?.loadingTime ?? '',
     arriveFirstDestTime:    existing?.arriveFirstDestTime ?? '',
@@ -129,6 +131,7 @@ export function TransportationRequestForm({ tripId, trip, existing, onSaved, onS
       chaperoneCount:         isNaN(chaperoneCount) ? 0 : chaperoneCount,
       needsDriver,
       driverName:             !needsDriver && form.driverName.trim() ? form.driverName.trim() : null,
+      driverPaymentSource:    (form.driverPaymentSource || null) as 'GROUP_CLUB' | 'DISTRICT' | null,
       loadingLocation:        form.loadingLocation.trim(),
       loadingTime:            form.loadingTime,
       arriveFirstDestTime:    form.arriveFirstDestTime || null,
@@ -311,6 +314,22 @@ export function TransportationRequestForm({ tripId, trip, existing, onSaved, onS
               <FormControlLabel value="true"  control={<Radio />} label="Yes — use district driver" />
               <FormControlLabel value="false" control={<Radio />} label="No — providing own driver" />
             </RadioGroup>
+          </FormControl>
+        </Grid>
+
+        {/* Driver payment source */}
+        <Grid size={{ xs: 12, sm: 6 }}>
+          <FormControl fullWidth>
+            <InputLabel>Who is paying the bus driver?</InputLabel>
+            <Select
+              label="Who is paying the bus driver?"
+              value={form.driverPaymentSource}
+              onChange={(e) => set('driverPaymentSource', e.target.value)}
+            >
+              <MenuItem value=""><em>Not specified</em></MenuItem>
+              <MenuItem value="GROUP_CLUB">Group/Club Paid</MenuItem>
+              <MenuItem value="DISTRICT">District Paid</MenuItem>
+            </Select>
           </FormControl>
         </Grid>
 

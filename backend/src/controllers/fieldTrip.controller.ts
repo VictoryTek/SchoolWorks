@@ -17,7 +17,6 @@ import { fieldTripService, getEmailsForStatus, getStageName } from '../services/
 import {
   buildFieldTripApproverSnapshot,
   fetchGroupEmails,
-  sendFieldTripToSupervisor,
   sendFieldTripAdvancedToApprover,
   sendFieldTripFinalApproved,
   sendFieldTripDenied,
@@ -177,14 +176,12 @@ export const submit = async (req: AuthRequest, res: Response): Promise<void> => 
 
     // Send submission notification email (non-critical — do not block response)
     try {
-      if (result.status === 'PENDING_SUPERVISOR' && snapshot.supervisorEmails.length > 0) {
-        await sendFieldTripToSupervisor(snapshot.supervisorEmails, result, submitterName);
-      } else if (result.status === 'PENDING_ASST_DIRECTOR' && snapshot.asstDirectorEmails.length > 0) {
+      if (result.status === 'PENDING_BOOKKEEPER' && snapshot.bookkeeperEmails.length > 0) {
         await sendFieldTripAdvancedToApprover(
-          snapshot.asstDirectorEmails,
+          snapshot.bookkeeperEmails,
           result,
           submitterName,
-          getStageName('PENDING_ASST_DIRECTOR'),
+          getStageName('PENDING_BOOKKEEPER'),
         );
       }
     } catch (emailErr) {
@@ -214,6 +211,7 @@ export const approve = async (req: AuthRequest, res: Response): Promise<void> =>
 
     const result = await fieldTripService.approve(
       userId, id, permLevel, isAdmin, data.notes, data.boardApprovalAcknowledged,
+      data.fundingObligationsAcknowledged, data.bookkeeperAccountNumber, data.adequateFundingAcknowledged,
     );
 
     // Resolve submitter display name from snapshot for all notification branches
@@ -379,14 +377,12 @@ export const resubmit = async (req: AuthRequest, res: Response): Promise<void> =
 
     // Notify next approver (non-critical)
     try {
-      if (result.status === 'PENDING_SUPERVISOR' && snapshot.supervisorEmails.length > 0) {
-        await sendFieldTripToSupervisor(snapshot.supervisorEmails, result, submitterName);
-      } else if (result.status === 'PENDING_ASST_DIRECTOR' && snapshot.asstDirectorEmails.length > 0) {
+      if (result.status === 'PENDING_BOOKKEEPER' && snapshot.bookkeeperEmails.length > 0) {
         await sendFieldTripAdvancedToApprover(
-          snapshot.asstDirectorEmails,
+          snapshot.bookkeeperEmails,
           result,
           submitterName,
-          getStageName('PENDING_ASST_DIRECTOR'),
+          getStageName('PENDING_BOOKKEEPER'),
         );
       }
     } catch (emailErr) {

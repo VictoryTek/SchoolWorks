@@ -560,6 +560,7 @@ export async function sendWorkOrderInputRequestResponded(
 // ---------------------------------------------------------------------------
 
 export interface FieldTripApproverSnapshot {
+  bookkeeperEmails: string[];
   supervisorEmails: string[];
   asstDirectorEmails: string[];
   directorEmails: string[];
@@ -606,15 +607,17 @@ export async function buildFieldTripApproverSnapshot(
   const asstDosGroupId   = process.env.ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID;
   const dosGroupId       = process.env.ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID;
   const financeGroupId   = process.env.ENTRA_FINANCE_DIRECTOR_GROUP_ID;
+  const bookkeeperGroupId = process.env.ENTRA_BOOKKEEPER_GROUP_ID;
 
   try {
-    const [asstDirectorEmails, directorEmails, financeDirectorEmails] = await Promise.all([
+    const [bookkeeperEmails, asstDirectorEmails, directorEmails, financeDirectorEmails] = await Promise.all([
+      bookkeeperGroupId ? fetchGroupEmails(bookkeeperGroupId) : Promise.resolve([]),
       asstDosGroupId ? fetchGroupEmails(asstDosGroupId) : Promise.resolve([]),
       dosGroupId     ? fetchGroupEmails(dosGroupId)     : Promise.resolve([]),
       financeGroupId ? fetchGroupEmails(financeGroupId) : Promise.resolve([]),
     ]);
 
-    return { supervisorEmails, asstDirectorEmails, directorEmails, financeDirectorEmails };
+    return { bookkeeperEmails, supervisorEmails, asstDirectorEmails, directorEmails, financeDirectorEmails };
   } catch (error) {
     loggers.email.error('Failed to fetch field trip approver emails from Microsoft Graph', {
       error: error instanceof Error ? error.message : String(error),
@@ -699,34 +702,8 @@ function fieldTripDetailHtml(trip: {
 // ---------------------------------------------------------------------------
 
 /**
- * Notify the supervisor that a new field trip is awaiting their approval.
- */
-export async function sendFieldTripToSupervisor(
-  supervisorEmail: string | string[],
-  trip: {
-    id: string; destination: string; tripDate: Date | string; returnDate?: Date | string | null;
-    teacherName: string; schoolBuilding: string; gradeClass: string;
-    studentCount: number; purpose: string;
-  },
-  submitterName: string,
-): Promise<void> {
-  await sendMail({
-    to:      supervisorEmail,
-    subject: `Field Trip Approval Required: ${trip.destination} — ${formatTripDateRange(trip.tripDate, trip.returnDate, {})}`,
-    context: 'field_trip_submitted',
-    relatedEntityId: trip.id,
-    html: `
-      <h2 style="color:#1565C0;">Field Trip Request Awaiting Your Approval</h2>
-      <p><strong>${escapeHtml(submitterName)}</strong> has submitted a field trip request that requires your approval.</p>
-      ${fieldTripDetailHtml(trip)}
-      <p style="margin-top:24px;"><a href="${escapeHtml(process.env.APP_URL ?? '')}/field-trips/${escapeHtml(trip.id)}" style="display:inline-block;padding:10px 20px;background-color:#1565C0;color:#ffffff;text-decoration:none;border-radius:4px;font-weight:bold;">View Field Trip</a></p>
-    `,
-  });
-}
-
-/**
  * Notify an approver that a field trip has advanced to their stage.
- * Used for Asst. Director, Director, and Finance Director stages.
+ * Used for Bookkeeper, Asst. Director, Director, and Finance Director stages.
  */
 export async function sendFieldTripAdvancedToApprover(
   approverEmail: string | string[],

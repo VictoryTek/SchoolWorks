@@ -29,6 +29,7 @@ interface TransportationForPdf {
   chaperoneCount:     number;
   needsDriver:        boolean;
   driverName:         string | null;
+  driverPaymentSource: string | null;
   loadingLocation:    string;
   loadingTime:        string;
   arriveFirstDestTime: string | null;
@@ -40,6 +41,11 @@ interface TransportationForPdf {
 interface ChaperoneEntry {
   name:                  string;
   backgroundCheckComplete: boolean;
+}
+
+interface FundraiserEntry {
+  name:             string;
+  projectedRevenue: number;
 }
 
 export interface FieldTripForPdf {
@@ -66,8 +72,14 @@ export interface FieldTripForPdf {
   transportationNeeded:       boolean;
   transportationDetails:      string | null;
   alternateTransportation:    string | null;
+  studentsContribute:         boolean;
   costPerStudent:             unknown;
   totalCost:                  unknown;
+  schoolGroupClubContribution: unknown;
+  studentContribution:        unknown;
+  fundraiserNeeded:           boolean;
+  fundraisers:                unknown;
+  bookkeeperAccountNumber:    string | null;
   fundingSource:              string | null;
   rainAlternateDate:          Date | null;
   substituteCount:            number | null;
@@ -116,6 +128,7 @@ const STATUS_COLORS: Record<string, string> = {
   APPROVED:               '#2E7D32',
   DENIED:                 '#C62828',
   DRAFT:                  '#616161',
+  PENDING_BOOKKEEPER:     PRIMARY,
   PENDING_SUPERVISOR:     PRIMARY,
   PENDING_ASST_DIRECTOR:  PRIMARY,
   PENDING_DIRECTOR:       PRIMARY,
@@ -124,6 +137,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT:                  'DRAFT',
+  PENDING_BOOKKEEPER:     'PENDING BOOKKEEPER',
   PENDING_SUPERVISOR:     'PENDING SUPERVISOR',
   PENDING_ASST_DIRECTOR:  'PENDING ASST. DIRECTOR',
   PENDING_DIRECTOR:       'PENDING DIRECTOR',
@@ -133,6 +147,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STAGE_LABELS: Record<string, string> = {
+  BOOKKEEPER:       'Bookkeeper',
   SUPERVISOR:       'Supervisor',
   ASST_DIRECTOR:    'Asst. Director of Schools',
   DIRECTOR:         'Director of Schools',
@@ -338,6 +353,16 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
       if (trip.totalCost != null) {
         logisticFields.push(['Total Cost', formatCurrency(trip.totalCost)]);
       }
+      if (trip.schoolGroupClubContribution != null) {
+        logisticFields.push(['School/Club Contribution (Per Student)', formatCurrency(trip.schoolGroupClubContribution)]);
+      }
+      if (trip.studentContribution != null) {
+        logisticFields.push(['Student Contribution (Per Student)', formatCurrency(trip.studentContribution)]);
+      }
+      logisticFields.push(['Fundraiser Needed', yesNo(trip.fundraiserNeeded)]);
+      if (trip.bookkeeperAccountNumber) {
+        logisticFields.push(['Account Number (Bookkeeper)', trip.bookkeeperAccountNumber]);
+      }
       if (trip.fundingSource) {
         logisticFields.push(['Funding Source', trip.fundingSource]);
       }
@@ -354,6 +379,21 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
         }
 
         doc.y = leftEndY;
+        doc.moveDown(0.4);
+      }
+
+      // Fundraisers — structured list, shown when at least one is recorded
+      const fundraiserArr = Array.isArray(trip.fundraisers)
+        ? (trip.fundraisers as FundraiserEntry[])
+        : [];
+
+      if (trip.fundraiserNeeded && fundraiserArr.length > 0) {
+        doc.font(FONT_BLD).fontSize(8).fillColor('#616161').text('Fundraisers', MARGIN, doc.y, { width: COL_W });
+        doc.moveDown(0.1);
+        for (const f of fundraiserArr) {
+          doc.font(FONT_REG).fontSize(9).fillColor('#212121')
+            .text(`${f.name} — ${formatCurrency(f.projectedRevenue)} projected`, MARGIN, doc.y, { width: COL_W });
+        }
         doc.moveDown(0.4);
       }
 
@@ -534,6 +574,9 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
         if (transport.transportationCost != null) {
           transportPairs.push(['Transportation Cost', formatCurrency(transport.transportationCost)]);
         }
+        if (transport.driverPaymentSource) {
+          transportPairs.push(['Driver Payment', transport.driverPaymentSource === 'GROUP_CLUB' ? 'Group/Club Paid' : 'District Paid']);
+        }
 
         for (let i = 0; i < transportPairs.length; i += 2) {
           const rowY = doc.y;
@@ -641,6 +684,7 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
       }
 
       const sigStages: Array<{ stage: string; label: string }> = [
+        { stage: 'BOOKKEEPER',       label: 'Bookkeeper' },
         { stage: 'SUPERVISOR',       label: 'Supervisor' },
         { stage: 'ASST_DIRECTOR',    label: 'Asst. Director of Schools' },
         { stage: 'DIRECTOR',         label: 'Director of Schools' },
@@ -690,10 +734,12 @@ export async function generateFieldTripPdf(trip: FieldTripForPdf): Promise<Buffe
         };
 
         const { stage: stageL, label: labelL } = sigStages[rowIdx];
-        const { stage: stageR, label: labelR } = sigStages[rowIdx + 1];
+        const right = sigStages[rowIdx + 1];
 
         drawSig(sigCol1, labelL, approvalByStage.get(stageL), denialByStage.get(stageL));
-        drawSig(sigCol2, labelR, approvalByStage.get(stageR), denialByStage.get(stageR));
+        if (right) {
+          drawSig(sigCol2, right.label, approvalByStage.get(right.stage), denialByStage.get(right.stage));
+        }
 
         // Advance past the tallest element in this row
         doc.y = dateY + 14;

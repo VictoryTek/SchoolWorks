@@ -127,6 +127,7 @@ export class FieldTripTransportationService {
         chaperoneCount:         data.chaperoneCount,
         needsDriver:            data.needsDriver,
         driverName:             data.driverName ?? null,
+        driverPaymentSource:    data.driverPaymentSource ?? null,
         loadingLocation:        data.loadingLocation,
         loadingTime:            data.loadingTime,
         arriveFirstDestTime:    data.arriveFirstDestTime ?? null,
@@ -201,6 +202,7 @@ export class FieldTripTransportationService {
     if (data.chaperoneCount         !== undefined) updatePayload.chaperoneCount         = data.chaperoneCount;
     if (data.needsDriver            !== undefined) updatePayload.needsDriver            = data.needsDriver;
     if (data.driverName             !== undefined) updatePayload.driverName             = data.driverName ?? null;
+    if (data.driverPaymentSource    !== undefined) updatePayload.driverPaymentSource    = data.driverPaymentSource ?? null;
     if (data.loadingLocation        !== undefined) updatePayload.loadingLocation        = data.loadingLocation;
     if (data.loadingTime            !== undefined) updatePayload.loadingTime            = data.loadingTime;
     if (data.arriveFirstDestTime    !== undefined) updatePayload.arriveFirstDestTime    = data.arriveFirstDestTime ?? null;

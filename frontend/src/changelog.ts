@@ -12,6 +12,49 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.9.8',
+    highlights: [
+      {
+        icon: '💰',
+        title: 'Bookkeeper approval added to field trip requests',
+        body: 'Field trip requests now stop at a new Bookkeeper approval stage before reaching the Supervisor, to confirm funding is actually in place. Approving there requires checking off that the Group/Club has met its funding obligations and entering the account number funds will come from — that account number carries forward so the Finance Director can confirm it has adequate funding at their stage.',
+      },
+      {
+        icon: '🎓',
+        title: 'Field trip costs now work with or without student contributions',
+        body: 'Not every trip relies on students paying a share. The Cost Details step now asks "Will students contribute to the cost of this trip?" — Yes keeps the School/Club + Student per-student contribution fields, No switches to a flat Cost Per Student figure instead, and Total Cost is auto-calculated from whichever one applies, multiplied by the number of students going.',
+      },
+      {
+        icon: '🎗️',
+        title: 'Fundraiser tracking on the Cost step',
+        body: 'A new "Will a fundraiser be needed to meet funding obligations?" question lets you list each fundraiser and its projected revenue right alongside the rest of the cost breakdown, on the request form and the read-only detail page.',
+      },
+      {
+        icon: '🚌',
+        title: 'Driver payment source on the Transportation step',
+        body: 'The Transportation step now asks whether the bus driver will be paid by the Group/Club or by the District, and the last step now has a clear divider separating Chaperones from Cost Details.',
+      },
+      {
+        icon: '📋',
+        title: 'Board Policy 4.302 checklist on new field trip requests',
+        body: 'Starting a new field trip request now shows the Board Policy 4.302 pre-flight checklist — principal approval, transportation plan, funding plan, chaperone ratios and background checks, and substitute coverage — which must be acknowledged before you can begin filling out the form.',
+      },
+    ],
+    changes: [
+      'Field trip requests now route to a new Bookkeeper approval stage first, before the Supervisor, to confirm funding is in place before the request moves forward.',
+      'Approving at the Bookkeeper stage now requires acknowledging the Group/Club has met all funding obligations for the trip and entering the account number the funds will be taken from.',
+      'The Finance Director approval stage now displays that account number and requires acknowledging the account has adequate funding for the trip before approving.',
+      'Fixed newly-added members of the Bookkeeper Entra group not receiving the Bookkeeper role after signing in, caused by a missing environment variable pass-through to the backend.',
+      'The Cost Details step now asks whether students will contribute to the cost of the trip. Answering Yes keeps the existing School/Club Contribution + Student Contribution (per student) fields; answering No switches to a flat Cost Per Student field instead — Total Cost auto-calculates from whichever is active, multiplied by the number of students going.',
+      'Added a "Will a fundraiser be needed to meet funding obligations?" question to the Cost Details step, with a running list of fundraiser names and projected revenue.',
+      'Added a "How will the bus driver be paid?" question to the Transportation step — Group/Club Paid or District Paid.',
+      'Added a visual divider separating Chaperones from Cost Details on the last step of the field trip request form.',
+      'Fixed the auto-calculated Total Cost field showing a broken partial grey box instead of a clean, consistently-styled read-only field.',
+      'Starting a new field trip request now shows the Board Policy 4.302 checklist, which must be acknowledged before the request form becomes usable.',
+      'The field trip detail page and PDF export now show the fundraiser list, per-student contribution amounts, and Bookkeeper account number alongside the rest of the cost breakdown.',
+    ],
+  },
+  {
     version: '1.9.7',
     changes: [
       'Field trip approval routing (and the purchase order no-office-location fallback) now stays correct after a supervisor assignment changes — the underlying routing list is rebuilt automatically as part of the existing supervisor sync job, instead of only reflecting whoever was assigned back when a one-off setup script last ran. Manually-assigned supervisors are never affected.',

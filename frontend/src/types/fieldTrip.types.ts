@@ -14,12 +14,18 @@ export interface ChaperoneEntry {
   backgroundCheckComplete: boolean;
 }
 
+export interface FundraiserEntry {
+  name:             string;
+  projectedRevenue: number;
+}
+
 // ---------------------------------------------------------------------------
 // Status enum
 // ---------------------------------------------------------------------------
 
 export type FieldTripStatus =
   | 'DRAFT'
+  | 'PENDING_BOOKKEEPER'
   | 'PENDING_SUPERVISOR'
   | 'PENDING_ASST_DIRECTOR'
   | 'PENDING_DIRECTOR'
@@ -35,7 +41,7 @@ export type FieldTripStatus =
 export interface FieldTripApproval {
   id:          string;
   fieldTripRequestId: string;
-  stage:       string;  // 'SUPERVISOR' | 'ASST_DIRECTOR' | 'DIRECTOR' | 'FINANCE_DIRECTOR'
+  stage:       string;  // 'BOOKKEEPER' | 'SUPERVISOR' | 'ASST_DIRECTOR' | 'DIRECTOR' | 'FINANCE_DIRECTOR'
   action:      'APPROVED' | 'DENIED' | 'SENT_BACK';
   actedById:   string;
   actedByName: string;
@@ -43,6 +49,8 @@ export interface FieldTripApproval {
   notes?:      string | null;
   denialReason?: string | null;
   boardApprovalAcknowledged: boolean;
+  fundingObligationsAcknowledged: boolean;
+  adequateFundingAcknowledged: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,8 +98,14 @@ export interface FieldTripRequest {
   returnTime:            string;
   transportationNeeded:  boolean;
   transportationDetails?: string | null;
+  studentsContribute?:   boolean;
   costPerStudent?:       number | null;
   totalCost?:            number | null;
+  schoolGroupClubContribution?: number | null;
+  studentContribution?:  number | null;
+  fundraiserNeeded?:     boolean;
+  fundraisers?:          FundraiserEntry[] | null;
+  bookkeeperAccountNumber?: string | null;
   fundingSource?:        string | null;
   chaperoneInfo?:        string | null;
   emergencyContact?:     string | null;
@@ -158,8 +172,13 @@ export interface CreateFieldTripDto {
   returnTime:            string;
   transportationNeeded:  boolean;
   transportationDetails?: string | null;
-  costPerStudent:        number;
+  studentsContribute:    boolean;
+  costPerStudent?:       number | null;
   totalCost:             number;
+  schoolGroupClubContribution?: number | null;
+  studentContribution?:  number | null;
+  fundraiserNeeded:      boolean;
+  fundraisers?:          FundraiserEntry[];
   fundingSource:         string;
   chaperoneInfo?:        string | null;
   emergencyContact:      string;
@@ -187,6 +206,9 @@ export type UpdateFieldTripDto = Partial<CreateFieldTripDto>;
 export interface ApproveTripDto {
   notes?: string;
   boardApprovalAcknowledged?: boolean;
+  fundingObligationsAcknowledged?: boolean;
+  bookkeeperAccountNumber?: string;
+  adequateFundingAcknowledged?: boolean;
 }
 
 export interface DenyTripDto {
@@ -205,6 +227,7 @@ export interface SendBackTripDto {
 
 export const FIELD_TRIP_STATUS_LABELS: Record<FieldTripStatus, string> = {
   DRAFT:                    'Draft',
+  PENDING_BOOKKEEPER:       'Pending Bookkeeper',
   PENDING_SUPERVISOR:       'Pending Supervisor',
   PENDING_ASST_DIRECTOR:    'Pending Asst. Director',
   PENDING_DIRECTOR:         'Pending Director',
@@ -218,6 +241,7 @@ export type StatusChipColor = 'default' | 'warning' | 'success' | 'error' | 'inf
 
 export const FIELD_TRIP_STATUS_COLORS: Record<FieldTripStatus, StatusChipColor> = {
   DRAFT:                    'default',
+  PENDING_BOOKKEEPER:       'warning',
   PENDING_SUPERVISOR:       'warning',
   PENDING_ASST_DIRECTOR:    'warning',
   PENDING_DIRECTOR:         'warning',
@@ -277,6 +301,7 @@ export interface FieldTripTransportationRequest {
   chaperoneCount?:         number | null;
   needsDriver:             boolean;
   driverName?:             string | null;
+  driverPaymentSource?:    'GROUP_CLUB' | 'DISTRICT' | null;
   loadingLocation:         string;
   loadingTime:             string;
   arriveLocation?:         string | null;
@@ -312,6 +337,7 @@ export interface CreateTransportationDto {
   chaperoneCount?:         number | null;
   needsDriver:             boolean;
   driverName?:             string | null;
+  driverPaymentSource?:    'GROUP_CLUB' | 'DISTRICT' | null;
   loadingLocation:         string;
   loadingTime:             string;
   arriveLocation?:         string | null;

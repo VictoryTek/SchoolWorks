@@ -34,6 +34,7 @@ interface WorkflowStage {
 
 const FIELD_TRIP_WORKFLOW_STAGES: WorkflowStage[] = [
   { status: 'DRAFT',                    label: 'Draft Created',                           stage: '' },
+  { status: 'PENDING_BOOKKEEPER',       label: 'Pending Bookkeeper Approval',             stage: 'BOOKKEEPER' },
   { status: 'PENDING_SUPERVISOR',       label: 'Pending Supervisor Approval',             stage: 'SUPERVISOR' },
   { status: 'PENDING_ASST_DIRECTOR',    label: 'Pending Asst. Director Approval',         stage: 'ASST_DIRECTOR' },
   { status: 'PENDING_FINANCE_DIRECTOR', label: 'Pending Finance Director Approval',       stage: 'FINANCE_DIRECTOR' },

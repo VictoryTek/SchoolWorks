@@ -50,6 +50,7 @@ import { useIsMobile } from '../../hooks/useResponsive';
 // ---------------------------------------------------------------------------
 
 const PENDING_STATUSES = new Set([
+  'PENDING_BOOKKEEPER',
   'PENDING_SUPERVISOR',
   'PENDING_ASST_DIRECTOR',
   'PENDING_DIRECTOR',
@@ -61,6 +62,7 @@ const TERMINAL_STATUSES = new Set(['APPROVED', 'DENIED']);
 
 // Maps trip status to the permission level required to act at that stage.
 const STAGE_MIN_LEVEL: Record<string, number> = {
+  PENDING_BOOKKEEPER:       7,
   PENDING_SUPERVISOR:       3,
   PENDING_ASST_DIRECTOR:    4,
   PENDING_DIRECTOR:         5,
@@ -69,6 +71,7 @@ const STAGE_MIN_LEVEL: Record<string, number> = {
 
 // Human-readable labels for each pending stage (used in informational banner).
 const STAGE_LABELS: Record<string, string> = {
+  PENDING_BOOKKEEPER:       'Bookkeeper',
   PENDING_SUPERVISOR:       'Supervisor',
   PENDING_ASST_DIRECTOR:    'Assistant Director of Schools',
   PENDING_DIRECTOR:         'Director of Schools',
@@ -91,6 +94,9 @@ export function FieldTripDetailPage() {
   const [denyReason, setDenyReason]               = useState('');
   const [approveNotes, setApproveNotes]           = useState('');
   const [boardApprovalAck, setBoardApprovalAck]   = useState(false);
+  const [fundingObligationsAck, setFundingObligationsAck] = useState(false);
+  const [bookkeeperAccountNumber, setBookkeeperAccountNumber] = useState('');
+  const [adequateFundingAck, setAdequateFundingAck] = useState(false);
   const [showBoardApprovalNotice, setShowBoardApprovalNotice] = useState(false);
   const [actionError, setActionError]             = useState<string | null>(null);
   const [pdfLoading, setPdfLoading]               = useState(false);
@@ -105,14 +111,25 @@ export function FieldTripDetailPage() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: ({ id, notes, boardApprovalAcknowledged }: { id: string; notes?: string; boardApprovalAcknowledged?: boolean }) =>
-      fieldTripService.approve(id, { notes: notes || undefined, boardApprovalAcknowledged }),
+    mutationFn: ({
+      id, notes, boardApprovalAcknowledged, fundingObligationsAcknowledged, bookkeeperAccountNumber, adequateFundingAcknowledged,
+    }: {
+      id: string; notes?: string; boardApprovalAcknowledged?: boolean;
+      fundingObligationsAcknowledged?: boolean; bookkeeperAccountNumber?: string; adequateFundingAcknowledged?: boolean;
+    }) =>
+      fieldTripService.approve(id, {
+        notes: notes || undefined, boardApprovalAcknowledged,
+        fundingObligationsAcknowledged, bookkeeperAccountNumber: bookkeeperAccountNumber || undefined, adequateFundingAcknowledged,
+      }),
     onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['field-trips', id] });
       queryClient.invalidateQueries({ queryKey: ['field-trips', 'pending-approvals'] });
       setApproveDialogOpen(false);
       setApproveNotes('');
       setBoardApprovalAck(false);
+      setFundingObligationsAck(false);
+      setBookkeeperAccountNumber('');
+      setAdequateFundingAck(false);
       setActionError(null);
       if (updated.status === 'PENDING_DIRECTOR' && updated.isOvernightTrip) {
         setShowBoardApprovalNotice(true);
@@ -221,6 +238,12 @@ export function FieldTripDetailPage() {
 
   // DOS (Director of Schools) must acknowledge Board approval before approving an overnight trip
   const requiresBoardApprovalAck = trip.status === 'PENDING_DIRECTOR' && trip.isOvernightTrip;
+
+  // Bookkeeper must confirm funding obligations are met and record the account number
+  const requiresBookkeeperFields = trip.status === 'PENDING_BOOKKEEPER';
+
+  // Finance Director must confirm the account (set by the Bookkeeper) has adequate funding
+  const requiresFinanceFundingAck = trip.status === 'PENDING_FINANCE_DIRECTOR';
 
   // ---------------------------------------------------------------------------
   // Render helpers
@@ -447,14 +470,38 @@ export function FieldTripDetailPage() {
           {trip.transportationNeeded && trip.transportationDetails && (
             <DetailField label="Transportation Details" value={trip.transportationDetails} xs={12} multiline />
           )}
+          <DetailField label="Students Contribute" value={trip.studentsContribute ? 'Yes' : 'No'} />
           {trip.costPerStudent != null && (
             <DetailField label="Cost Per Student" value={`$${Number(trip.costPerStudent).toFixed(2)}`} />
+          )}
+          {trip.schoolGroupClubContribution != null && (
+            <DetailField label="School/Club Contribution (Per Student)" value={`$${Number(trip.schoolGroupClubContribution).toFixed(2)}`} />
+          )}
+          {trip.studentContribution != null && (
+            <DetailField label="Student Contribution (Per Student)" value={`$${Number(trip.studentContribution).toFixed(2)}`} />
           )}
           {trip.totalCost != null && (
             <DetailField label="Total Cost" value={`$${Number(trip.totalCost).toFixed(2)}`} />
           )}
+          {trip.bookkeeperAccountNumber && (
+            <DetailField label="Account Number (Bookkeeper)" value={trip.bookkeeperAccountNumber} />
+          )}
           {trip.fundingSource && (
             <DetailField label="Funding Source" value={trip.fundingSource} />
+          )}
+          <DetailField label="Fundraiser Needed" value={trip.fundraiserNeeded ? 'Yes' : 'No'} />
+          {Array.isArray(trip.fundraisers) && trip.fundraisers.length > 0 && (
+            <Grid size={12}>
+              <Typography variant="caption" color="text.secondary" display="block">Fundraisers</Typography>
+              {trip.fundraisers.map((f, idx) => (
+                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                  <Typography variant="body1">{f.name}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ${Number(f.projectedRevenue).toFixed(2)} projected
+                  </Typography>
+                </Box>
+              ))}
+            </Grid>
           )}
         </Grid>
       </Paper>
@@ -590,12 +637,57 @@ export function FieldTripDetailPage() {
               label="I acknowledge that this overnight trip request has Board approval."
             />
           )}
+          {requiresBookkeeperFields && (
+            <>
+              <FormControlLabel
+                sx={{ mt: 1.5, display: 'flex' }}
+                control={
+                  <Checkbox
+                    checked={fundingObligationsAck}
+                    onChange={(e) => setFundingObligationsAck(e.target.checked)}
+                  />
+                }
+                label="By checking this box the Group or Club has met all funding obligations required for this trip."
+              />
+              <TextField
+                fullWidth
+                label="Account Number"
+                helperText="The account number that funds will be taken from"
+                value={bookkeeperAccountNumber}
+                onChange={(e) => setBookkeeperAccountNumber(e.target.value)}
+                sx={{ mt: 1.5 }}
+                required
+              />
+            </>
+          )}
+          {requiresFinanceFundingAck && (
+            <>
+              {trip.bookkeeperAccountNumber && (
+                <Typography variant="body2" sx={{ mt: 2 }}>
+                  Account Number: <strong>{trip.bookkeeperAccountNumber}</strong>
+                </Typography>
+              )}
+              <FormControlLabel
+                sx={{ mt: 1.5, display: 'flex' }}
+                control={
+                  <Checkbox
+                    checked={adequateFundingAck}
+                    onChange={(e) => setAdequateFundingAck(e.target.checked)}
+                  />
+                }
+                label="The account has adequate funding for this trip."
+              />
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button
             onClick={() => {
               setApproveDialogOpen(false);
               setBoardApprovalAck(false);
+              setFundingObligationsAck(false);
+              setBookkeeperAccountNumber('');
+              setAdequateFundingAck(false);
             }}
           >
             Cancel
@@ -607,8 +699,16 @@ export function FieldTripDetailPage() {
               id: trip.id,
               notes: approveNotes || undefined,
               boardApprovalAcknowledged: boardApprovalAck,
+              fundingObligationsAcknowledged: fundingObligationsAck,
+              bookkeeperAccountNumber,
+              adequateFundingAcknowledged: adequateFundingAck,
             })}
-            disabled={approveMutation.isPending || (requiresBoardApprovalAck && !boardApprovalAck)}
+            disabled={
+              approveMutation.isPending ||
+              (requiresBoardApprovalAck && !boardApprovalAck) ||
+              (requiresBookkeeperFields && (!fundingObligationsAck || !bookkeeperAccountNumber.trim())) ||
+              (requiresFinanceFundingAck && !adequateFundingAck)
+            }
           >
             {approveMutation.isPending ? <CircularProgress size={20} /> : 'Approve'}
           </Button>

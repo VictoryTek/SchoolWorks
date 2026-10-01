@@ -9,6 +9,7 @@
  *   Level 4 — Asst. Director of Schools: approve/deny at PENDING_ASST_DIRECTOR stage
  *   Level 5 — Director of Schools: approve/deny at PENDING_DIRECTOR stage
  *   Level 6 — Finance Director / Admin: approve/deny at PENDING_FINANCE_DIRECTOR stage
+ *   Level 7 — Bookkeeper: approve/deny at PENDING_BOOKKEEPER stage (first stage, before Supervisor)
  *
  * NOTE: ADMIN role bypasses all requireModule checks (handled inside requireModule).
  */

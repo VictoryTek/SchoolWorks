@@ -87,6 +87,7 @@ const GROUP_MODULE_MAP: Record<PermissionModuleType, Array<[string, number]>> = 
   ],
   FIELD_TRIPS: [
     ['ENTRA_ADMIN_GROUP_ID', 6],
+    ['ENTRA_BOOKKEEPER_GROUP_ID', 7],
     ['ENTRA_FINANCE_DIRECTOR_GROUP_ID', 6],
     ['ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID', 5],
     ['ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID', 4],
@@ -495,6 +496,7 @@ const ROLE_LABEL_PRIORITY: Array<[string, string]> = [
   ['ENTRA_DIRECTOR_OF_SCHOOLS_GROUP_ID', 'Director of Schools'],
   ['ENTRA_ASST_DIRECTOR_OF_SCHOOLS_GROUP_ID', 'Assistant Director of Schools'],
   ['ENTRA_FINANCE_DIRECTOR_GROUP_ID', 'Finance Director'],
+  ['ENTRA_BOOKKEEPER_GROUP_ID', 'Bookkeeper'],
   ['ENTRA_TECHNOLOGY_DIRECTOR_GROUP_ID', 'Technology Director'],
   ['ENTRA_MAINTENANCE_DIRECTOR_GROUP_ID', 'Maintenance Director'],
   ['ENTRA_TRANSPORTATION_DIRECTOR_GROUP_ID', 'Transportation Director'],

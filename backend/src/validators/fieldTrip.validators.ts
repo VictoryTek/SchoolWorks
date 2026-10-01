@@ -13,6 +13,7 @@ import { z } from 'zod';
 
 export const FIELD_TRIP_STATUSES = [
   'DRAFT',
+  'PENDING_BOOKKEEPER',
   'PENDING_SUPERVISOR',
   'PENDING_ASST_DIRECTOR',
   'PENDING_DIRECTOR',
@@ -150,12 +151,40 @@ const FieldTripBodyShape = {
     .max(1000, 'Transportation details must be 1000 characters or less')
     .nullable()
     .optional(),
+  studentsContribute: z.boolean(),
   costPerStudent: z
     .number()
-    .min(0, 'Cost per student must be 0 or greater'),
+    .min(0, 'Cost per student must be 0 or greater')
+    .nullable()
+    .optional(),
   totalCost: z
     .number()
     .min(0, 'Total cost must be 0 or greater'),
+  schoolGroupClubContribution: z
+    .number()
+    .min(0, 'School/Club contribution must be 0 or greater')
+    .nullable()
+    .optional(),
+  studentContribution: z
+    .number()
+    .min(0, 'Student contribution must be 0 or greater')
+    .nullable()
+    .optional(),
+  fundraiserNeeded: z.boolean(),
+  fundraisers: z
+    .array(
+      z.object({
+        name: z
+          .string()
+          .min(1, 'Fundraiser name is required')
+          .max(200, 'Fundraiser name must be 200 characters or less'),
+        projectedRevenue: z
+          .number()
+          .min(0, 'Projected revenue must be 0 or greater'),
+      }),
+    )
+    .optional()
+    .default([]),
   fundingSource: z
     .string()
     .min(1, 'Funding source / account number is required')
@@ -287,6 +316,29 @@ export const CreateFieldTripSchema = z
       message: 'Please enter the program or club name',
       path: ['specialProgramClubName'],
     },
+  )
+  .refine(
+    (data) => !data.fundraiserNeeded || (data.fundraisers && data.fundraisers.length > 0),
+    {
+      message: 'At least one fundraiser is required',
+      path: ['fundraisers'],
+    },
+  )
+  .refine(
+    (data) =>
+      !data.studentsContribute ||
+      (data.schoolGroupClubContribution != null && data.studentContribution != null),
+    {
+      message: 'School/Club and Student contribution amounts are required',
+      path: ['schoolGroupClubContribution'],
+    },
+  )
+  .refine(
+    (data) => data.studentsContribute || data.costPerStudent != null,
+    {
+      message: 'Cost per student is required',
+      path: ['costPerStudent'],
+    },
   );
 
 export type CreateFieldTripDto = z.infer<typeof CreateFieldTripSchema>;
@@ -325,8 +377,21 @@ export const UpdateFieldTripSchema = z
     returnTime: z.string().min(1).max(20).optional(),
     transportationNeeded: z.boolean().optional(),
     transportationDetails: z.string().max(1000).nullable().optional(),
+    studentsContribute: z.boolean().optional(),
     costPerStudent: z.number().min(0).nullable().optional(),
     totalCost: z.number().min(0).nullable().optional(),
+    schoolGroupClubContribution: z.number().min(0).nullable().optional(),
+    studentContribution: z.number().min(0).nullable().optional(),
+    fundraiserNeeded: z.boolean().optional(),
+    fundraisers: z
+      .array(
+        z.object({
+          name: z.string().min(1).max(200),
+          projectedRevenue: z.number().min(0),
+        }),
+      )
+      .nullable()
+      .optional(),
     fundingSource: z.string().max(200).nullable().optional(),
     chaperoneInfo: z.string().max(2000).nullable().optional(),
     emergencyContact: z.string().max(500).nullable().optional(),
@@ -382,6 +447,14 @@ export type UpdateFieldTripDto = z.infer<typeof UpdateFieldTripSchema>;
 export const ApproveTripSchema = z.object({
   notes: z.string().max(2000, 'Notes must be 2000 characters or less').optional(),
   boardApprovalAcknowledged: z.boolean().optional(),
+  // Bookkeeper stage
+  fundingObligationsAcknowledged: z.boolean().optional(),
+  bookkeeperAccountNumber: z
+    .string()
+    .max(200, 'Account number must be 200 characters or less')
+    .optional(),
+  // Finance Director stage
+  adequateFundingAcknowledged: z.boolean().optional(),
 });
 
 export type ApproveTripDto = z.infer<typeof ApproveTripSchema>;
