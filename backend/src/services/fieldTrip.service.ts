@@ -352,12 +352,35 @@ export class FieldTripService {
     // PENDING_BOOKKEEPER's next stage is dynamic: skip to PENDING_ASST_DIRECTOR
     // when the submitter has no supervisor, mirroring the logic that used to
     // run at submit-time before Bookkeeper became the unconditional first stage.
-    const nextStatus =
+    let nextStatus =
       trip.status === 'PENDING_BOOKKEEPER'
         ? (((trip.approverEmailsSnapshot as FieldTripApproverSnapshot | null)?.supervisorEmails?.length ?? 0) > 0
             ? 'PENDING_SUPERVISOR'
             : 'PENDING_ASST_DIRECTOR')
         : APPROVAL_CHAIN[trip.status];
+
+    // ── Reorder transition guard ──────────────────────────────────────────
+    // The Finance Director/Director of Schools stages were swapped so Finance
+    // now approves before the Director of Schools. For trips that already
+    // had a DIRECTOR-stage approval recorded before that change (back when
+    // DIRECTOR came first), routing this Finance Director approval forward
+    // to PENDING_DIRECTOR would send it back to someone who already approved
+    // it, tripping the duplicate-approver guard below. Those trips are
+    // already fully approved in substance — finish them here instead.
+    if (trip.status === 'PENDING_FINANCE_DIRECTOR') {
+      const priorDirectorApproval = await prisma.fieldTripApproval.findFirst({
+        where: {
+          fieldTripRequestId: id,
+          stage:              'DIRECTOR',
+          action:             'APPROVED',
+          ...(trip.submittedAt ? { actedAt: { gte: trip.submittedAt } } : {}),
+        },
+        select: { id: true },
+      });
+      if (priorDirectorApproval) {
+        nextStatus = 'APPROVED';
+      }
+    }
 
     if (stage === 'DIRECTOR' && trip.isOvernightTrip && !boardApprovalAcknowledged) {
       throw new ValidationError(
