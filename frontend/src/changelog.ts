@@ -12,6 +12,35 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.9.11',
+    highlights: [
+      {
+        icon: '⛽',
+        title: 'County-wide vehicles show as one row in Fuel History',
+        body: 'When several people fuel the same county-wide vehicle, the Fuel History report and its PDF now show that vehicle once for the month instead of once per driver. The row adds up the fuel and works out miles driven across everyone who fueled it. Open the row to see each fill-up and who fueled it. The PDF also lists each driver\'s fuel total under the vehicle, and prints any fill-up notes under the row they belong to.',
+      },
+      {
+        icon: '🚫',
+        title: 'Mileage can no longer go backwards',
+        body: 'Logging a fill-up, editing one, or setting a starting mileage is now blocked when the mileage would give a negative number of miles driven. You\'ll see a message with the earlier or later reading that it conflicts with, so a mistyped odometer is caught right away.',
+      },
+      {
+        icon: '✏️',
+        title: 'Fuel entries can be edited',
+        body: 'The Transportation Secretary and site administrators can now fix a fill-up from the Fuel History page with the new Edit button — vehicle, fuel station, date, amount, mileage, or notes. Entries older than 60 days can be corrected too. Deleting an entry is still limited to the Transportation Director and administrators.',
+      },
+    ],
+    changes: [
+      'Fuel History and its PDF export combine all drivers\' fill-ups for a county-wide vehicle into one row; the expanded list shows who fueled each fill-up. Rows for other vehicles, and each driver\'s own view, are unchanged.',
+      'The Fuel History PDF now shows each driver\'s fuel total under a combined county-wide row, and prints every fill-up note under the row it belongs to (with its date, and the driver on county-wide rows).',
+      'Fill-up notes now also show in the expanded fill-up list on the Fuel History page.',
+      'New fuel entries, edited entries, and starting mileages are rejected when the reading is lower than the previous reading for that vehicle, or higher than the next reading for a back-dated entry.',
+      'A starting mileage now only applies to months after the one it was set for, so it can no longer make an earlier month show negative miles.',
+      'Added an Edit button to each fill-up on the Fuel History page for the Transportation Secretary and site administrators (the Secretary cannot delete). Editing never changes the fuel tank level or the vehicle\'s current mileage.',
+      'Edited fuel entries can be dated more than 60 days back; dates in the future are still not allowed. New entries keep the 60-day limit.',
+    ],
+  },
+  {
     version: '1.9.10',
     highlights: [
       {

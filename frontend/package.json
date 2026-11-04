@@ -1,6 +1,6 @@
 {
   "name": "tech-v2-frontend",
-  "version": "1.9.10",
+  "version": "1.9.11",
   "type": "module",
   "description": "Frontend for Tech Department Management System",
   "scripts": {

@@ -117,6 +117,11 @@ function FuelEntryList({ row, permLevel, onDelete, onEdit, onSetBaseline }: {
                   {entry.fuelStation.officeLocation.name}
                 </Typography>
               )}
+              {entry.notes && (
+                <Typography variant="caption" color="text.secondary" display="block" sx={{ whiteSpace: 'pre-wrap' }}>
+                  Note: {entry.notes}
+                </Typography>
+              )}
             </Box>
             <Box display="flex" flexShrink={0}>
               {permLevel >= 2 && (
