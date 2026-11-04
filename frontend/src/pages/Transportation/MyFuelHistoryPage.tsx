@@ -40,6 +40,7 @@ import {
   Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import DownloadIcon from '@mui/icons-material/Download';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
@@ -48,7 +49,8 @@ import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { fuelEntryApi, transportationUnitApi } from '@/services/transportation.service';
-import type { FuelMonthlySummaryRow } from '@/types/transportation.types';
+import type { FuelConsumptionEntry, FuelMonthlySummaryRow } from '@/types/transportation.types';
+import EditFuelEntryDialog from './EditFuelEntryDialog';
 import { PageBackButton } from '@/components/layout/PageBackButton';
 import { useIsMobile } from '@/hooks/useResponsive';
 import { parseDateLocal } from '@/utils/inventoryFormatters';
@@ -71,10 +73,11 @@ function previousMonthString(month: string): string {
 }
 
 /** Shared fill-up list rendered inside both the desktop row's and mobile card's expand area. */
-function FuelEntryList({ row, permLevel, onDelete, onSetBaseline }: {
+function FuelEntryList({ row, permLevel, onDelete, onEdit, onSetBaseline }: {
   row: FuelMonthlySummaryRow;
   permLevel: number;
   onDelete: (entryId: string) => void;
+  onEdit: (entry: FuelConsumptionEntry) => void;
   onSetBaseline: (row: FuelMonthlySummaryRow) => void;
 }) {
   const needsBaseline = row.previousMileage === null;
@@ -115,22 +118,39 @@ function FuelEntryList({ row, permLevel, onDelete, onSetBaseline }: {
                 </Typography>
               )}
             </Box>
-            {permLevel >= 3 && (
-              <Tooltip title="Delete">
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm('Delete this fuel entry?')) {
-                      onDelete(entry.id);
-                    }
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-            )}
+            <Box display="flex" flexShrink={0}>
+              {permLevel >= 2 && (
+                <Tooltip title="Edit">
+                  <IconButton
+                    size="small"
+                    aria-label="Edit fuel entry"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(entry);
+                    }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {permLevel >= 3 && (
+                <Tooltip title="Delete">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Delete fuel entry"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm('Delete this fuel entry?')) {
+                        onDelete(entry.id);
+                      }
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
           </Box>
         </Box>
       ))}
@@ -144,11 +164,12 @@ interface FuelSummaryRowProps {
   permLevel: number;
   colSpan: number;
   onDelete: (entryId: string) => void;
+  onEdit: (entry: FuelConsumptionEntry) => void;
   onSetBaseline: (row: FuelMonthlySummaryRow) => void;
 }
 
 /** Desktop table row with an in-place expand section. */
-function FuelSummaryRow({ row, showUser, permLevel, colSpan, onDelete, onSetBaseline }: FuelSummaryRowProps) {
+function FuelSummaryRow({ row, showUser, permLevel, colSpan, onDelete, onEdit, onSetBaseline }: FuelSummaryRowProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -184,7 +205,7 @@ function FuelSummaryRow({ row, showUser, permLevel, colSpan, onDelete, onSetBase
         <TableCell colSpan={colSpan} sx={{ py: 0, px: 0 }}>
           <Collapse in={expanded} timeout="auto" unmountOnExit>
             <Box sx={{ bgcolor: 'action.hover', px: 2, py: 1.5 }}>
-              <FuelEntryList row={row} permLevel={permLevel} onDelete={onDelete} onSetBaseline={onSetBaseline} />
+              <FuelEntryList row={row} permLevel={permLevel} onDelete={onDelete} onEdit={onEdit} onSetBaseline={onSetBaseline} />
             </Box>
           </Collapse>
         </TableCell>
@@ -198,11 +219,12 @@ interface FuelSummaryCardProps {
   showUser: boolean;
   permLevel: number;
   onDelete: (entryId: string) => void;
+  onEdit: (entry: FuelConsumptionEntry) => void;
   onSetBaseline: (row: FuelMonthlySummaryRow) => void;
 }
 
 /** Mobile card, mirroring the expand-in-place pattern used by DeviceManagement's cart cards. */
-function FuelSummaryCard({ row, showUser, permLevel, onDelete, onSetBaseline }: FuelSummaryCardProps) {
+function FuelSummaryCard({ row, showUser, permLevel, onDelete, onEdit, onSetBaseline }: FuelSummaryCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -245,7 +267,7 @@ function FuelSummaryCard({ row, showUser, permLevel, onDelete, onSetBaseline }: 
       </Box>
       <Collapse in={expanded} timeout="auto" unmountOnExit>
         <Box sx={{ pt: 1 }}>
-          <FuelEntryList row={row} permLevel={permLevel} onDelete={onDelete} onSetBaseline={onSetBaseline} />
+          <FuelEntryList row={row} permLevel={permLevel} onDelete={onDelete} onEdit={onEdit} onSetBaseline={onSetBaseline} />
         </Box>
       </Collapse>
     </Paper>
@@ -299,6 +321,14 @@ export default function MyFuelHistoryPage() {
       queryClient.invalidateQueries({ queryKey: ['fuel-summary-mine'] });
     },
   });
+
+  // Edit dialog (level 2+) — one fill-up at a time.
+  const [editingEntry, setEditingEntry] = useState<FuelConsumptionEntry | null>(null);
+
+  function handleEntrySaved() {
+    queryClient.invalidateQueries({ queryKey: ['fuel-summary-all'] });
+    queryClient.invalidateQueries({ queryKey: ['fuel-summary-mine'] });
+  }
 
   // "Set Starting Mileage" dialog — backfills a previous-reading baseline for
   // a (user, vehicle) with no fuel history before the viewed month.
@@ -443,6 +473,7 @@ export default function MyFuelHistoryPage() {
                   showUser={showUser}
                   permLevel={permLevel}
                   onDelete={(entryId) => deleteMutation.mutate(entryId)}
+                  onEdit={setEditingEntry}
                   onSetBaseline={openBaselineDialog}
                 />
               ))}
@@ -482,6 +513,7 @@ export default function MyFuelHistoryPage() {
                         permLevel={permLevel}
                         colSpan={columnCount}
                         onDelete={(entryId) => deleteMutation.mutate(entryId)}
+                        onEdit={setEditingEntry}
                         onSetBaseline={openBaselineDialog}
                       />
                     ))
@@ -491,6 +523,16 @@ export default function MyFuelHistoryPage() {
             </Box>
           </Paper>
         )
+      )}
+
+      {/* Edit Fuel Entry dialog — remounted per entry so its fields start from that entry */}
+      {editingEntry && (
+        <EditFuelEntryDialog
+          key={editingEntry.id}
+          entry={editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={handleEntrySaved}
+        />
       )}
 
       {/* Set Starting Mileage dialog */}

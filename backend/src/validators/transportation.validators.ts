@@ -112,19 +112,16 @@ const FUEL_UNITS = ['gallons', 'liters', 'kWh'] as const;
 
 const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
 
-export const CreateFuelEntrySchema = z.object({
+const entryDateFormat = () => z.string()
+  .datetime({ offset: true })
+  .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
+
+/** Fields shared by create and update; only the entry-date rule differs. */
+const fuelEntryFields = (entryDate: z.ZodType<string>) => ({
   transportationUnitId: z.string().uuid('Invalid transportation unit ID'),
   fuelStationId:        z.string().uuid('Invalid fuel station ID'),
   tankId:               z.string().uuid('Invalid tank ID').optional().nullable(),
-  entryDate:            z.string()
-    .datetime({ offset: true })
-    .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/))
-    .refine((v) => {
-      const d = new Date(v);
-      const now = Date.now();
-      return d <= new Date(now) && d >= new Date(now - SIXTY_DAYS_MS);
-    }, 'Entry date cannot be in the future or more than 60 days ago')
-    .optional(),
+  entryDate:            entryDate.optional(),
   fuelAmount:      z.number().positive().max(999.999),
   fuelUnit:        z.enum(FUEL_UNITS).optional(),
   mileageAtFueling: z.number().int().min(0),
@@ -133,9 +130,36 @@ export const CreateFuelEntrySchema = z.object({
   notes:           z.string().max(2000).optional().nullable(),
 });
 
+// New entries must be recent: not in the future and at most 60 days old.
+export const CreateFuelEntrySchema = z.object(fuelEntryFields(
+  entryDateFormat().refine((v) => {
+    const d = new Date(v);
+    const now = Date.now();
+    return d <= new Date(now) && d >= new Date(now - SIXTY_DAYS_MS);
+  }, 'Entry date cannot be in the future or more than 60 days ago'),
+));
+
 export type CreateFuelEntryDto = z.infer<typeof CreateFuelEntrySchema>;
 
-export const UpdateFuelEntrySchema = CreateFuelEntrySchema.partial();
+/**
+ * True unless the date is in the future. A date-only value (YYYY-MM-DD) is
+ * compared by its local calendar day, the way the service stores it
+ * (parseEntryDate) — reading it as UTC midnight would let "tomorrow" through
+ * in the evening, when UTC midnight is already behind us.
+ */
+const isNotFutureDate = (v: string): boolean => {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const [y, m, d] = v.split('-').map(Number);
+    const now = new Date();
+    return new Date(y!, m! - 1, d!) <= new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  return new Date(v) <= new Date();
+};
+
+// Edits (level 2+) may correct older entries, so only the future is rejected.
+export const UpdateFuelEntrySchema = z.object(fuelEntryFields(
+  entryDateFormat().refine(isNotFutureDate, 'Entry date cannot be in the future'),
+)).partial();
 
 export type UpdateFuelEntryDto = z.infer<typeof UpdateFuelEntrySchema>;
 
