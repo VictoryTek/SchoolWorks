@@ -1,0 +1,82 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git stash *)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push *)",
+      "PowerShell(git stash *)",
+
+      "Bash(*prisma migrate reset*)",
+      "Bash(*prisma migrate dev*)",
+      "Bash(*prisma db push*--force-reset*)",
+      "Bash(*prisma db push*--accept-data-loss*)",
+      "Bash(*npm run prisma:migrate*)",
+      "PowerShell(*prisma migrate reset*)",
+      "PowerShell(*prisma migrate dev*)",
+      "PowerShell(*prisma db push*--force-reset*)",
+      "PowerShell(*prisma db push*--accept-data-loss*)",
+      "PowerShell(*npm run prisma:migrate*)",
+
+      "Bash(*npm run sync:supervisors*)",
+      "PowerShell(*npm run sync:supervisors*)",
+
+      "Bash(npx vitest)",
+      "Bash(npx vitest watch*)",
+      "PowerShell(npx vitest)",
+      "PowerShell(npx vitest watch*)",
+
+      "Bash(docker compose up*)",
+      "Bash(docker compose down*)",
+      "Bash(docker compose * up)",
+      "Bash(docker compose * up *)",
+      "Bash(docker compose * down)",
+      "Bash(docker compose * down *)",
+      "Bash(docker-compose up*)",
+      "Bash(docker-compose down*)",
+      "Bash(docker-compose * up)",
+      "Bash(docker-compose * up *)",
+      "Bash(docker-compose * down)",
+      "Bash(docker-compose * down *)",
+      "PowerShell(docker compose up*)",
+      "PowerShell(docker compose down*)",
+      "PowerShell(docker compose * up)",
+      "PowerShell(docker compose * up *)",
+      "PowerShell(docker compose * down)",
+      "PowerShell(docker compose * down *)",
+      "PowerShell(docker-compose up*)",
+      "PowerShell(docker-compose down*)",
+      "PowerShell(docker-compose * up)",
+      "PowerShell(docker-compose * up *)",
+      "PowerShell(docker-compose * down)",
+      "PowerShell(docker-compose * down *)"
+    ],
+    "ask": [
+      "Bash(npm run dev*)",
+      "PowerShell(npm run dev*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/preflight-gate.sh\"",
+            "timeout": 30,
+            "statusMessage": "Checking preflight stamp..."
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify.sh\"",
+            "timeout": 600,
+            "statusMessage": "Verifying image builds..."
+          }
+        ]
+      }
+    ]
+  }
+}

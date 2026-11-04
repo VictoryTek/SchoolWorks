@@ -19,6 +19,7 @@ if (Test-Path $dockerBin) {
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location $repoRoot
+$preflightStart = Get-Date
 
 Write-Host '==> Preflight 1/4: mobile table card-view guard'
 # Every page/component that renders a raw MUI <TableHead> must also reference
@@ -87,6 +88,17 @@ docker compose -f docker-compose.dev.yml --profile test rm -f -s db-test
 if ($testResult -ne 0) {
     Write-Host 'PREFLIGHT FAILED: backend integration tests returned a non-zero exit code.'
     exit 1
+}
+
+# Stamp read by .claude/hooks/preflight-gate.sh (Stop hook): proves preflight
+# passed after the last file change. Gitignored; never written on failure.
+# The stamp is dated to when preflight STARTED, so a file edited while the
+# builds and tests were running still counts as newer than the stamp.
+$stampDir = Join-Path $repoRoot '.claude'
+if (Test-Path $stampDir) {
+    $stampFile = Join-Path $stampDir '.preflight-pass'
+    Set-Content -LiteralPath $stampFile -Value (Get-Date -Format o) -Encoding ascii
+    (Get-Item -LiteralPath $stampFile).LastWriteTime = $preflightStart
 }
 
 Write-Host 'All preflight checks passed.'

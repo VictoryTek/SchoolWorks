@@ -164,6 +164,8 @@ export interface FuelMonthlySummaryRow {
   userName:        string;
   unitId:          string;
   unitNumber:      string;
+  /** True when this row combines every driver's fill-ups for a county-wide vehicle. */
+  isCountyWide:    boolean;
   reportingMonth:  string;
   totalFuelAmount: number;
   fuelUnit:        FuelUnit;

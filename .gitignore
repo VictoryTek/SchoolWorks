@@ -71,3 +71,5 @@ docs/*.csv
 
 # Entra/Exchange ops scripts (contain tenant/app identifiers, internal paths)
 docs/UpdateCustomExtensionAttributes_v2.ps1
+# Written by scripts/preflight.ps1 on success; read by the Stop hook
+.claude/.preflight-pass

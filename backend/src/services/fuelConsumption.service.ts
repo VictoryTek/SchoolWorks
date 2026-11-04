@@ -172,11 +172,17 @@ export class FuelConsumptionService {
     }
     if (filters.unitId) where.transportationUnitId = filters.unitId;
 
+    // County-wide vehicles are shared by many drivers, so the all-users report
+    // shows them as ONE row per vehicle (mileage chained across every driver)
+    // instead of one row per driver. Per-driver views (level 1, or a level 2+
+    // user filter) only contain one driver's fill-ups, so they stay per-driver.
+    const combineCountyWide = requestingPermLevel >= 2 && !filters.userId;
+
     const entries = await this.prisma.fuelConsumptionEntry.findMany({
       where,
-      orderBy: { entryDate: 'asc' },
+      orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }],
       include: {
-        unit:        { select: { id: true, unitNumber: true, type: true, fuelType: true } },
+        unit:        { select: { id: true, unitNumber: true, type: true, fuelType: true, isCountyWide: true } },
         enteredBy:   { select: { id: true, firstName: true, lastName: true, displayName: true } },
         fuelStation: {
           include: { officeLocation: { select: { id: true, name: true } } },
@@ -187,9 +193,16 @@ export class FuelConsumptionService {
     if (entries.length === 0) return [];
 
     type Entry = (typeof entries)[number];
+    const userNameOf = (e: Entry) => e.enteredBy.displayName
+      ?? (`${e.enteredBy.firstName ?? ''} ${e.enteredBy.lastName ?? ''}`.trim() || '—');
+    const groupKeyOf = (e: Entry) =>
+      combineCountyWide && e.unit.isCountyWide
+        ? `unit::${e.transportationUnitId}`
+        : `${e.enteredById}::${e.transportationUnitId}`;
+
     const groups = new Map<string, {
-      userId: string;
-      userName: string;
+      combined: boolean;
+      countyWide: boolean;
       unitId: string;
       unitNumber: string;
       totalFuelAmount: number;
@@ -198,14 +211,12 @@ export class FuelConsumptionService {
     }>();
 
     for (const entry of entries) {
-      const key = `${entry.enteredById}::${entry.transportationUnitId}`;
+      const key = groupKeyOf(entry);
       let group = groups.get(key);
       if (!group) {
-        const userName = entry.enteredBy.displayName
-          ?? (`${entry.enteredBy.firstName ?? ''} ${entry.enteredBy.lastName ?? ''}`.trim() || '—');
         group = {
-          userId: entry.enteredById,
-          userName,
+          combined: combineCountyWide && entry.unit.isCountyWide,
+          countyWide: entry.unit.isCountyWide,
           unitId: entry.transportationUnitId,
           unitNumber: entry.unit.unitNumber,
           totalFuelAmount: 0,
@@ -232,7 +243,7 @@ export class FuelConsumptionService {
         transportationUnitId: { in: unitIds },
       },
       distinct: ['enteredById', 'transportationUnitId'],
-      orderBy: { entryDate: 'desc' },
+      orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
       select: { enteredById: true, transportationUnitId: true, mileageAtFueling: true },
     });
 
@@ -244,16 +255,62 @@ export class FuelConsumptionService {
     // Fall back further to a manually-entered starting mileage (see
     // FuelMileageBaseline) for pairs with no real fuel history before this
     // month at all — e.g. a driver who didn't use this system last month.
+    // A starting mileage is the ending reading of its asOfMonth, so it only
+    // applies to months after that one (asOfMonth < reportingMonth; YYYY-MM
+    // strings compare correctly as text).
     const baselines = await this.prisma.fuelMileageBaseline.findMany({
       where: {
         userId: { in: userIds },
         transportationUnitId: { in: unitIds },
       },
-      select: { userId: true, transportationUnitId: true, mileage: true },
+      select: { userId: true, transportationUnitId: true, mileage: true, asOfMonth: true },
     });
     const baselineByKey = new Map<string, number>();
     for (const b of baselines) {
-      baselineByKey.set(`${b.userId}::${b.transportationUnitId}`, b.mileage);
+      if (b.asOfMonth < reportingMonth) {
+        baselineByKey.set(`${b.userId}::${b.transportationUnitId}`, b.mileage);
+      }
+    }
+
+    // County-wide vehicles share one odometer, so their fallback readings are
+    // looked up per unit, not per (user, unit): combined rows use both the
+    // latest earlier fill-up and the starting mileage; per-driver rows of a
+    // county-wide vehicle still use the vehicle's starting mileage, the same one
+    // the mileage check compares against.
+    const combinedUnitIds = [...new Set(
+      [...groups.values()].filter((g) => g.combined).map((g) => g.unitId),
+    )];
+    const countyUnitIds = [...new Set(
+      [...groups.values()].filter((g) => g.countyWide).map((g) => g.unitId),
+    )];
+    const priorByUnit = new Map<string, number>();
+    const baselineByUnit = new Map<string, number>();
+    if (combinedUnitIds.length > 0) {
+      const priorUnitEntries = await this.prisma.fuelConsumptionEntry.findMany({
+        where: {
+          entryDate: { lt: monthStartDate(reportingMonth) },
+          transportationUnitId: { in: combinedUnitIds },
+        },
+        distinct: ['transportationUnitId'],
+        orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
+        select: { transportationUnitId: true, mileageAtFueling: true },
+      });
+      for (const e of priorUnitEntries) priorByUnit.set(e.transportationUnitId, e.mileageAtFueling);
+    }
+    if (countyUnitIds.length > 0) {
+      // Most recently updated one wins (as in assertMileageInSequence); if that
+      // one doesn't apply to this month, none is used.
+      const unitBaselines = await this.prisma.fuelMileageBaseline.findMany({
+        where: { transportationUnitId: { in: countyUnitIds } },
+        orderBy: { updatedAt: 'desc' },
+        select: { transportationUnitId: true, mileage: true, asOfMonth: true },
+      });
+      const seen = new Set<string>();
+      for (const b of unitBaselines) {
+        if (seen.has(b.transportationUnitId)) continue;
+        seen.add(b.transportationUnitId);
+        if (b.asOfMonth < reportingMonth) baselineByUnit.set(b.transportationUnitId, b.mileage);
+      }
     }
 
     const rows = Array.from(groups.entries()).map(([key, g]) => {
@@ -263,15 +320,27 @@ export class FuelConsumptionService {
       // month if there is one, otherwise the most recent reading before
       // this month started (real entry, then manual baseline), regardless
       // of how far back it was.
+      const fallbackPrevious = g.combined
+        ? priorByUnit.get(g.unitId) ?? baselineByUnit.get(g.unitId) ?? null
+        : priorLastByKey.get(key)
+          ?? (g.countyWide ? baselineByUnit.get(g.unitId) : baselineByKey.get(key))
+          ?? null;
       const previousMileage = g.entries.length > 1
         ? g.entries[g.entries.length - 2]!.mileageAtFueling
-        : priorLastByKey.get(key) ?? baselineByKey.get(key) ?? null;
+        : fallbackPrevious;
       const milesDriven = previousMileage !== null ? latestMileage - previousMileage : null;
+
+      // Combined rows list every driver who fueled the vehicle; userId is the
+      // latest fill-up's driver (the target for "Set Starting Mileage").
+      const userName = g.combined
+        ? [...new Set(g.entries.map(userNameOf))].sort((a, b) => a.localeCompare(b)).join(', ')
+        : userNameOf(latest);
       return {
-        userId: g.userId,
-        userName: g.userName,
+        userId: latest.enteredById,
+        userName,
         unitId: g.unitId,
         unitNumber: g.unitNumber,
+        isCountyWide: g.combined,
         reportingMonth,
         totalFuelAmount: parseFloat(g.totalFuelAmount.toFixed(3)),
         fuelUnit: g.fuelUnit,
@@ -326,6 +395,102 @@ export class FuelConsumptionService {
     }
   }
 
+  /**
+   * The fill-ups a new reading is compared against: every driver's entries for
+   * a county-wide vehicle (one shared odometer), otherwise just that driver's
+   * entries for the vehicle. Mirrors how getMonthlySummary chains mileage.
+   */
+  private async mileageChainWhere(
+    unitId: string,
+    userId: string,
+  ): Promise<Prisma.FuelConsumptionEntryWhereInput> {
+    const unit = await this.prisma.transportationUnit.findUnique({
+      where: { id: unitId },
+      select: { isCountyWide: true },
+    });
+    return unit?.isCountyWide
+      ? { transportationUnitId: unitId }
+      : { transportationUnitId: unitId, enteredById: userId };
+  }
+
+  /**
+   * Rejects a mileage reading that would make "miles driven" negative: it may
+   * not be lower than the previous reading (entry on/before the date, or the
+   * starting-mileage baseline if there is none) nor higher than the next
+   * reading (for back-dated entries). When editing, pass the entry's `id` and
+   * `createdAt`: it is left out of the comparison, and other entries on the
+   * same date are ordered by createdAt, exactly as the monthly summary does.
+   * A new entry is always the newest on its date, so every same-date entry
+   * counts as previous.
+   */
+  private async assertMileageInSequence(args: {
+    unitId: string;
+    userId: string;
+    entryDate: Date;
+    mileage: number;
+    editing?: { id: string; createdAt: Date };
+  }) {
+    const { unitId, userId, entryDate, mileage, editing } = args;
+    const chain = await this.mileageChainWhere(unitId, userId);
+    const base: Prisma.FuelConsumptionEntryWhereInput = editing
+      ? { ...chain, id: { not: editing.id } }
+      : chain;
+
+    const beforeThis: Prisma.FuelConsumptionEntryWhereInput = editing
+      ? { OR: [{ entryDate: { lt: entryDate } }, { entryDate, createdAt: { lt: editing.createdAt } }] }
+      : { entryDate: { lte: entryDate } };
+    const afterThis: Prisma.FuelConsumptionEntryWhereInput = editing
+      ? { OR: [{ entryDate: { gt: entryDate } }, { entryDate, createdAt: { gt: editing.createdAt } }] }
+      : { entryDate: { gt: entryDate } };
+
+    const [previous, next] = await Promise.all([
+      this.prisma.fuelConsumptionEntry.findFirst({
+        where: { AND: [base, beforeThis] },
+        orderBy: [{ entryDate: 'desc' }, { createdAt: 'desc' }],
+        select: { mileageAtFueling: true },
+      }),
+      this.prisma.fuelConsumptionEntry.findFirst({
+        where: { AND: [base, afterThis] },
+        orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }],
+        select: { mileageAtFueling: true },
+      }),
+    ]);
+
+    // The starting mileage is the ending reading of its asOfMonth, so it
+    // precedes every entry dated after that month. It is always compared
+    // against (not only when there is no earlier entry): a driver's own report
+    // row falls back to it even when other drivers of a county-wide vehicle
+    // have earlier fill-ups, so a reading below it would show negative miles.
+    let previousMileage = previous?.mileageAtFueling ?? null;
+    const baseline = await this.prisma.fuelMileageBaseline.findFirst({
+      where: {
+        transportationUnitId: unitId,
+        ...(chain.enteredById ? { userId } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: { mileage: true, asOfMonth: true },
+    });
+    if (baseline) {
+      const [by, bm] = baseline.asOfMonth.split('-').map(Number);
+      if (entryDate >= new Date(by!, bm!, 1)) {
+        previousMileage = Math.max(previousMileage ?? baseline.mileage, baseline.mileage);
+      }
+    }
+
+    if (previousMileage !== null && mileage < previousMileage) {
+      throw new ValidationError(
+        `Mileage cannot be lower than the previous reading of ${previousMileage.toLocaleString('en-US')} mi for this vehicle`,
+        'mileageAtFueling',
+      );
+    }
+    if (next && mileage > next.mileageAtFueling) {
+      throw new ValidationError(
+        `Mileage cannot be higher than the next reading of ${next.mileageAtFueling.toLocaleString('en-US')} mi already logged after this date`,
+        'mileageAtFueling',
+      );
+    }
+  }
+
   async create(
     data: CreateFuelEntryDto,
     requestingUserId: string,
@@ -349,6 +514,13 @@ export class FuelConsumptionService {
 
     const entryDate = parseEntryDate(data.entryDate);
     const reportingMonth = toReportingMonth(entryDate);
+
+    await this.assertMileageInSequence({
+      unitId: data.transportationUnitId,
+      userId: requestingUserId,
+      entryDate,
+      mileage: data.mileageAtFueling,
+    });
 
     // Auto-compute totalCost when not supplied
     let totalCost: number | null = data.totalCost ?? null;
@@ -428,6 +600,20 @@ export class FuelConsumptionService {
     const existing = await this.prisma.fuelConsumptionEntry.findUnique({ where: { id } });
     if (!existing) throw new NotFoundError('FuelConsumptionEntry', id);
 
+    if (
+      data.mileageAtFueling !== undefined ||
+      data.transportationUnitId !== undefined ||
+      data.entryDate !== undefined
+    ) {
+      await this.assertMileageInSequence({
+        unitId: data.transportationUnitId ?? existing.transportationUnitId,
+        userId: existing.enteredById,
+        entryDate: data.entryDate !== undefined ? parseEntryDate(data.entryDate) : existing.entryDate,
+        mileage: data.mileageAtFueling ?? existing.mileageAtFueling,
+        editing: { id, createdAt: existing.createdAt },
+      });
+    }
+
     const updateData: Record<string, unknown> = {};
     if (data.transportationUnitId !== undefined) updateData['transportationUnitId'] = data.transportationUnitId;
     if (data.fuelStationId !== undefined) {
@@ -480,6 +666,22 @@ export class FuelConsumptionService {
         data.transportationUnitId,
         requestingUserId,
         'You may only set a starting mileage for your assigned unit or a county-wide vehicle',
+      );
+    }
+
+    // A starting reading above the first fill-up after it would show as
+    // negative miles driven.
+    const [ay, am] = data.asOfMonth.split('-').map(Number);
+    const chain = await this.mileageChainWhere(data.transportationUnitId, targetUserId);
+    const firstAfter = await this.prisma.fuelConsumptionEntry.findFirst({
+      where: { ...chain, entryDate: { gte: new Date(ay!, am!, 1) } },
+      orderBy: [{ entryDate: 'asc' }, { createdAt: 'asc' }],
+      select: { mileageAtFueling: true },
+    });
+    if (firstAfter && data.mileage > firstAfter.mileageAtFueling) {
+      throw new ValidationError(
+        `Starting mileage cannot be higher than the first logged reading of ${firstAfter.mileageAtFueling.toLocaleString('en-US')} mi`,
+        'mileage',
       );
     }
 

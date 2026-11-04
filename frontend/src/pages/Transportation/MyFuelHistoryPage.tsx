@@ -104,6 +104,10 @@ function FuelEntryList({ row, permLevel, onDelete, onSetBaseline }: {
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {Number(entry.fuelAmount).toFixed(3)} {entry.fuelUnit} · {entry.mileageAtFueling.toLocaleString()} mi
+                {row.isCountyWide && entry.enteredBy && (
+                  <> · {entry.enteredBy.displayName
+                    ?? (`${entry.enteredBy.firstName ?? ''} ${entry.enteredBy.lastName ?? ''}`.trim() || '—')}</>
+                )}
               </Typography>
               {entry.fuelStation?.officeLocation?.name && (
                 <Typography variant="caption" color="text.secondary">
@@ -497,7 +501,7 @@ export default function MyFuelHistoryPage() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Enter {baselineTarget.unitNumber}'s last odometer reading as of the end of{' '}
               {formatMonthLabel(previousMonthString(baselineTarget.reportingMonth))}
-              {showUser ? ` for ${baselineTarget.userName}` : ''}.
+              {showUser && !baselineTarget.isCountyWide ? ` for ${baselineTarget.userName}` : ''}.
             </Typography>
           )}
           {baselineError && <Alert severity="error" sx={{ mb: 2 }}>{baselineError}</Alert>}
