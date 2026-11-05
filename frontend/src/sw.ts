@@ -60,10 +60,17 @@ self.addEventListener('push', (event: PushEvent) => {
   const url = data.url ?? '/dashboard';
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      icon: '/favicon.png',
-      data: { url },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, {
+        icon: '/favicon.png',
+        data: { url },
+      }),
+      // Tell open pages so they refetch and new records show up without a manual refresh
+      // (see usePushRefresh). includeUncontrolled reaches pages the worker has not claimed yet.
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+        for (const client of clientList) client.postMessage({ type: 'PUSH_RECEIVED' });
+      }).catch(() => { /* a failed page lookup must never affect the notification */ }),
+    ]),
   );
 });
 

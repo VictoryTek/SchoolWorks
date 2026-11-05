@@ -75,7 +75,9 @@ const inventorySchema = z.object({
   poNumber: z.string().optional().nullable(),
   fundingSource: z.string().optional().nullable(),
   fundingSourceId: z.string().optional().nullable(),
-  status: z.enum(['active', 'available', 'maintenance', 'storage', 'disposed', 'lost', 'damaged', 'reserved']),
+  // 'in_repair' / 'checked_out' are set by repair tickets and checkouts, not chosen here, but an item
+  // that already has one must still pass validation so it can be edited (see SYSTEM_STATUS_LABELS).
+  status: z.enum(['active', 'available', 'maintenance', 'storage', 'disposed', 'lost', 'damaged', 'reserved', 'in_repair', 'checked_out']),
   condition: z.enum(['excellent', 'good', 'fair', 'poor', 'broken']).optional().nullable(),
   notes: z.string().optional().nullable(),
 });
@@ -86,6 +88,13 @@ interface InventoryFormDialogProps {
   onClose: () => void;
   onSuccess: () => void;
 }
+
+// Statuses managed by other workflows. They are never offered as a choice; an item that already has
+// one shows it as read-only context, and it is left out of the save so the backend isn't asked to set it.
+const SYSTEM_STATUS_LABELS: Record<string, string> = {
+  in_repair: 'In repair (managed by repair tickets)',
+  checked_out: 'Checked out (managed by checkouts)',
+};
 
 const STATUS_OPTIONS: EquipmentStatus[] = [
   'active',
@@ -482,6 +491,12 @@ export const InventoryFormDialog = ({
       }
     }
 
+    // An item in a workflow-managed status (In Repair / Checked Out) that wasn't changed here:
+    // don't send the status at all — the backend only accepts statuses a user can pick.
+    if (item && cleaned.status === item.status && item.status in SYSTEM_STATUS_LABELS) {
+      delete cleaned.status;
+    }
+
     // When status changes to a non-disposed value, clear disposal flags so the backend
     // reactivates the item (isDisposed must be set to false alongside status).
     // Only inject when status is explicitly set — never touch disposal flags for new items
@@ -641,6 +656,12 @@ export const InventoryFormDialog = ({
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </MenuItem>
                 ))}
+                {/* In Repair / Checked Out: shown only while the item has it, so the field isn't blank */}
+                {item && item.status in SYSTEM_STATUS_LABELS && (
+                  <MenuItem key={item.status} value={item.status}>
+                    {SYSTEM_STATUS_LABELS[item.status]}
+                  </MenuItem>
+                )}
               </Select>
             </FormControl>
           </Box>

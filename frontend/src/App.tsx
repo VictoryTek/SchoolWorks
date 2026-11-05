@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useAuthStore } from './store/authStore'
+import { usePushRefresh } from './hooks/usePushRefresh'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
 import ReportsOverviewPage from './pages/ReportsPage'
@@ -115,6 +116,7 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 // has no React.lazy routes and no Suspense boundaries; if either is introduced, re-enable
 // transitions and give the affected inputs local state instead of removing this line.
 function App() {
+  usePushRefresh()
   return (
     <BrowserRouter useTransitions={false}>
       <PwaUpdatePrompt />

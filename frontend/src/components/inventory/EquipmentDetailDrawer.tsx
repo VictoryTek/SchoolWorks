@@ -48,6 +48,7 @@ import ChangesTab from './drawer/ChangesTab';
 import { useResponsive } from '../../hooks/useResponsive';
 import { deviceAssignmentService } from '../../services/deviceAssignment.service';
 import { repairTicketService } from '../../services/repairTicket.service';
+import { queryKeys } from '../../lib/queryKeys';
 import { DAMAGE_TYPES, SEVERITIES } from '../DeviceManagement/damageOptions';
 import type { DamageType, DamageSeverity } from '@mgspe/shared-types';
 
@@ -131,6 +132,9 @@ const EquipmentDetailDrawer = ({ item, open, onClose, onItemChanged }: Equipment
       queryClient.invalidateQueries({ queryKey: ['repair-tickets'] });
       setReportDialogOpen(false);
       resetReportForm();
+      // The device is now In Repair: refresh the inventory list, its status counts, and this drawer.
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventory.stats() });
+      onItemChanged?.();
     },
     onError: () => setReportError('Failed to create repair ticket. Please try again.'),
   });

@@ -402,7 +402,7 @@ export default function PurchaseOrderList() {
               (fiscalYearFilter ? 1 : 0) + (workflowTypeFilter ? 1 : 0)
             }
             onOpenFilters={() => setFilterDrawerOpen(!filterDrawerOpen)}
-            searchPlaceholder="Search PO#, title, program…"
+            searchPlaceholder="Search PO#, title, program, requester…"
           />
           {filterDrawerOpen && (
             <Paper sx={{ p: 2, mt: 1 }}>
@@ -470,7 +470,7 @@ export default function PurchaseOrderList() {
             <TextField
               inputRef={searchRef}
               size="small"
-              placeholder="Search PO#, title, program…"
+              placeholder="Search PO#, title, program, requester…"
               value={search}
               onChange={(e) => { setFilters({ search: e.target.value, page: '0' }); }}
               slotProps={{

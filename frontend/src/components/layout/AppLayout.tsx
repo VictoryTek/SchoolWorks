@@ -2,7 +2,7 @@
 
 import { ReactNode, useEffect, useRef, useState, Dispatch, SetStateAction } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Drawer, IconButton, Collapse, Tooltip, ClickAwayListener } from '@mui/material';
 import { useColorScheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -168,6 +168,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   const canAccessDeviceManagementDashboard = useAuthStore(selectCanAccessDeviceManagementDashboard);
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { data: pushEnabled } = useQuery({
     queryKey: PUSH_STATUS_QUERY_KEY,
     queryFn: isPushEnabled,
@@ -255,7 +256,13 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
   };
 
   const handleNavClick = (path: string) => {
-    navigate(path);
+    // Re-clicking the page you're already on refreshes its data without navigating, so the
+    // filters kept in the URL query string survive. Navigating to the bare path would drop them.
+    if (location.pathname === path) {
+      queryClient.invalidateQueries();
+    } else {
+      navigate(path);
+    }
     setMobileOpen(false);
   };
 

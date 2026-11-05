@@ -473,11 +473,30 @@ export class PurchaseOrderService {
     if (fiscalYear)    andClauses.push({ fiscalYear });
     if (workflowType)  andClauses.push({ workflowType });
     if (search) {
+      // Also match the person who requested the PO: every typed word must match that requester's
+      // first name, last name or display name, so "Joseph Lewis" finds Joseph Lewis's POs.
+      const nameTerms = search.split(/\s+/).filter(Boolean);
+      const requesterClause: Prisma.purchase_ordersWhereInput[] = nameTerms.length > 0
+        ? [{
+            User: {
+              is: {
+                AND: nameTerms.map((term) => ({
+                  OR: [
+                    { firstName:   { contains: term, mode: 'insensitive' as const } },
+                    { lastName:    { contains: term, mode: 'insensitive' as const } },
+                    { displayName: { contains: term, mode: 'insensitive' as const } },
+                  ],
+                })),
+              },
+            },
+          }]
+        : [];
       andClauses.push({
         OR: [
           { description: { contains: search, mode: 'insensitive' as const } },
           { poNumber:    { contains: search, mode: 'insensitive' as const } },
           { program:     { contains: search, mode: 'insensitive' as const } },
+          ...requesterClause,
         ],
       });
     }

@@ -66,7 +66,7 @@ export async function create(data: CreateData, createdByUserId: string) {
     async (tx) => {
       const ticketNumber = await generateTicketNumber(tx);
 
-      return tx.repairTicket.create({
+      const ticket = await tx.repairTicket.create({
         data: {
           ticketNumber,
           equipmentId:        data.equipmentId,
@@ -81,6 +81,17 @@ export async function create(data: CreateData, createdByUserId: string) {
         },
         include: detailInclude,
       });
+
+      // A device with an open repair ticket is In Repair — same as when the ticket
+      // comes from Create Incident → device exchange on the Checkouts page. A device that is
+      // checked out keeps that status (its damage is reported from the Checkouts page), so a
+      // ticket created on it can never leave it falsely shown as available later.
+      await tx.equipment.updateMany({
+        where: { id: data.equipmentId, status: { not: 'checked_out' } },
+        data:  { status: 'in_repair' },
+      });
+
+      return ticket;
     },
     { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
   );
@@ -164,6 +175,20 @@ export async function updateStatus(id: string, data: UpdateStatus, performedByUs
     } else if (data.status === 'cancelled') {
       if (existing.status === 'sent_to_vendor') {
         await tx.equipment.update({ where: { id: ticket.equipmentId }, data: { status: 'active' } });
+      } else if (existing.status === 'pending') {
+        // A pending ticket already put the device In Repair on creation; release it, but only
+        // when no other repair ticket is still open for it, and only if it is still In Repair
+        // so a status someone set since is never overwritten.
+        const otherOpenTicket = await tx.repairTicket.findFirst({
+          where:  { equipmentId: ticket.equipmentId, id: { not: id }, status: { in: ['pending', 'sent_to_vendor'] } },
+          select: { id: true },
+        });
+        if (!otherOpenTicket) {
+          await tx.equipment.updateMany({
+            where: { id: ticket.equipmentId, status: 'in_repair' },
+            data:  { status: 'active' },
+          });
+        }
       }
     }
 

@@ -15,6 +15,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     version: '1.9.11',
     highlights: [
       {
+        icon: '🔎',
+        title: 'Find purchase orders by who requested them',
+        body: 'The search box on the Purchase Orders page now also finds a PO by the name of the person who requested it — type a first name, a last name, or both (for example "Joseph Lewis"). It works on every tab, including Issued.',
+      },
+      {
+        icon: '🔄',
+        title: 'Lists stay up to date',
+        body: 'When a notification arrives, the page you have open now refreshes itself, so a new work order shows up without clicking anything; the Work Orders list also rechecks every minute. Clicking the page you are already on in the left menu now refreshes it and keeps your filters instead of clearing them.',
+      },
+      {
         icon: '⛽',
         title: 'County-wide vehicles show as one row in Fuel History',
         body: 'When several people fuel the same county-wide vehicle, the Fuel History report and its PDF now show that vehicle once for the month instead of once per driver. The row adds up the fuel and works out miles driven across everyone who fueled it. Open the row to see each fill-up and who fueled it. The PDF also lists each driver\'s fuel total under the vehicle, and prints any fill-up notes under the row they belong to.',
@@ -36,6 +46,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       },
     ],
     changes: [
+      'Purchase Orders search now also matches the requester\'s first name, last name or display name, and several words must all match the same person; the search box hint says so. PO number, description and program searches work as before.',
+      'Report Damage from the inventory item drawer now sets the device to In Repair (as Create Incident on the Checkouts page does), and the inventory list and drawer update right away. Cancelling a ticket that was never sent to a vendor sets the device back to Active, unless another repair ticket is still open for it or its status has changed since.',
+      'Clicking the page you are already on in the left menu now refreshes its data and keeps your filters; it no longer reloads the page with the filters cleared.',
+      'A push notification now makes open pages refetch their data, and the Work Orders list rechecks every 60 seconds (paused while the tab is hidden) for people who only get the email.',
       'Fuel History and its PDF export combine all drivers\' fill-ups for a county-wide vehicle into one row; the expanded list shows who fueled each fill-up. Rows for other vehicles, and each driver\'s own view, are unchanged.',
       'The Fuel History PDF now shows each driver\'s fuel total under a combined county-wide row, and prints every fill-up note under the row it belongs to (with its date, and the driver on county-wide rows).',
       'Fill-up notes now also show in the expanded fill-up list on the Fuel History page.',

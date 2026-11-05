@@ -190,7 +190,9 @@ export default function WorkOrderListPage() {
     sortOrder,
   };
 
-  const { data, isLoading, error } = useWorkOrderList(query);
+  // Poll as a fallback for users who get the email but not the push (usePushRefresh covers push);
+  // TanStack Query pauses interval refetching while the tab is hidden.
+  const { data, isLoading, error } = useWorkOrderList(query, { refetchInterval: 60_000 });
 
   const applySort = (field: WorkOrderSortField, direction: 'asc' | 'desc') => {
     setFilters({ sortBy: field, sortOrder: direction, page: '0' });
