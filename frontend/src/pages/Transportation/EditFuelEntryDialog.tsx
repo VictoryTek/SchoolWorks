@@ -14,11 +14,13 @@ import {
   Autocomplete,
   Box,
   Button,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   Grid,
   InputLabel,
   MenuItem,
@@ -52,10 +54,13 @@ export default function EditFuelEntryDialog({ entry, onClose, onSaved }: EditFue
   const isMobile = useIsMobile();
 
   const initialDate = entry.entryDate.slice(0, 10);
-  const initialAmount = String(Number(entry.fuelAmount));
+  // Amounts arrive as numeric strings from the API; null when not recorded (outside-station only).
+  const originalAmount = entry.fuelAmount === null ? null : Number(entry.fuelAmount);
+  const initialAmount = originalAmount === null ? '' : String(originalAmount);
 
   const [unitId, setUnitId] = useState(entry.transportationUnitId);
-  const [fuelStationId, setFuelStationId] = useState(entry.fuelStationId);
+  const [isOutsideStation, setIsOutsideStation] = useState(entry.isOutsideStation);
+  const [fuelStationId, setFuelStationId] = useState(entry.fuelStationId ?? '');
   const [entryDate, setEntryDate] = useState(initialDate);
   const [fuelAmount, setFuelAmount] = useState(initialAmount);
   const [fuelUnit, setFuelUnit] = useState<FuelUnit>(entry.fuelUnit);
@@ -96,11 +101,17 @@ export default function EditFuelEntryDialog({ entry, onClose, onSaved }: EditFue
   function handleSave() {
     setFormError('');
 
-    const amount = parseFloat(fuelAmount);
+    const amount = fuelAmount === '' ? null : parseFloat(fuelAmount);
     const miles = Number(mileage);
     if (!unitId) { setFormError('Please select a vehicle.'); return; }
-    if (!fuelStationId) { setFormError('Please select a fuel station.'); return; }
-    if (!fuelAmount || isNaN(amount) || amount <= 0) { setFormError('Please enter a valid fuel amount.'); return; }
+    if (!isOutsideStation && !fuelStationId) { setFormError('Please select a fuel station.'); return; }
+    // Gallons are required at our stations; an outside fill-up may leave them blank, but a recorded amount stays.
+    if (amount === null ? (!isOutsideStation || originalAmount !== null) : (isNaN(amount) || amount <= 0)) {
+      setFormError(amount === null && isOutsideStation
+        ? 'A recorded fuel amount can be changed but not removed.'
+        : 'Please enter a valid fuel amount.');
+      return;
+    }
     if (mileage === '' || !Number.isInteger(miles) || miles < 0) {
       setFormError('Please enter a valid whole-number mileage.');
       return;
@@ -109,9 +120,11 @@ export default function EditFuelEntryDialog({ entry, onClose, onSaved }: EditFue
 
     const payload: Parameters<typeof fuelEntryApi.update>[1] = {};
     if (unitId !== entry.transportationUnitId) payload.transportationUnitId = unitId;
-    if (fuelStationId !== entry.fuelStationId) payload.fuelStationId = fuelStationId;
+    if (isOutsideStation !== entry.isOutsideStation) payload.isOutsideStation = isOutsideStation;
+    // An outside fill-up has no station; the server clears it when switching to outside.
+    if (!isOutsideStation && fuelStationId !== (entry.fuelStationId ?? '')) payload.fuelStationId = fuelStationId;
     if (entryDate !== initialDate) payload.entryDate = entryDate;
-    if (amount !== Number(entry.fuelAmount)) payload.fuelAmount = amount;
+    if (amount !== null && amount !== originalAmount) payload.fuelAmount = amount;
     if (fuelUnit !== entry.fuelUnit) payload.fuelUnit = fuelUnit;
     if (miles !== entry.mileageAtFueling) payload.mileageAtFueling = miles;
     if (notes.trim() !== (entry.notes ?? '').trim()) payload.notes = notes.trim() || null;
@@ -145,30 +158,44 @@ export default function EditFuelEntryDialog({ entry, onClose, onSaved }: EditFue
             </Grid>
 
             <Grid size={{ xs: 12 }}>
-              <FormControl size="small" fullWidth required>
-                <InputLabel>Fuel Station *</InputLabel>
-                <Select
-                  label="Fuel Station *"
-                  value={fuelStationId}
-                  onChange={(e) => setFuelStationId(e.target.value)}
-                >
-                  {stationOptions.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>{stationLabel(s)}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={isOutsideStation}
+                    onChange={(e) => setIsOutsideStation(e.target.checked)}
+                  />
+                }
+                label="Fueled somewhere other than our stations (for example on a trip)"
+              />
             </Grid>
+
+            {!isOutsideStation && (
+              <Grid size={{ xs: 12 }}>
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Fuel Station *</InputLabel>
+                  <Select
+                    label="Fuel Station *"
+                    value={fuelStationId}
+                    onChange={(e) => setFuelStationId(e.target.value)}
+                  >
+                    {stationOptions.map((s) => (
+                      <MenuItem key={s.id} value={s.id}>{stationLabel(s)}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
 
             <Grid size={{ xs: 8 }}>
               <TextField
-                label="Fuel Amount *"
+                label={isOutsideStation ? 'Fuel Amount (optional)' : 'Fuel Amount *'}
                 fullWidth
                 size="small"
                 type="number"
                 slotProps={{ htmlInput: { min: 0, step: 0.001 } }}
                 value={fuelAmount}
                 onChange={(e) => setFuelAmount(e.target.value)}
-                required
+                required={!isOutsideStation}
               />
             </Grid>
             <Grid size={{ xs: 4 }}>

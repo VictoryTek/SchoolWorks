@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDetailLines,
   generateFuelHistoryPdf,
+  locationsOf,
   toPdfSafeText,
 } from '../services/fuelHistoryPdf.service';
 
@@ -19,6 +20,7 @@ const entry = (o: Record<string, unknown> = {}) => ({
   fuelAmount: 10,
   fuelUnit: 'gallons',
   notes: null as string | null,
+  isOutsideStation: false,
   enteredBy: alice,
   fuelStation: null,
   ...o,
@@ -117,6 +119,66 @@ describe('buildDetailLines', () => {
       'Note (Mar 10): first',
       'Note (Mar 20): smile ?',
     ]);
+  });
+});
+
+describe('outside-station fill-ups', () => {
+  it('lists outside gallons on their own line, per fuel unit', () => {
+    const r = row({
+      entries: [
+        entry({ fuelAmount: 10 }),
+        entry({ isOutsideStation: true, fuelAmount: 18 }),
+        entry({ isOutsideStation: true, fuelAmount: 5, fuelUnit: 'liters' }),
+      ],
+    });
+    expect(buildDetailLines(r as never)).toEqual(['Outside stations: 18.000 gallons + 5.000 liters']);
+  });
+
+  it('says gallons were not recorded when no outside fill-up has gallons', () => {
+    const r = row({ entries: [entry(), entry({ isOutsideStation: true, fuelAmount: null })] });
+    const lines = buildDetailLines(r as never);
+    expect(lines).toEqual(['Outside stations: gallons not recorded']);
+    expect(lines.join(' ')).not.toContain('NaN');
+  });
+
+  it('keeps outside gallons out of the per-driver totals', () => {
+    const r = row({
+      isCountyWide: true,
+      entries: [
+        entry({ fuelAmount: 10, enteredBy: alice }),
+        entry({ fuelAmount: 8, enteredBy: bob }),
+        entry({ isOutsideStation: true, fuelAmount: 18, enteredBy: alice }),
+      ],
+    });
+    expect(buildDetailLines(r as never)).toEqual([
+      'Fuel by driver: Alice Smith 10.000 gallons; Bob Jones 8.000 gallons',
+      'Outside stations: 18.000 gallons',
+    ]);
+  });
+
+  it('prints the notes of an outside fill-up like any other note', () => {
+    const r = row({ entries: [entry({ isOutsideStation: true, fuelAmount: null, notes: 'Fueled in Nashville' })] });
+    expect(buildDetailLines(r as never)).toEqual([
+      'Outside stations: gallons not recorded',
+      'Note (Mar 10): Fueled in Nashville',
+    ]);
+  });
+
+  it('labels the location of an outside fill-up', () => {
+    const station = { officeLocation: { name: 'Central Office' } };
+    const r = row({
+      entries: [
+        entry({ fuelStation: station }),
+        entry({ isOutsideStation: true, fuelAmount: null, fuelStation: null }),
+      ],
+    });
+    expect(locationsOf(r as never)).toBe('Central Office, Outside station');
+  });
+
+  it('renders a row whose only fill-up is an outside one', async () => {
+    const r = row({ totalFuelAmount: 0, entries: [entry({ isOutsideStation: true, fuelAmount: null })] });
+    const pdf = await generateFuelHistoryPdf([r as never], '2026-03');
+    expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
   });
 });
 

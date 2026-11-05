@@ -64,12 +64,14 @@ export class TransportationDashboardService {
           where: { unassignedAt: null },
         }),
 
-        this.prisma.fuelConsumptionEntry.count({ where: { reportingMonth: currentMonth } }),
+        // District fuel only: outside-station fill-ups (trips) are tracked on Fuel History.
+        this.prisma.fuelConsumptionEntry.count({ where: { reportingMonth: currentMonth, isOutsideStation: false } }),
 
         this.prisma.fuelConsumptionEntry.aggregate({
           _sum: { fuelAmount: true },
           where: {
             reportingMonth: currentMonth,
+            isOutsideStation: false,
             unit: { fuelType: 'GASOLINE' },
           },
         }),

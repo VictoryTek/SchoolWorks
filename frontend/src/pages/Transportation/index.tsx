@@ -81,13 +81,13 @@ export default function TransportationDashboardPage() {
     {
       key: 'location',
       label: 'Location',
-      render: (entry) => entry.fuelStation?.officeLocation?.name ?? '—',
+      render: (entry) => (entry.isOutsideStation ? 'Outside station' : entry.fuelStation?.officeLocation?.name ?? '—'),
     },
     {
       key: 'fuelAmount',
       label: 'Amount',
       align: 'right',
-      render: (entry) => `${Number(entry.fuelAmount).toFixed(3)} ${entry.fuelUnit}`,
+      render: (entry) => (entry.fuelAmount === null ? '—' : `${Number(entry.fuelAmount).toFixed(3)} ${entry.fuelUnit}`),
     },
     {
       key: 'mileageAtFueling',

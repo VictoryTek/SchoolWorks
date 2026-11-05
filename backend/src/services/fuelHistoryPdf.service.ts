@@ -9,9 +9,11 @@ import PDFDocument from 'pdfkit';
 
 export interface FuelHistoryPdfEntry {
   entryDate:  Date | string;
-  /** A number, or a Prisma Decimal / numeric string straight from the database. */
-  fuelAmount: number | string | { toString(): string };
+  /** A number, or a Prisma Decimal / numeric string straight from the database. Null when not recorded. */
+  fuelAmount: number | string | { toString(): string } | null;
   fuelUnit:   string;
+  /** Fueled somewhere other than one of our stations (e.g. on a trip). */
+  isOutsideStation?: boolean;
   notes?:     string | null;
   enteredBy?: { id: string; displayName: string | null; firstName: string | null; lastName: string | null } | null;
   fuelStation?: { officeLocation?: { name: string } | null } | null;
@@ -90,7 +92,8 @@ function dayLabel(v: Date | string): string {
 
 /**
  * Extra lines printed under a row, one string per paragraph:
- *  - combined county-wide rows with 2+ drivers: each driver's fuel total
+ *  - combined county-wide rows with 2+ drivers: each driver's fuel total (our stations only)
+ *  - the gallons bought outside our stations (trips), kept apart from the totals above
  *  - every fill-up note, with its date (and the driver on combined rows)
  * Returns [] when there is nothing to add, so such rows print as before.
  */
@@ -100,6 +103,7 @@ export function buildDetailLines(row: FuelHistoryPdfRow): string[] {
   if (row.isCountyWide) {
     const byDriver = new Map<string, { name: string; totals: Map<string, number> }>();
     for (const e of row.entries) {
+      if (e.isOutsideStation || e.fuelAmount === null) continue;
       const name = driverNameOf(e);
       const key = e.enteredBy?.id ?? name;
       let d = byDriver.get(key);
@@ -117,6 +121,18 @@ export function buildDetailLines(row: FuelHistoryPdfRow): string[] {
     }
   }
 
+  const outsideEntries = row.entries.filter((e) => e.isOutsideStation);
+  if (outsideEntries.length > 0) {
+    const byUnit = new Map<string, number>();
+    for (const e of outsideEntries) {
+      if (e.fuelAmount === null) continue;
+      byUnit.set(e.fuelUnit, (byUnit.get(e.fuelUnit) ?? 0) + Number(String(e.fuelAmount)));
+    }
+    lines.push(byUnit.size > 0
+      ? `Outside stations: ${[...byUnit].map(([unit, total]) => `${total.toFixed(3)} ${unit}`).join(' + ')}`
+      : 'Outside stations: gallons not recorded');
+  }
+
   for (const e of row.entries) {
     const note = e.notes?.trim();
     if (!note) continue;
@@ -127,10 +143,10 @@ export function buildDetailLines(row: FuelHistoryPdfRow): string[] {
   return lines;
 }
 
-function locationsOf(row: FuelHistoryPdfRow): string {
+export function locationsOf(row: FuelHistoryPdfRow): string {
   const names: string[] = [];
   for (const e of row.entries) {
-    const n = e.fuelStation?.officeLocation?.name;
+    const n = e.isOutsideStation ? 'Outside station' : e.fuelStation?.officeLocation?.name;
     if (n && !names.includes(n)) names.push(n);
   }
   return names.join(', ');

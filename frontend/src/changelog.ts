@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogEntry[] = [
         body: 'When several people fuel the same county-wide vehicle, the Fuel History report and its PDF now show that vehicle once for the month instead of once per driver. The row adds up the fuel and works out miles driven across everyone who fueled it. Open the row to see each fill-up and who fueled it. The PDF also lists each driver\'s fuel total under the vehicle, and prints any fill-up notes under the row they belong to.',
       },
       {
+        icon: '🧳',
+        title: 'Log fuel bought on a trip',
+        body: 'When a vehicle is fueled somewhere other than one of our stations, check "Fueled somewhere other than our stations" on the Log Fuel form. You don\'t pick a station, and the amount is optional — but the mileage is recorded, so the next fill-up at our stations no longer looks like the vehicle drove the whole trip on one tank. These fill-ups are marked "Outside station" in Fuel History, and their gallons are shown on their own line instead of being added to the monthly total.',
+      },
+      {
         icon: '🚫',
         title: 'Mileage can no longer go backwards',
         body: 'Logging a fill-up, editing one, or setting a starting mileage is now blocked when the mileage would give a negative number of miles driven. You\'ll see a message with the earlier or later reading that it conflicts with, so a mistyped odometer is caught right away.',
@@ -34,6 +39,10 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Fuel History and its PDF export combine all drivers\' fill-ups for a county-wide vehicle into one row; the expanded list shows who fueled each fill-up. Rows for other vehicles, and each driver\'s own view, are unchanged.',
       'The Fuel History PDF now shows each driver\'s fuel total under a combined county-wide row, and prints every fill-up note under the row it belongs to (with its date, and the driver on county-wide rows).',
       'Fill-up notes now also show in the expanded fill-up list on the Fuel History page.',
+      'Log Fuel has a new "Fueled somewhere other than our stations" checkbox for fuel bought on a trip: no station or tank is chosen, the amount is optional, and the date and mileage are still required.',
+      'Fuel History and its PDF mark these fill-ups "Outside station" and list their gallons on a separate "Outside stations" line (or note that the amount was not recorded); they are not added to a vehicle\'s monthly fuel total or to the per-driver totals in the PDF.',
+      'The Transportation reports, the monthly fuel report email, and the dashboard figures count only fuel from our own stations, so they read exactly as before.',
+      'The Transportation Secretary and administrators can switch an existing fill-up to or from "outside station" when editing it (unless it is linked to a fuel tank).',
       'New fuel entries, edited entries, and starting mileages are rejected when the reading is lower than the previous reading for that vehicle, or higher than the next reading for a back-dated entry.',
       'A starting mileage now only applies to months after the one it was set for, so it can no longer make an earlier month show negative miles.',
       'Added an Edit button to each fill-up on the Fuel History page for the Transportation Secretary and site administrators (the Secretary cannot delete). Editing never changes the fuel tank level or the vehicle\'s current mileage.',

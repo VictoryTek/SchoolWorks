@@ -72,6 +72,17 @@ function previousMonthString(month: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+/**
+ * Gallons bought outside our stations (trips), shown apart from the row's total.
+ * Null when the row has no outside-station fill-ups.
+ */
+function outsideFuelLabel(row: FuelMonthlySummaryRow): string | null {
+  if (!row.entries.some((e) => e.isOutsideStation)) return null;
+  return row.outsideFuel.length > 0
+    ? `Outside stations: ${row.outsideFuel.map((f) => `${f.amount.toFixed(3)} ${f.fuelUnit}`).join(' + ')}`
+    : 'Outside stations: amount not recorded';
+}
+
 /** Shared fill-up list rendered inside both the desktop row's and mobile card's expand area. */
 function FuelEntryList({ row, permLevel, onDelete, onEdit, onSetBaseline }: {
   row: FuelMonthlySummaryRow;
@@ -106,15 +117,15 @@ function FuelEntryList({ row, permLevel, onDelete, onEdit, onSetBaseline }: {
                 {parseDateLocal(entry.entryDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {Number(entry.fuelAmount).toFixed(3)} {entry.fuelUnit} · {entry.mileageAtFueling.toLocaleString()} mi
+                {entry.fuelAmount === null ? 'Amount not recorded' : `${Number(entry.fuelAmount).toFixed(3)} ${entry.fuelUnit}`} · {entry.mileageAtFueling.toLocaleString()} mi
                 {row.isCountyWide && entry.enteredBy && (
                   <> · {entry.enteredBy.displayName
                     ?? (`${entry.enteredBy.firstName ?? ''} ${entry.enteredBy.lastName ?? ''}`.trim() || '—')}</>
                 )}
               </Typography>
-              {entry.fuelStation?.officeLocation?.name && (
+              {(entry.isOutsideStation || entry.fuelStation?.officeLocation?.name) && (
                 <Typography variant="caption" color="text.secondary">
-                  {entry.fuelStation.officeLocation.name}
+                  {entry.isOutsideStation ? 'Outside station' : entry.fuelStation?.officeLocation?.name}
                 </Typography>
               )}
               {entry.notes && (
@@ -192,7 +203,12 @@ function FuelSummaryRow({ row, showUser, permLevel, colSpan, onDelete, onEdit, o
         <TableCell>{formatMonthLabel(row.reportingMonth)}</TableCell>
         {showUser && <TableCell>{row.userName}</TableCell>}
         <TableCell>{row.unitNumber}</TableCell>
-        <TableCell>{`${row.totalFuelAmount.toFixed(3)} ${row.fuelUnit}`}</TableCell>
+        <TableCell>
+          {`${row.totalFuelAmount.toFixed(3)} ${row.fuelUnit}`}
+          {outsideFuelLabel(row) && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>{outsideFuelLabel(row)}</Typography>
+          )}
+        </TableCell>
         <TableCell>
           {row.previousMileage != null ? `${row.previousMileage.toLocaleString()} mi` : (
             <Button
@@ -240,6 +256,9 @@ function FuelSummaryCard({ row, showUser, permLevel, onDelete, onEdit, onSetBase
       </Box>
       {showUser && <Typography variant="caption" color="text.secondary">{row.userName}</Typography>}
       <Typography variant="body2">{`${row.totalFuelAmount.toFixed(3)} ${row.fuelUnit}`}</Typography>
+      {outsideFuelLabel(row) && (
+        <Typography variant="caption" color="text.secondary">{outsideFuelLabel(row)}</Typography>
+      )}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5 }}>
         <Box>
           <Typography variant="caption" color="text.secondary" display="block">Previous Mileage</Typography>

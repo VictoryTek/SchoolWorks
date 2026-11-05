@@ -15,7 +15,8 @@ export class TransportationReportService {
 
   async getMonthlyFuelReport(month: string) {
     const entries = await this.prisma.fuelConsumptionEntry.findMany({
-      where: { reportingMonth: month },
+      // District fuel only: outside-station fill-ups (trips) are tracked on Fuel History, not here.
+      where: { reportingMonth: month, isOutsideStation: false },
       include: {
         unit:        { select: { id: true, unitNumber: true, type: true, fuelType: true } },
         enteredBy:   { select: { id: true, firstName: true, lastName: true, displayName: true } },
@@ -98,6 +99,7 @@ export class TransportationReportService {
   async getFuelByUnit(from: string, to: string) {
     const entries = await this.prisma.fuelConsumptionEntry.findMany({
       where: {
+        isOutsideStation: false,
         entryDate: {
           gte: new Date(from),
           lte: new Date(to),
@@ -125,6 +127,7 @@ export class TransportationReportService {
   async getFuelByUser(from: string, to: string) {
     const entries = await this.prisma.fuelConsumptionEntry.findMany({
       where: {
+        isOutsideStation: false,
         entryDate: {
           gte: new Date(from),
           lte: new Date(to),

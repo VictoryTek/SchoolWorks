@@ -15,8 +15,10 @@ import {
   Button,
   Card,
   CardContent,
+  Checkbox,
   CircularProgress,
   FormControl,
+  FormControlLabel,
   Grid,
   InputLabel,
   MenuItem,
@@ -67,6 +69,8 @@ export default function FuelEntryPage() {
   const [fuelAmount, setFuelAmount]       = useState('');
   const [fuelUnit, setFuelUnit]           = useState<FuelUnit>('gallons');
   const [mileage, setMileage]             = useState('');
+  // Fueled somewhere other than one of our stations (e.g. on a trip): no station/tank, gallons optional.
+  const [isOutsideStation, setIsOutsideStation] = useState(false);
 
   const [entryDate, setEntryDate]         = useState(today);
   const [notes, setNotes]                 = useState('');
@@ -108,15 +112,20 @@ export default function FuelEntryPage() {
     e.preventDefault();
     setFormError('');
     if (!unitId) { setFormError('Please select a unit.'); return; }
-    if (!fuelStationId) { setFormError('Please select a fuel station.'); return; }
-    if (!fuelAmount || isNaN(parseFloat(fuelAmount))) { setFormError('Please enter a valid fuel amount.'); return; }
+    if (!isOutsideStation && !fuelStationId) { setFormError('Please select a fuel station.'); return; }
+    // Gallons are required at our stations; for an outside fill-up they are optional, but must be valid if entered.
+    if ((!isOutsideStation || fuelAmount !== '') && (isNaN(parseFloat(fuelAmount)) || parseFloat(fuelAmount) <= 0)) {
+      setFormError('Please enter a valid fuel amount.');
+      return;
+    }
     if (!mileage || isNaN(parseInt(mileage, 10))) { setFormError('Please enter the mileage at fueling.'); return; }
 
     const payload = {
       transportationUnitId: unitId,
-      fuelStationId,
-      tankId: tankId || undefined,
-      fuelAmount: parseFloat(fuelAmount),
+      ...(isOutsideStation
+        ? { isOutsideStation: true }
+        : { fuelStationId, tankId: tankId || undefined }),
+      fuelAmount: fuelAmount !== '' ? parseFloat(fuelAmount) : undefined,
       fuelUnit,
       mileageAtFueling: parseInt(mileage, 10),
       entryDate: entryDate || undefined,
@@ -212,7 +221,21 @@ export default function FuelEntryPage() {
                 )}
               </Grid>
 
-              {/* Fuel Station */}
+              {/* Outside-station fill-up (e.g. on a trip) — keeps the vehicle's mileage chain correct */}
+              <Grid size={{ xs: 12 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={isOutsideStation}
+                      onChange={(e) => setIsOutsideStation(e.target.checked)}
+                    />
+                  }
+                  label="Fueled somewhere other than our stations (for example on a trip)"
+                />
+              </Grid>
+
+              {/* Fuel Station — hidden for an outside-station fill-up */}
+              {!isOutsideStation && (
               <Grid size={{ xs: 12 }}>
                 <FormControl size="small" fullWidth required>
                   <InputLabel>Fuel Station *</InputLabel>
@@ -230,9 +253,10 @@ export default function FuelEntryPage() {
                   </Select>
                 </FormControl>
               </Grid>
+              )}
 
               {/* Tank selector — only shown when selected station has active tanks */}
-              {fuelStationId && activeTanks.length > 0 && (
+              {!isOutsideStation && fuelStationId && activeTanks.length > 0 && (
                 <Grid size={{ xs: 12 }}>
                   <FormControl size="small" fullWidth>
                     <InputLabel shrink>Tank (optional)</InputLabel>
@@ -257,14 +281,15 @@ export default function FuelEntryPage() {
               {/* Fuel Amount + Unit */}
               <Grid size={{ xs: 8 }}>
                 <TextField
-                  label="Fuel Amount *"
+                  label={isOutsideStation ? 'Fuel Amount (optional)' : 'Fuel Amount *'}
                   fullWidth
                   size="small"
                   type="number"
                   inputProps={{ min: 0, step: 0.001 }}
                   value={fuelAmount}
                   onChange={(e) => setFuelAmount(e.target.value)}
-                  required
+                  required={!isOutsideStation}
+                  helperText={isOutsideStation ? 'From the receipt, if you have it' : undefined}
                 />
               </Grid>
               <Grid size={{ xs: 4 }}>
@@ -319,6 +344,7 @@ export default function FuelEntryPage() {
                   rows={2}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  helperText={isOutsideStation ? 'Say where it was fueled (city or station name)' : undefined}
                 />
               </Grid>
 

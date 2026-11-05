@@ -134,10 +134,13 @@ export interface FuelConsumptionEntry {
   id:                   string;
   transportationUnitId: string;
   enteredById:          string;
-  fuelStationId:        string;
+  /** Null for an outside-station fill-up (fueled somewhere other than one of our stations). */
+  fuelStationId:        string | null;
   tankId?:              string | null;
   entryDate:            string;
-  fuelAmount:           number;
+  /** Null when not recorded (only possible for an outside-station fill-up). */
+  fuelAmount:           number | null;
+  isOutsideStation:     boolean;
   fuelUnit:             FuelUnit;
   mileageAtFueling:     number;
   costPerUnit?:         number | null;
@@ -167,7 +170,9 @@ export interface FuelMonthlySummaryRow {
   /** True when this row combines every driver's fill-ups for a county-wide vehicle. */
   isCountyWide:    boolean;
   reportingMonth:  string;
+  /** Fuel bought at our stations only; outside-station gallons are in outsideFuel. */
   totalFuelAmount: number;
+  outsideFuel:     { fuelUnit: FuelUnit; amount: number }[];
   fuelUnit:        FuelUnit;
   previousMileage: number | null;
   latestMileage:   number;

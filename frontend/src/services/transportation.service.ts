@@ -197,10 +197,14 @@ export const fuelEntryApi = {
 
   create: async (data: {
     transportationUnitId: string;
-    fuelStationId: string;
+    /** Required unless isOutsideStation. */
+    fuelStationId?: string;
     tankId?: string | null;
+    /** Fueled somewhere other than one of our stations (e.g. on a trip): no station, gallons optional. */
+    isOutsideStation?: boolean;
     entryDate?: string;
-    fuelAmount: number;
+    /** Required unless isOutsideStation. */
+    fuelAmount?: number;
     fuelUnit?: string;
     mileageAtFueling: number;
     costPerUnit?: number | null;
@@ -214,6 +218,7 @@ export const fuelEntryApi = {
   update: async (id: string, data: Partial<{
     transportationUnitId: string;
     fuelStationId: string;
+    isOutsideStation: boolean;
     entryDate: string;
     fuelAmount: number;
     fuelUnit: string;

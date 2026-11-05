@@ -2088,10 +2088,14 @@ model FuelConsumptionEntry {
   id                   String   @id @default(uuid())
   transportationUnitId String
   enteredById          String
-  fuelStationId        String
+  // Null only for an outside-station fill-up (isOutsideStation); a CHECK constraint in the
+  // database requires a station and gallons for every other entry.
+  fuelStationId        String?
   tankId               String?
   entryDate            DateTime @default(now())
-  fuelAmount           Decimal  @db.Decimal(10, 3)
+  // Optional for an outside-station fill-up (gallons not always known).
+  fuelAmount           Decimal? @db.Decimal(10, 3)
+  isOutsideStation     Boolean  @default(false)
   fuelUnit             String   @default("gallons")
   mileageAtFueling     Int
   costPerUnit          Decimal? @db.Decimal(10, 4)
@@ -2103,8 +2107,9 @@ model FuelConsumptionEntry {
 
   unit        TransportationUnit        @relation(fields: [transportationUnitId], references: [id])
   enteredBy   User                      @relation(fields: [enteredById], references: [id])
-  fuelStation TransportationFuelStation @relation(fields: [fuelStationId], references: [id])
-  tank        FuelTank?                 @relation(fields: [tankId], references: [id])
+  // Restrict (not Prisma's SetNull default for optional relations) keeps a station with entries undeletable.
+  fuelStation TransportationFuelStation? @relation(fields: [fuelStationId], references: [id], onDelete: Restrict)
+  tank        FuelTank?                  @relation(fields: [tankId], references: [id])
 
   @@index([transportationUnitId])
   @@index([enteredById])

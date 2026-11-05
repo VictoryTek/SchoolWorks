@@ -206,6 +206,8 @@ export class FuelConsumptionService {
       unitId: string;
       unitNumber: string;
       totalFuelAmount: number;
+      /** Gallons bought outside our stations, per fuel unit — kept apart from totalFuelAmount. */
+      outsideFuel: Map<string, number>;
       fuelUnit: string;
       entries: Entry[]; // chronological — `entries` is ordered by entryDate asc
     }>();
@@ -220,12 +222,17 @@ export class FuelConsumptionService {
           unitId: entry.transportationUnitId,
           unitNumber: entry.unit.unitNumber,
           totalFuelAmount: 0,
+          outsideFuel: new Map(),
           fuelUnit: entry.fuelUnit,
           entries: [],
         };
         groups.set(key, group);
       }
-      group.totalFuelAmount += Number(entry.fuelAmount);
+      if (!entry.isOutsideStation) {
+        group.totalFuelAmount += Number(entry.fuelAmount);
+      } else if (entry.fuelAmount !== null) {
+        group.outsideFuel.set(entry.fuelUnit, (group.outsideFuel.get(entry.fuelUnit) ?? 0) + Number(entry.fuelAmount));
+      }
       group.entries.push(entry);
     }
 
@@ -343,6 +350,7 @@ export class FuelConsumptionService {
         isCountyWide: g.combined,
         reportingMonth,
         totalFuelAmount: parseFloat(g.totalFuelAmount.toFixed(3)),
+        outsideFuel: [...g.outsideFuel].map(([fuelUnit, amount]) => ({ fuelUnit, amount: parseFloat(amount.toFixed(3)) })),
         fuelUnit: g.fuelUnit,
         previousMileage,
         latestMileage,
@@ -504,12 +512,20 @@ export class FuelConsumptionService {
       );
     }
 
-    // Validate the fuel station exists and is active
-    const station = await this.prisma.transportationFuelStation.findUnique({
-      where: { id: data.fuelStationId },
-    });
-    if (!station || !station.isActive) {
-      throw new ValidationError('The selected fuel station is not available', 'fuelStationId');
+    // An outside-station fill-up (e.g. on a trip) has no station and no tank; its mileage still
+    // counts, which keeps the vehicle's mileage chain correct.
+    const isOutside = data.isOutsideStation === true;
+    if (!isOutside) {
+      // Validate the fuel station exists and is active
+      const station = data.fuelStationId
+        ? await this.prisma.transportationFuelStation.findUnique({ where: { id: data.fuelStationId } })
+        : null;
+      if (!station || !station.isActive) {
+        throw new ValidationError('The selected fuel station is not available', 'fuelStationId');
+      }
+      if (data.fuelAmount === undefined) {
+        throw new ValidationError('Fuel amount is required', 'fuelAmount');
+      }
     }
 
     const entryDate = parseEntryDate(data.entryDate);
@@ -532,10 +548,11 @@ export class FuelConsumptionService {
       data: {
         transportationUnitId: data.transportationUnitId,
         enteredById:          requestingUserId,
-        fuelStationId:        data.fuelStationId,
-        tankId:               data.tankId ?? null,
+        fuelStationId:        isOutside ? null : data.fuelStationId,
+        tankId:               isOutside ? null : data.tankId ?? null,
+        isOutsideStation:     isOutside,
         entryDate,
-        fuelAmount:      data.fuelAmount,
+        fuelAmount:      data.fuelAmount ?? null,
         fuelUnit:        data.fuelUnit ?? 'gallons',
         mileageAtFueling: data.mileageAtFueling,
         costPerUnit:     data.costPerUnit ?? null,
@@ -546,7 +563,7 @@ export class FuelConsumptionService {
     });
 
     // Decrement tank fill level if a tank is linked
-    if (data.tankId) {
+    if (!isOutside && data.tankId && data.fuelAmount !== undefined) {
       const tankService = new FuelTankService(this.prisma);
       try {
         const fuelGallons = data.fuelUnit === 'liters'
@@ -616,15 +633,43 @@ export class FuelConsumptionService {
 
     const updateData: Record<string, unknown> = {};
     if (data.transportationUnitId !== undefined) updateData['transportationUnitId'] = data.transportationUnitId;
-    if (data.fuelStationId !== undefined) {
-      // Re-validate fuel station is active when it changes
-      const station = await this.prisma.transportationFuelStation.findUnique({
-        where: { id: data.fuelStationId },
-      });
-      if (!station || !station.isActive) {
-        throw new ValidationError('Fuel station is not active', 'fuelStationId');
+
+    // Normal fill-up vs outside-station fill-up (e.g. on a trip). The stored entry decides
+    // anything the request leaves out, so a half-edited entry can never be saved.
+    const willBeOutside = data.isOutsideStation ?? existing.isOutsideStation;
+    if (willBeOutside) {
+      if (data.fuelStationId !== undefined) {
+        throw new ValidationError('An outside-station fill-up cannot have a fuel station', 'fuelStationId');
       }
-      updateData['fuelStationId'] = data.fuelStationId;
+      // Switching would drop the tank link for good (an edit can't set a tank), leaving the tank's
+      // level out of step with its recorded fuel use.
+      if (!existing.isOutsideStation && existing.tankId) {
+        throw new ValidationError(
+          'This fill-up is linked to a fuel tank, so it cannot be changed to an outside-station fill-up',
+          'isOutsideStation',
+        );
+      }
+      updateData['isOutsideStation'] = true;
+      updateData['fuelStationId'] = null;
+      updateData['tankId'] = null;
+    } else {
+      if ((data.fuelStationId ?? existing.fuelStationId) === null) {
+        throw new ValidationError('A fuel station is required unless the fuel was bought outside our stations', 'fuelStationId');
+      }
+      if ((data.fuelAmount ?? existing.fuelAmount) === null) {
+        throw new ValidationError('Fuel amount is required unless the fuel was bought outside our stations', 'fuelAmount');
+      }
+      updateData['isOutsideStation'] = false;
+      if (data.fuelStationId !== undefined) {
+        // Re-validate fuel station is active when it changes
+        const station = await this.prisma.transportationFuelStation.findUnique({
+          where: { id: data.fuelStationId },
+        });
+        if (!station || !station.isActive) {
+          throw new ValidationError('Fuel station is not active', 'fuelStationId');
+        }
+        updateData['fuelStationId'] = data.fuelStationId;
+      }
     }
     if (data.fuelAmount !== undefined)           updateData['fuelAmount'] = data.fuelAmount;
     if (data.fuelUnit !== undefined)             updateData['fuelUnit'] = data.fuelUnit;

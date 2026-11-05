@@ -116,13 +116,20 @@ const entryDateFormat = () => z.string()
   .datetime({ offset: true })
   .or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/));
 
-/** Fields shared by create and update; only the entry-date rule differs. */
+/**
+ * Fields shared by create and update; only the entry-date rule differs.
+ * A station and gallons are required for a fill-up at one of our stations, but an
+ * outside-station fill-up (isOutsideStation, e.g. on a trip) has no station and its
+ * gallons are optional — the cross-field rules live in CreateFuelEntrySchema and, for
+ * edits, in FuelConsumptionService.update (which can see the stored entry).
+ */
 const fuelEntryFields = (entryDate: z.ZodType<string>) => ({
   transportationUnitId: z.string().uuid('Invalid transportation unit ID'),
-  fuelStationId:        z.string().uuid('Invalid fuel station ID'),
+  fuelStationId:        z.string().uuid('Invalid fuel station ID').optional(),
   tankId:               z.string().uuid('Invalid tank ID').optional().nullable(),
+  isOutsideStation:     z.boolean().optional(),
   entryDate:            entryDate.optional(),
-  fuelAmount:      z.number().positive().max(999.999),
+  fuelAmount:      z.number().positive().max(999.999).optional(),
   fuelUnit:        z.enum(FUEL_UNITS).optional(),
   mileageAtFueling: z.number().int().min(0),
   costPerUnit:     z.number().positive().max(999.9999).optional().nullable(),
@@ -137,7 +144,23 @@ export const CreateFuelEntrySchema = z.object(fuelEntryFields(
     const now = Date.now();
     return d <= new Date(now) && d >= new Date(now - SIXTY_DAYS_MS);
   }, 'Entry date cannot be in the future or more than 60 days ago'),
-));
+))
+  .refine((d) => d.isOutsideStation || !!d.fuelStationId, {
+    message: 'A fuel station is required unless the fuel was bought outside our stations',
+    path: ['fuelStationId'],
+  })
+  .refine((d) => d.isOutsideStation || d.fuelAmount !== undefined, {
+    message: 'Fuel amount is required unless the fuel was bought outside our stations',
+    path: ['fuelAmount'],
+  })
+  .refine((d) => !d.isOutsideStation || !d.fuelStationId, {
+    message: 'An outside-station fill-up cannot have a fuel station',
+    path: ['fuelStationId'],
+  })
+  .refine((d) => !d.isOutsideStation || !d.tankId, {
+    message: 'An outside-station fill-up cannot have a tank',
+    path: ['tankId'],
+  });
 
 export type CreateFuelEntryDto = z.infer<typeof CreateFuelEntrySchema>;
 
